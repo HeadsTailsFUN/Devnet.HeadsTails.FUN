@@ -1,0 +1,15 @@
+{
+  "name": "heads-or-tails",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.1.3",
+  "scripts": {
+    "dev": "pnpm --filter @heads-or-tails/web dev",
+    "build": "pnpm --filter @heads-or-tails/web build",
+    "lint": "pnpm --filter @heads-or-tails/web lint",
+    "typecheck": "pnpm --filter @heads-or-tails/web typecheck"
+  },
+  "devDependencies": {
+    "supabase": "2.117.0"
+  }
+}

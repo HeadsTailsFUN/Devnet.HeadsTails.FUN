@@ -1,0 +1,16 @@
+{
+  "name": "HeadsTails",
+  "symbol": "HTS",
+  "description": "HeadsTails Devnet Beta test token",
+  "image": "https://headstails-devnet-beta.vercel.app/assets/token/hts.png",
+  "external_url": "https://headstails-devnet-beta.vercel.app",
+  "properties": {
+    "category": "fungible",
+    "files": [
+      {
+        "uri": "https://headstails-devnet-beta.vercel.app/assets/token/hts.png",
+        "type": "image/png"
+      }
+    ]
+  }
+}

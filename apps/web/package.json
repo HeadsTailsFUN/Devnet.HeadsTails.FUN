@@ -1,0 +1,47 @@
+{
+  "name": "@heads-or-tails/web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "pnpm --filter @heads-or-tails/game-sdk build && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test:faucet": "node --import tsx --test lib/solana/faucetGate.test.ts --test-timeout=60000",
+    "test:component": "node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/game/LiveGameClient.selection.test.tsx components/game/VisibleFlipAnchor.test.tsx components/history/RecentFlips.test.tsx components/status/QueueStatusBar.test.tsx --test-timeout=180000",
+    "test:reliability": "node --import tsx --test lib/solana/rpc.test.ts lib/solana/errors.test.ts lib/solana/wallets.test.ts lib/solana/txRecovery.test.ts lib/solana/sponsor.test.ts lib/solana/sponsorRoom.test.ts lib/solana/session.test.ts lib/solana/faucetGate.test.ts lib/solana/matchCrank.test.ts lib/solana/walletStandard.test.ts lib/solana/queueSnapshot.test.ts lib/solana/history.test.ts lib/solana/signMessage.test.ts lib/solana/roomsIsolation.test.ts lib/game/uiGuards.test.ts lib/game/rooms.test.ts lib/game/disconnectedRooms.test.ts lib/game/pickSideCopy.test.ts lib/game/flipReveal.test.ts lib/game/selectionIntent.test.ts lib/game/entryFunding.test.ts lib/settlement/backoff.test.ts lib/settlement/reconcileScope.test.ts lib/auth/message.test.ts lib/auth/session.test.ts lib/auth/verify-flow.test.ts lib/profiles/profiles.test.ts lib/profile/stats.test.ts lib/leaderboard.test.ts lib/chat/validate.test.ts lib/chat/copy.test.ts lib/chat/authSend.test.ts lib/claims/pending.test.ts lib/admin/sessionFlow.test.ts lib/admin/webAdminAuth.test.ts lib/admin/usersGames.test.ts lib/admin/gameLoading.test.ts lib/admin/observability.test.ts lib/admin/gameConfig.test.ts lib/solana/roomsInit.test.ts lib/history/indexSettlement.test.ts lib/game/selectionGuard.test.ts lib/game/matchLabel.test.ts lib/game/flipFeel.test.ts lib/solana/mobileWallets.test.ts lib/supabase/browserClient.test.ts lib/supabase/browserClient.null.test.ts lib/server/roomMaintain.test.ts lib/solana/welcomeTokens.test.ts lib/solana/welcomeGrantRetry.test.ts lib/solana/welcomeGrantDiagnostic.test.ts lib/game/cancelTarget.test.ts lib/solana/walletRegistry.test.ts lib/game/gameCopy.test.ts lib/chat/reliability.test.ts lib/settlement/memo.test.ts lib/server/cron.test.ts lib/referrals/referrals.test.ts lib/referrals/attributionHandoff.test.ts lib/referrals/referralEngine.test.ts lib/airdrop/airdrop.test.ts lib/airdrop/socialLifecycle.test.ts lib/airdrop/xIdentity.test.ts lib/airdrop/atomicRewards.test.ts lib/airdrop/gameplayCap.test.ts lib/airdrop/gameplayEventDay.test.ts lib/airdrop/exclusions.test.ts lib/airdrop/campaign.test.ts lib/bugs/bugs.test.ts lib/bugs/bountyRules.test.ts lib/growth/migration.test.ts lib/site/socialLinks.test.ts lib/qa/finalQaFixes.test.ts --test-timeout=60000",
+    "test:release": "node --import tsx --test lib/solana/htsReleaseGate.test.ts lib/solana/htsClientGuard.test.ts lib/solana/htsSponsor.test.ts lib/solana/faucetGate.test.ts lib/solana/sponsor.test.ts lib/solana/sponsorRoom.test.ts lib/solana/roomsInit.test.ts lib/solana/roomsIsolation.test.ts lib/solana/queueSnapshot.test.ts lib/solana/welcomeTokens.test.ts lib/solana/welcomeGrantRetry.test.ts lib/game/rooms.test.ts lib/history/indexSettlement.test.ts lib/server/roomMaintain.test.ts lib/airdrop/gameplayCap.test.ts lib/airdrop/gameplayEventDay.test.ts lib/referrals/referralEngine.test.ts lib/admin/webAdminAuth.test.ts"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "0.32.1",
+    "@heads-or-tails/game-sdk": "workspace:*",
+    "@solana/spl-token": "0.4.12",
+    "@solana/wallet-standard-features": "1.5.0",
+    "@solana/web3.js": "1.98.4",
+    "@supabase/supabase-js": "2.116.0",
+    "@wallet-standard/app": "1.1.1",
+    "@wallet-standard/base": "^1.1.1",
+    "@wallet-standard/features": "1.1.1",
+    "bs58": "^6.0.0",
+    "next": "15.5.28",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
+    "tweetnacl": "1.0.3"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "4.1.13",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/jsdom": "^30.0.0",
+    "@types/node": "22.18.6",
+    "@types/react": "19.1.13",
+    "@types/react-dom": "19.1.9",
+    "eslint": "8.57.1",
+    "eslint-config-next": "15.5.28",
+    "jsdom": "^30.1.1",
+    "tailwindcss": "4.1.13",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  }
+}

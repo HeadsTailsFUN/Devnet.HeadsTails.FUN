@@ -1,0 +1,218 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fredoka", "Baloo 2", system-ui, sans-serif;
+  --font-body: "Inter", system-ui, -apple-system, sans-serif;
+
+  --color-ink: #05070b;
+  --color-heads: #3dffc8;
+  --color-tails: #ff7ebd;
+  --color-solana: #a06bff;
+}
+
+:root {
+  --bg-primary: #05070b;
+  --bg-panel: rgba(13, 19, 27, 0.82);
+  --bg-panel-hover: rgba(22, 30, 41, 0.92);
+  --border-subtle: rgba(255, 255, 255, 0.09);
+  --text-primary: #f2f6f8;
+  --text-secondary: #9aa9b8;
+  --heads: #3dffc8;
+  --heads-glow: rgba(61, 255, 200, 0.42);
+  --tails: #ff7ebd;
+  --tails-glow: rgba(255, 126, 189, 0.42);
+  --solana-purple: #a06bff;
+  --success: #3dffc8;
+  --error: #ff5d7a;
+  --radius-lg: 20px;
+  --radius-md: 16px;
+  /* Desktop side rails: Leaderboard and Global Chat share one width token
+     so the two panels stay visually symmetrical around the center game. */
+  --desktop-side-panel-width: 340px;
+}
+
+html {
+  background: var(--bg-primary);
+  color-scheme: dark;
+}
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Responsive hardening: no unintended horizontal overflow on any viewport. */
+html,
+body,
+main,
+header,
+footer {
+  min-width: 0;
+}
+
+body > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
+}
+
+/* Chat input must never be manually resizable (layout stability). */
+textarea[aria-label="Chat message"] {
+  resize: none;
+}
+
+body {
+  margin: 0;
+  min-height: 100svh;
+  background:
+    linear-gradient(180deg, rgba(5, 7, 11, 0.84) 0%, rgba(5, 7, 11, 0.58) 34%, rgba(5, 7, 11, 0.6) 62%, rgba(5, 7, 11, 0.94) 100%),
+    url("/assets/background-panorama.webp") center bottom / cover no-repeat,
+    radial-gradient(900px 420px at 50% -80px, rgba(61, 255, 200, 0.1), transparent 60%),
+    radial-gradient(800px 380px at 88% 30%, rgba(153, 69, 255, 0.12), transparent 60%),
+    radial-gradient(900px 520px at 8% 62%, rgba(255, 126, 189, 0.09), transparent 62%),
+    radial-gradient(1200px 620px at 50% 112%, rgba(20, 241, 149, 0.1), transparent 60%),
+    linear-gradient(180deg, #05070b 0%, #070b12 46%, #05070b 100%);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+.safe-top { padding-top: max(1.25rem, env(safe-area-inset-top)); }
+.safe-bottom { padding-bottom: max(1rem, env(safe-area-inset-bottom)); }
+
+/* user-supplied panorama + ambient sparkles; photo stays behind content */
+.bg-arena::before,
+.bg-arena::after {
+  content: "";
+  position: fixed;
+  inset-inline: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.bg-arena::before {
+  top: 0;
+  height: 38vh;
+  background:
+    radial-gradient(1px 1px at 22% 30%, rgba(255, 255, 255, 0.7), transparent 60%),
+    radial-gradient(2px 2px at 68% 18%, rgba(61, 255, 200, 0.9), transparent 70%),
+    radial-gradient(1.5px 1.5px at 76% 42%, rgba(255, 126, 189, 0.9), transparent 70%);
+  opacity: 0.7;
+}
+.bg-arena::after {
+  bottom: 0;
+  height: 34vh;
+  background:
+    radial-gradient(700px 220px at 18% 100%, rgba(61, 255, 200, 0.14), transparent 65%),
+    radial-gradient(700px 240px at 82% 100%, rgba(255, 126, 189, 0.14), transparent 65%),
+    linear-gradient(180deg, transparent, rgba(0, 0, 0, 0.55));
+}
+
+.glass {
+  background: var(--bg-panel);
+  border: 1px solid var(--border-subtle);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+
+.neon-heads {
+  box-shadow: 0 0 0 1px rgba(61, 255, 200, 0.35), 0 8px 32px -8px var(--heads-glow);
+}
+.neon-tails {
+  box-shadow: 0 0 0 1px rgba(255, 126, 189, 0.35), 0 8px 32px -8px var(--tails-glow);
+}
+
+.btn-heads {
+  background: linear-gradient(180deg, #7dffd9, var(--heads));
+  color: #04120d;
+  box-shadow: 0 10px 34px -10px var(--heads-glow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.btn-heads:hover { filter: brightness(1.06); }
+.btn-heads:active { transform: translateY(1px) scale(0.99); }
+
+.btn-tails {
+  background: linear-gradient(180deg, #ffa4d2, var(--tails));
+  color: #1c0713;
+  box-shadow: 0 10px 34px -10px var(--tails-glow), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.btn-tails:hover { filter: brightness(1.06); }
+.btn-tails:active { transform: translateY(1px) scale(0.99); }
+
+:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+/* hero coin: fixed stage so Default/Heads/Tails share one bounding box */
+.coin-scene { perspective: 1200px; }
+.coin-stage {
+  position: relative;
+  aspect-ratio: 1;
+}
+.coin-float {
+  animation: coin-float 5s ease-in-out infinite;
+  will-change: transform;
+}
+.coin-3d {
+  transform-style: preserve-3d;
+}
+.coin-3d.is-flipping { animation: coin-spin 1.15s linear infinite; }
+/* JS-driven flip (rAF): no CSS animation while the loop owns the transform.
+   Kept separate from is-flipping so reduced-motion still gets the CSS fade. */
+.coin-3d.is-driven { animation: none; will-change: transform; }
+.coin-3d.is-heads { animation: none; transform: rotateY(0deg); transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.64, 1); }
+.coin-3d.is-tails { animation: none; transform: rotateY(180deg); transition: transform 0.55s cubic-bezier(0.34, 1.3, 0.64, 1); }
+
+@keyframes coin-float {
+  0%, 100% { transform: translateY(0) rotate(-1.2deg); }
+  50% { transform: translateY(-10px) rotate(1.2deg); }
+}
+@keyframes coin-spin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+
+.coin-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* subtle per-face glow; artwork keeps its own built-in rim light */
+.coin-stage { transition: filter 0.3s ease; }
+.coin-glow-default { filter: drop-shadow(0 0 22px rgba(61, 255, 200, 0.28)) drop-shadow(0 0 22px rgba(255, 126, 189, 0.22)); }
+.coin-glow-heads { filter: drop-shadow(0 0 24px rgba(61, 255, 200, 0.32)); }
+.coin-glow-tails { filter: drop-shadow(0 0 24px rgba(255, 126, 189, 0.32)); }
+
+@media (prefers-reduced-motion: reduce) {
+  .coin-float,
+  .coin-3d {
+    animation: none !important;
+  }
+  /* restrained fade instead of rapid 3D spin; result still fades to final face */
+  .coin-3d.is-flipping {
+    animation: coin-fade 2.4s ease-in-out infinite !important;
+  }
+  * {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes coin-fade {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.55; }
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }

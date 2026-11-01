@@ -1,0 +1,23 @@
+{
+  "name": "@heads-or-tails/keeper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --import tsx dist/run.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "dev": "node --import tsx src/run.ts"
+  },
+  "dependencies": {
+    "@heads-or-tails/game-sdk": "workspace:*",
+    "@coral-xyz/anchor": "0.32.1",
+    "@solana/spl-token": "0.4.12",
+    "@solana/web3.js": "1.98.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.6",
+    "tsx": "4.20.6",
+    "typescript": "5.9.2"
+  }
+}

@@ -1,0 +1,32 @@
+[package]
+name = "heads-or-tails"
+version = "0.1.0"
+description = "Heads or Tails — FIFO coin-flip game with ORAO VRF and permissionless settlement"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "heads_or_tails"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+anchor-lang = { version = "0.32.2", features = ["init-if-needed"] }
+anchor-spl = { version = "0.32.2", features = ["token", "associated_token"] }
+orao-solana-vrf = { version = "0.7.0", default-features = false, features = ["cpi"] }
+solana-hash = "2.2"
+solana-sha256-hasher = "2.2"
+# anchor-syn's IDL module needs Span::local_file (proc-macro2 span-locations).
+proc-macro2 = { version = "1.0", features = ["span-locations"] }
+
+# Vendored anchor-syn 0.32.2 with a one-line stable-compat fix in
+# src/idl/defined.rs (upstream `.unwrap().local_file()` does not compile on
+# stable Rust). See vendor/anchor-syn/README.HEADSTAILS.md.
+[patch.crates-io]
+anchor-syn = { path = "../../vendor/anchor-syn" }

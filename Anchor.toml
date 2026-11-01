@@ -1,0 +1,19 @@
+[features]
+resolution = true
+seeds = true
+skip-lint = false
+
+[programs.localnet]
+heads_or_tails = "AFVnPWFoYMG1tdmRFUttmf8kf6gpi24LVkYzNmUSni7k"
+
+[programs.devnet]
+heads_or_tails = "AFVnPWFoYMG1tdmRFUttmf8kf6gpi24LVkYzNmUSni7k"
+
+[provider]
+cluster = "localnet"
+wallet = "~/.config/solana/id.json"
+
+[test]
+startup_wait = 8000
+shutdown_wait = 3000
+upgradeable = true

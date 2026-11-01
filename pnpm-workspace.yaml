@@ -1,0 +1,15 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+allowBuilds:
+  '@tailwindcss/oxide': true
+  bigint-buffer: true
+  bufferutil: true
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  utf-8-validate: true
+onlyBuiltDependencies:
+  - "@tailwindcss/oxide"
+  - sharp
+  - unrs-resolver
