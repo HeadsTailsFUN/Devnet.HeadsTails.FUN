@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { Wallet, WalletAccount } from "@wallet-standard/base";
 import { shortAddr } from "@/components/wallet/WalletProvider";
-import { ensureSession } from "@/lib/auth/client";
+import { currentSessionWallet, ensureSession } from "@/lib/auth/client";
 import type { PublicProfile } from "@/lib/profiles/types";
 import { BUG_SEVERITIES } from "@/lib/bugs/validate";
 import { campaignPostUrl } from "@/lib/airdrop/campaign";
+import { TeamPreference, type Team } from "./TeamPreference";
 import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
 
 type Tab = "profile" | "referrals" | "airdrop" | "bug";
@@ -37,13 +38,48 @@ export function ProfileModal({
 }) {
   const [tab, setTab] = useState<Tab>("profile");
   const [nameInput, setNameInput] = useState("");
-  const [busy, setBusy] = useState<"name" | "avatar" | null>(null);
+  const [busy, setBusy] = useState<"name" | "avatar" | "team" | null>(null);
   const [note, setNote] = useState<string | null>(null);
+  const [team, setTeam] = useState<Team>(null);
+  useEffect(() => {
+    let stopped = false;
+    void fetch(`/api/profile/team?wallet=${encodeURIComponent(address)}`, {
+      cache: "no-store",
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!stopped && data) setTeam(data.team);
+      })
+      .catch(() => undefined);
+    return () => {
+      stopped = true;
+    };
+  }, [address]);
+  const saveTeam = async (next: Team) => {
+    if (busy) return;
+    setBusy("team");
+    try {
+      if (!(await authed())) return;
+      const r = await fetch("/api/profile/team", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ team: next, wallet: address }),
+      });
+      if (!r.ok) throw Error("Could not save team");
+      setTeam(next);
+      onChanged();
+    } catch {
+      setNote("Could not save team. Please retry.");
+    } finally {
+      setBusy(null);
+    }
+  };
   const fileRef = useRef<HTMLInputElement | null>(null);
 
   const authed = async (): Promise<boolean> => {
     if (!wallet || !account) return false;
     try {
+      if ((await currentSessionWallet()) === address) return true;
       await ensureSession(wallet, account);
       return true;
     } catch (e) {
@@ -63,7 +99,10 @@ export function ProfileModal({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ username: nameInput }),
       });
-      const b = (await res.json().catch(() => null)) as { error?: string; username?: string } | null;
+      const b = (await res.json().catch(() => null)) as {
+        error?: string;
+        username?: string;
+      } | null;
       if (!res.ok) {
         setNote(b?.error ?? "Could not save username.");
         return;
@@ -83,8 +122,13 @@ export function ProfileModal({
       if (!(await authed())) return;
       const form = new FormData();
       form.append("avatar", file);
-      const res = await fetch("/api/profile/avatar", { method: "POST", body: form });
-      const b = (await res.json().catch(() => null)) as { error?: string } | null;
+      const res = await fetch("/api/profile/avatar", {
+        method: "POST",
+        body: form,
+      });
+      const b = (await res.json().catch(() => null)) as {
+        error?: string;
+      } | null;
       if (!res.ok) {
         setNote(b?.error ?? "Avatar upload failed.");
         return;
@@ -96,26 +140,74 @@ export function ProfileModal({
   };
 
   const winRate =
-    profile && profile.winRate !== null ? `${(profile.winRate * 100).toFixed(1)}%` : "—";
+    profile && profile.winRate !== null
+      ? `${(profile.winRate * 100).toFixed(1)}%`
+      : "—";
 
   return (
-    <div role="dialog" aria-modal="true" aria-label="Profile" className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <button type="button" aria-label="Close profile" onClick={onClose} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Profile"
+      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+    >
+      <button
+        type="button"
+        aria-label="Close profile"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+      />
       <div className="glass relative flex max-h-[85svh] w-full max-w-sm flex-col overflow-hidden rounded-3xl p-5">
         <div className="flex items-center gap-3">
-          {profile?.avatarUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={profile.avatarUrl} alt="" width={44} height={44} className="h-11 w-11 rounded-full object-cover" />
-          ) : (
-            <span aria-hidden="true" className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white">
-              {(profile?.username ?? address).slice(0, 1).toUpperCase()}
-            </span>
-          )}
+          <div className="flex shrink-0 flex-col items-center gap-1">
+            {profile?.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={profile.avatarUrl}
+                alt=""
+                width={44}
+                height={44}
+                className="h-11 w-11 rounded-full object-cover"
+              />
+            ) : (
+              <span
+                aria-hidden="true"
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-lg font-bold text-white"
+              >
+                {(profile?.username ?? address).slice(0, 1).toUpperCase()}
+              </span>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void uploadAvatar(f);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              title="JPEG, PNG or WebP, up to 2 MB"
+              onClick={() => fileRef.current?.click()}
+              disabled={busy !== null}
+              className="min-h-[36px] px-2 text-xs text-white/70 hover:text-white"
+              aria-label="Change avatar"
+            >
+              {busy === "avatar" ? "Uploading…" : "Change"}
+            </button>
+          </div>
           <div className="min-w-0">
-            <p className={`truncate text-[16px] font-bold ${profile?.rankColorClass ?? "text-white"}`}>
+            <p
+              className={`truncate text-[16px] font-bold ${profile?.rankColorClass ?? "text-white"}`}
+            >
               {profile?.username ?? shortAddr(address)}
             </p>
-            <p className="truncate text-[12px] text-[var(--text-secondary)]">{shortAddr(address)}</p>
+            <p className="truncate text-[12px] text-[var(--text-secondary)]">
+              {shortAddr(address)}
+            </p>
           </div>
           {profile && (
             <span className="ml-auto rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold tracking-widest text-white/70">
@@ -124,7 +216,11 @@ export function ProfileModal({
           )}
         </div>
 
-        <div role="tablist" aria-label="Profile sections" className="mt-3 flex gap-1.5 overflow-x-auto">
+        <div
+          role="tablist"
+          aria-label="Profile sections"
+          className="mt-3 flex gap-1.5 overflow-x-auto"
+        >
           {(["profile", "referrals", "airdrop", "bug"] as Tab[]).map((t) => (
             <button
               key={t}
@@ -133,10 +229,18 @@ export function ProfileModal({
               type="button"
               onClick={() => setTab(t)}
               className={`min-h-[36px] shrink-0 rounded-2xl px-3 text-[12px] font-bold transition ${
-                tab === t ? "bg-white text-black" : "border border-white/15 text-white hover:bg-white/10"
+                tab === t
+                  ? "bg-white text-black"
+                  : "border border-white/15 text-white hover:bg-white/10"
               }`}
             >
-              {t === "profile" ? "Profile" : t === "referrals" ? "Referrals" : t === "airdrop" ? "Airdrop" : "Report Bug"}
+              {t === "profile"
+                ? "Profile"
+                : t === "referrals"
+                  ? "Referrals"
+                  : t === "airdrop"
+                    ? "Airdrop"
+                    : "Report Bug"}
             </button>
           ))}
         </div>
@@ -151,15 +255,23 @@ export function ProfileModal({
                   ["Losses", String(profile?.losses ?? 0)],
                   ["Win %", winRate],
                 ].map(([k, v]) => (
-                  <div key={k} className="rounded-2xl border border-white/10 bg-white/5 px-2 py-2">
-                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">{k}</dt>
+                  <div
+                    key={k}
+                    className="rounded-2xl border border-white/10 bg-white/5 px-2 py-2"
+                  >
+                    <dt className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+                      {k}
+                    </dt>
                     <dd className="text-[15px] font-bold text-white">{v}</dd>
                   </div>
                 ))}
               </dl>
 
               <div className="mt-4">
-                <label htmlFor="ht-username" className="text-[12px] font-bold text-white">
+                <label
+                  htmlFor="ht-username"
+                  className="text-[12px] font-bold text-white"
+                >
                   {profile?.username ? "Change username" : "Choose username"}
                 </label>
                 <div className="mt-1 flex gap-2">
@@ -181,31 +293,19 @@ export function ProfileModal({
                     {busy === "name" ? "Saving…" : "Save"}
                   </button>
                 </div>
-                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">3–18 chars, letters/numbers/underscore. Changeable once per 24h.</p>
+                <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
+                  3–18 chars, letters/numbers/underscore. Changeable once per
+                  24h.
+                </p>
               </div>
 
-              <div className="mt-3">
-                <input
-                  ref={fileRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  className="hidden"
-                  onChange={(e) => {
-                    const f = e.target.files?.[0];
-                    if (f) void uploadAvatar(f);
-                    e.target.value = "";
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => fileRef.current?.click()}
-                  disabled={busy !== null}
-                  className="inline-flex min-h-[40px] w-full items-center justify-center rounded-2xl border border-white/15 px-4 text-[13px] font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
-                >
-                  {busy === "avatar" ? "Uploading…" : "Upload avatar (JPEG/PNG/WEBP, max 2 MB)"}
-                </button>
-              </div>
+              <div className="mt-3"></div>
 
+              <TeamPreference
+                value={team}
+                busy={busy !== null}
+                onSave={(next) => void saveTeam(next)}
+              />
               {pendingPayout && (
                 <div className="mt-4 rounded-2xl border border-amber-300/30 bg-amber-300/5 px-4 py-3">
                   <p className="text-[13px] font-bold text-amber-200">
@@ -229,7 +329,10 @@ export function ProfileModal({
               )}
 
               {note && (
-                <p role="alert" className="mt-3 text-[13px] font-medium text-[#ff9db1]">
+                <p
+                  role="alert"
+                  className="mt-3 text-[13px] font-medium text-[#ff9db1]"
+                >
                   {note}
                 </p>
               )}
@@ -243,8 +346,12 @@ export function ProfileModal({
               </button>
             </div>
           )}
-          {tab === "referrals" && <ReferralsTab wallet={wallet} account={account} />}
-          {tab === "airdrop" && <AirdropTab wallet={wallet} account={account} />}
+          {tab === "referrals" && (
+            <ReferralsTab wallet={wallet} account={account} />
+          )}
+          {tab === "airdrop" && (
+            <AirdropTab wallet={wallet} account={account} />
+          )}
           {tab === "bug" && <BugTab wallet={wallet} account={account} />}
         </div>
 
@@ -260,7 +367,11 @@ export function ProfileModal({
   );
 }
 
-function useAuthedFetch<T>(url: string | null, wallet: Wallet | null, account: WalletAccount | null) {
+function useAuthedFetch<T>(
+  url: string | null,
+  wallet: Wallet | null,
+  account: WalletAccount | null,
+) {
   const [data, setData] = useState<T | null>(null);
   const [needsAuth, setNeedsAuth] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -298,7 +409,13 @@ function useAuthedFetch<T>(url: string | null, wallet: Wallet | null, account: W
   return { data, needsAuth, loading, error, reload: load };
 }
 
-function ReferralsTab({ wallet, account }: { wallet: Wallet | null; account: WalletAccount | null }) {
+function ReferralsTab({
+  wallet,
+  account,
+}: {
+  wallet: Wallet | null;
+  account: WalletAccount | null;
+}) {
   const { data, needsAuth, loading, error, reload } = useAuthedFetch<{
     code?: string;
     link?: string;
@@ -306,14 +423,21 @@ function ReferralsTab({ wallet, account }: { wallet: Wallet | null; account: Wal
     qualified?: number;
     pendingInvites?: number;
     referralPoints?: number;
-    myReferral?: { status: string; eligibleGames: number; gamesNeeded: number } | null;
+    myReferral?: {
+      status: string;
+      eligibleGames: number;
+      gamesNeeded: number;
+    } | null;
   }>("/api/referrals/mine", wallet, account);
   const [copied, setCopied] = useState(false);
-  if (loading && !data) return <p className="text-[13px] text-white/60">Loading…</p>;
+  if (loading && !data)
+    return <p className="text-[13px] text-white/60">Loading…</p>;
   if (needsAuth)
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
-        <p className="text-[13px] text-white/70">Verify wallet ownership to view referrals.</p>
+        <p className="text-[13px] text-white/70">
+          Verify wallet ownership to view referrals.
+        </p>
         <button
           type="button"
           onClick={() => void reload(true)}
@@ -323,13 +447,20 @@ function ReferralsTab({ wallet, account }: { wallet: Wallet | null; account: Wal
         </button>
       </div>
     );
-  if (error) return <p role="alert" className="text-[13px] text-[#ff9db1]">{error}</p>;
+  if (error)
+    return (
+      <p role="alert" className="text-[13px] text-[#ff9db1]">
+        {error}
+      </p>
+    );
   const link = data?.link ?? "";
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-[12px] font-bold text-white">Referral link</p>
-        <p className="mt-1 break-all text-[12px] text-white/70">{link || "—"}</p>
+        <p className="mt-1 break-all text-[12px] text-white/70">
+          {link || "—"}
+        </p>
         <button
           type="button"
           onClick={() => {
@@ -353,8 +484,13 @@ function ReferralsTab({ wallet, account }: { wallet: Wallet | null; account: Wal
           ["Qualified", String(data?.qualified ?? 0)],
           ["Points", String(data?.referralPoints ?? 0)],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-2xl border border-white/10 bg-white/5 px-2 py-2">
-            <dt className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">{k}</dt>
+          <div
+            key={k}
+            className="rounded-2xl border border-white/10 bg-white/5 px-2 py-2"
+          >
+            <dt className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+              {k}
+            </dt>
             <dd className="text-[15px] font-bold text-white">{v}</dd>
           </div>
         ))}
@@ -368,11 +504,13 @@ function ReferralsTab({ wallet, account }: { wallet: Wallet | null; account: Wal
       )}
       {(data?.pendingInvites ?? 0) > 0 && (
         <p className="text-center text-[12px] font-semibold text-white/70">
-          {data?.pendingInvites} invite{data?.pendingInvites === 1 ? "" : "s"} pending qualification
+          {data?.pendingInvites} invite{data?.pendingInvites === 1 ? "" : "s"}{" "}
+          pending qualification
         </p>
       )}
       <p className="text-[11px] leading-relaxed text-white/40">
-        3 settled eligible games → +25 invitee and +50 referrer, once. Game 4+: +2 per game (max 25/invitee/day, max 500 recurring/day).
+        3 settled eligible games → +25 invitee and +50 referrer, once. Game 4+:
+        +2 per game (max 25/invitee/day, max 500 recurring/day).
       </p>
     </div>
   );
@@ -381,7 +519,8 @@ function ReferralsTab({ wallet, account }: { wallet: Wallet | null; account: Wal
 /** Small Pending/Verified/Rejected pill — pending points are never verified points. */
 function StatusPill({ status }: { status: string | null }) {
   const s = (status ?? "").toLowerCase();
-  const label = s === "verified" ? "Verified" : s === "rejected" ? "Rejected" : "Pending";
+  const label =
+    s === "verified" ? "Verified" : s === "rejected" ? "Rejected" : "Pending";
   const cls =
     s === "verified"
       ? "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"
@@ -389,13 +528,21 @@ function StatusPill({ status }: { status: string | null }) {
         ? "border-red-400/30 bg-red-500/10 text-red-200"
         : "border-amber-300/30 bg-amber-300/10 text-amber-200";
   return (
-    <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${cls}`}>
+    <span
+      className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${cls}`}
+    >
       {label}
     </span>
   );
 }
 
-function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: WalletAccount | null }) {
+function AirdropTab({
+  wallet,
+  account,
+}: {
+  wallet: Wallet | null;
+  account: WalletAccount | null;
+}) {
   const { data, needsAuth, loading, error, reload } = useAuthedFetch<{
     season?: string;
     verifiedTotal?: number;
@@ -436,14 +583,25 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
       const r = await fetch("/api/airdrop/social-claim", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ task, handle, evidenceUrl: task === "reply" ? replyUrl : undefined }),
+        body: JSON.stringify({
+          task,
+          handle,
+          evidenceUrl: task === "reply" ? replyUrl : undefined,
+        }),
       });
-      const b = (await r.json().catch(() => null)) as { error?: string; status?: string } | null;
+      const b = (await r.json().catch(() => null)) as {
+        error?: string;
+        status?: string;
+      } | null;
       if (!r.ok) {
         setClaimNote(b?.error ?? "Could not save claim.");
         return;
       }
-      setClaimNote(b?.status === "already-claimed" ? "Already claimed." : "Pending verification.");
+      setClaimNote(
+        b?.status === "already-claimed"
+          ? "Already claimed."
+          : "Pending verification.",
+      );
       if (task === "connect_x") setHandle("");
       if (task === "reply") setReplyUrl("");
       void reload(false);
@@ -473,12 +631,19 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
           evidenceUrl: task === "reply" ? editReplyUrl : undefined,
         }),
       });
-      const b = (await r.json().catch(() => null)) as { error?: string; status?: string } | null;
+      const b = (await r.json().catch(() => null)) as {
+        error?: string;
+        status?: string;
+      } | null;
       if (!r.ok) {
         setClaimNote(b?.error ?? "Could not save edit.");
         return;
       }
-      setClaimNote(b?.status === "unchanged" ? "No changes." : "Updated — back to pending review.");
+      setClaimNote(
+        b?.status === "unchanged"
+          ? "No changes."
+          : "Updated — back to pending review.",
+      );
       if (task === "connect_x") setEditingX(false);
       else setEditingReply(false);
       void reload(false);
@@ -486,11 +651,14 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
       setClaiming(false);
     }
   };
-  if (loading && !data) return <p className="text-[13px] text-white/60">Loading…</p>;
+  if (loading && !data)
+    return <p className="text-[13px] text-white/60">Loading…</p>;
   if (needsAuth)
     return (
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
-        <p className="text-[13px] text-white/70">Verify wallet ownership to view airdrop points.</p>
+        <p className="text-[13px] text-white/70">
+          Verify wallet ownership to view airdrop points.
+        </p>
         <button
           type="button"
           onClick={() => void reload(true)}
@@ -500,13 +668,24 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
         </button>
       </div>
     );
-  if (error) return <p role="alert" className="text-[13px] text-[#ff9db1]">{error}</p>;
+  if (error)
+    return (
+      <p role="alert" className="text-[13px] text-[#ff9db1]">
+        {error}
+      </p>
+    );
   return (
     <div className="flex flex-col gap-3">
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
-        <p className="text-[11px] font-bold tracking-widest text-white/50">SEASON {data?.season ?? "DEVNET_BETA"}</p>
-        <p className="mt-1 text-[26px] font-bold text-white">{data?.verifiedTotal ?? 0}</p>
-        <p className="text-[11px] text-white/50">verified points{(data?.pendingTotal ?? 0) > 0 ? ` • ${data?.pendingTotal} pending` : ""}</p>
+        <p className="mt-1 text-[26px] font-bold text-white">
+          {data?.verifiedTotal ?? 0}
+        </p>
+        <p className="text-[11px] text-white/50">
+          verified points
+          {(data?.pendingTotal ?? 0) > 0
+            ? ` • ${data?.pendingTotal} pending`
+            : ""}
+        </p>
       </div>
       <dl className="grid grid-cols-2 gap-2 text-center">
         {[
@@ -515,27 +694,52 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
           ["Referral", String(data?.verified?.referral ?? 0)],
           ["Social", String(data?.verified?.social ?? 0)],
         ].map(([k, v]) => (
-          <div key={k} className="rounded-2xl border border-white/10 bg-white/5 px-2 py-2">
-            <dt className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">{k}</dt>
+          <div
+            key={k}
+            className="rounded-2xl border border-white/10 bg-white/5 px-2 py-2"
+          >
+            <dt className="text-[10px] font-semibold uppercase tracking-wider text-[var(--text-secondary)]">
+              {k}
+            </dt>
             <dd className="text-[15px] font-bold text-white">{v}</dd>
           </div>
         ))}
       </dl>
-      <p className="text-[11px] leading-relaxed text-white/40">Points are reviewed for eligibility before any airdrop distribution.</p>
-      <p className="text-[11px] leading-relaxed text-white/40">Social activity is re-checked before rewards are finalized.</p>
+      <p className="text-[11px] leading-relaxed text-white/40">
+        Points are reviewed for eligibility before any airdrop distribution.
+      </p>
+      <p className="text-[11px] leading-relaxed text-white/40">
+        Social activity is re-checked before rewards are finalized.
+      </p>
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-[12px] font-bold text-white">X tasks</p>
         <p className="mt-1 text-[11px] text-white/50">
-          <a href={SOCIAL_LINKS.x} target="_blank" rel="noopener noreferrer" className="underline">Official X</a>
+          <a
+            href={SOCIAL_LINKS.x}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline"
+          >
+            Official X
+          </a>
           {" • "}Link +100 • Reply +50 (pending until reviewed)
         </p>
         {campaignUrl && (
           <p className="mt-1 text-[11px] text-white/50">
-            <a href={campaignUrl} target="_blank" rel="noopener noreferrer" className="underline">View campaign post ↗</a>
+            <a
+              href={campaignUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline"
+            >
+              View campaign post ↗
+            </a>
           </p>
         )}
         {/* Row 1 — X account: persisted server-side, survives refresh. */}
-        <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-white/50">X account</p>
+        <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-white/50">
+          X account
+        </p>
         {social?.handle ? (
           editingX ? (
             <div className="mt-1.5 flex gap-2">
@@ -566,8 +770,12 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
             </div>
           ) : (
             <div className="mt-1.5 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
-              <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-white">@{social.handle.replace(/^@/, "")}</span>
-              <StatusPill status={social.handleStatus ?? social.connectStatus} />
+              <span className="min-w-0 flex-1 truncate text-[13px] font-bold text-white">
+                @{social.handle.replace(/^@/, "")}
+              </span>
+              <StatusPill
+                status={social.handleStatus ?? social.connectStatus}
+              />
               <button
                 type="button"
                 onClick={() => {
@@ -602,7 +810,9 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
           </div>
         )}
         {/* Row 2 — Reply: always submittable, admin-reviewed. */}
-        <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-white/50">Reply</p>
+        <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-white/50">
+          Reply
+        </p>
         {social?.replyUrl ? (
           editingReply ? (
             <div className="mt-1.5 flex gap-2">
@@ -634,7 +844,9 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
             </div>
           ) : (
             <div className="mt-1.5 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
-              <span className="min-w-0 flex-1 truncate text-[12px] text-white/80">{social.replyUrl}</span>
+              <span className="min-w-0 flex-1 truncate text-[12px] text-white/80">
+                {social.replyUrl}
+              </span>
               <StatusPill status={social.replyStatus} />
               <button
                 type="button"
@@ -685,17 +897,29 @@ function AirdropTab({ wallet, account }: { wallet: Wallet | null; account: Walle
         )}
         {campaignUrl && social?.repostStatus && (
           <div className="mt-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
-            <span className="min-w-0 flex-1 truncate text-[12px] text-white/80">Repost claimed</span>
+            <span className="min-w-0 flex-1 truncate text-[12px] text-white/80">
+              Repost claimed
+            </span>
             <StatusPill status={social.repostStatus} />
           </div>
         )}
-        {claimNote && <p role="status" className="mt-2 text-[12px] text-white/70">{claimNote}</p>}
+        {claimNote && (
+          <p role="status" className="mt-2 text-[12px] text-white/70">
+            {claimNote}
+          </p>
+        )}
       </div>
     </div>
   );
 }
 
-function BugTab({ wallet, account }: { wallet: Wallet | null; account: WalletAccount | null }) {
+function BugTab({
+  wallet,
+  account,
+}: {
+  wallet: Wallet | null;
+  account: WalletAccount | null;
+}) {
   const [what, setWhat] = useState("");
   const [steps, setSteps] = useState("");
   const [telegram, setTelegram] = useState("");
@@ -726,14 +950,18 @@ function BugTab({ wallet, account }: { wallet: Wallet | null; account: WalletAcc
       }
       setWhat("");
       setSteps("");
-      setNote("Submitted. Valid reports may be eligible for a bug bounty after review.");
+      setNote(
+        "Submitted. Valid reports may be eligible for a bug bounty after review.",
+      );
     } finally {
       setBusy(false);
     }
   };
   return (
     <div className="flex flex-col gap-2">
-      <label className="text-[12px] font-bold text-white" htmlFor="ht-bug-what">What happened?</label>
+      <label className="text-[12px] font-bold text-white" htmlFor="ht-bug-what">
+        What happened?
+      </label>
       <textarea
         id="ht-bug-what"
         value={what}
@@ -743,7 +971,12 @@ function BugTab({ wallet, account }: { wallet: Wallet | null; account: WalletAcc
         className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] text-white placeholder:text-white/30"
         placeholder="Describe the issue…"
       />
-      <label className="text-[12px] font-bold text-white" htmlFor="ht-bug-steps">Steps to reproduce</label>
+      <label
+        className="text-[12px] font-bold text-white"
+        htmlFor="ht-bug-steps"
+      >
+        Steps to reproduce
+      </label>
       <textarea
         id="ht-bug-steps"
         value={steps}
@@ -753,7 +986,9 @@ function BugTab({ wallet, account }: { wallet: Wallet | null; account: WalletAcc
         className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] text-white placeholder:text-white/30"
         placeholder="1. … 2. …"
       />
-      <label className="text-[12px] font-bold text-white" htmlFor="ht-bug-tg">Telegram @username</label>
+      <label className="text-[12px] font-bold text-white" htmlFor="ht-bug-tg">
+        Telegram @username
+      </label>
       <input
         id="ht-bug-tg"
         value={telegram}
@@ -762,7 +997,9 @@ function BugTab({ wallet, account }: { wallet: Wallet | null; account: WalletAcc
         autoComplete="off"
         className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] text-white placeholder:text-white/30"
       />
-      <label className="text-[12px] font-bold text-white" htmlFor="ht-bug-sev">Severity</label>
+      <label className="text-[12px] font-bold text-white" htmlFor="ht-bug-sev">
+        Severity
+      </label>
       <select
         id="ht-bug-sev"
         value={severity}
@@ -770,7 +1007,9 @@ function BugTab({ wallet, account }: { wallet: Wallet | null; account: WalletAcc
         className="rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-[13px] text-white"
       >
         {BUG_SEVERITIES.map((s) => (
-          <option key={s} value={s}>{s}</option>
+          <option key={s} value={s}>
+            {s}
+          </option>
         ))}
       </select>
       <button
@@ -781,8 +1020,14 @@ function BugTab({ wallet, account }: { wallet: Wallet | null; account: WalletAcc
       >
         {busy ? "Submitting…" : "Submit Report"}
       </button>
-      <p className="text-[11px] text-white/40">Valid reports may be eligible for a bug bounty after review.</p>
-      {note && <p role="status" className="text-[12px] text-white/70">{note}</p>}
+      <p className="text-[11px] text-white/40">
+        Valid reports may be eligible for a bug bounty after review.
+      </p>
+      {note && (
+        <p role="status" className="text-[12px] text-white/70">
+          {note}
+        </p>
+      )}
     </div>
   );
 }

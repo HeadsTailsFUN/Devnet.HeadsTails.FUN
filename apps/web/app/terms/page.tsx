@@ -16,33 +16,48 @@ export default function TermsPage() {
       <p className="text-[15px] leading-relaxed text-[var(--text-secondary)]">
         Connect a wallet, choose HEADS or TAILS, join a FIFO queue in the $1 or
         $10 Devnet room, get matched, resolve via ORAO randomness, and the
-        winner receives the full pot through permissionless settlement. $100
-        and $1000 rooms are Opening Soon. Stakes use Devnet test tokens with no
-        real-world value.
+        winner receives the full pot through permissionless settlement. $100 and
+        $1000 rooms are Opening Soon. Stakes use Devnet test tokens with no
+        guaranteed real-world value. The reference 100 HTS = $1 is simulated,
+        not a market price. Connecting or verifying a wallet does not authorize
+        a stake; you explicitly initiate a game and approve its transaction.
+        On-chain transactions are public and cannot be reversed by this website.
       </p>
       <h2 className="font-display text-xl font-bold">Devnet vs Mainnet</h2>
       <p className="text-[15px] leading-relaxed text-[var(--text-secondary)]">
         Devnet gameplay uses test tokens and test infrastructure only. Nothing
         on this page offers real-money gaming, investment returns, or token
-        value. A future Mainnet deployment — if any — would ship separate
-        terms, eligibility rules, and risk disclosures after review.
+        value. A future Mainnet deployment — if any — would ship separate terms,
+        eligibility rules, and risk disclosures after review.
       </p>
-      <h2 className="font-display text-xl font-bold">Points, referrals, and reports</h2>
+      <h2 className="font-display text-xl font-bold">
+        Points, referrals, and reports
+      </h2>
       <p className="text-[15px] leading-relaxed text-[var(--text-secondary)]">
         Airdrop Points track Beta participation and are not a promise of cash,
         tokens, or conversion. Referral records track invitations only. Bug
         reports and social claims are reviewed by the team; submission does not
         guarantee payment or approval. Moderation (including reward exclusions)
-        may apply to abuse.
+        may apply to abuse. Welcome grants and Devnet fee assistance transfer
+        test resources subject to eligibility, budgets and availability; they
+        are not guaranteed. Team preference is optional and never sets your game
+        side.
       </p>
       <h2 className="font-display text-xl font-bold">Acceptable use</h2>
       <p className="text-[15px] leading-relaxed text-[var(--text-secondary)]">
         Do not exploit, automate abuse, impersonate others, post harmful chat
         content, or interfere with other players. The team may moderate chat,
         restrict accounts from rewards, or pause Beta features to protect fair
-        play.
+        play. Usernames, avatars and chat are public-facing content; do not
+        share sensitive information or content you lack permission to use.
+        Provider outages, network delays and software defects can interrupt
+        matchmaking or settlement. Automatic recovery is bounded, not an uptime
+        guarantee.
       </p>
-      <Link href="/" className="font-semibold text-[var(--heads)] hover:underline">
+      <Link
+        href="/"
+        className="font-semibold text-[var(--heads)] hover:underline"
+      >
         ← Back to game
       </Link>
     </main>

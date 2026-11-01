@@ -1,9 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { recentMessages } from "@/lib/chat/moderation";
 import { getBrowserSupabase } from "@/lib/supabase/browserClient";
 import { shortWallet } from "@/lib/leaderboard";
-import { CHAT_DISCONNECTED_COPY, CHAT_INPUT_PLACEHOLDER } from "@/lib/chat/copy";
+import {
+  CHAT_DISCONNECTED_COPY,
+  CHAT_INPUT_PLACEHOLDER,
+} from "@/lib/chat/copy";
 import type { ChatMessageView } from "@/lib/chat/types";
 
 const EMOJI = ["😀", "🎲", "🔥", "💎", "😎", "🚀", "👏", "💀"];
@@ -38,12 +48,31 @@ export function ChatPanel({
   onSelectUser?: (wallet: string) => void;
 }) {
   const [messages, setMessages] = useState<ChatMessageView[] | null>(null);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [remaining, setRemaining] = useState(0);
+  const requestIdRef = useRef(0);
+  const sendIdentityRef = useRef<{ body: string; id: string } | null>(null);
+  const scrollAnchor = useRef<{
+    bottom: boolean;
+    id?: string;
+    offset?: number;
+  } | null>(null);
+  useEffect(() => {
+    const tick = () =>
+      setRemaining(Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000)));
+    tick();
+    if (cooldownUntil <= Date.now()) return;
+    const timer = setInterval(tick, 100);
+    return () => clearInterval(timer);
+  }, [cooldownUntil]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [authing, setAuthing] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [live, setLive] = useState(false);
-  const [loadState, setLoadState] = useState<"connecting" | "ready" | "unavailable">("connecting");
+  const [loadState, setLoadState] = useState<
+    "connecting" | "ready" | "unavailable"
+  >("connecting");
   const listRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const sendingRef = useRef(false);
@@ -59,27 +88,59 @@ export function ChatPanel({
   const messagesNullRef = useRef(true);
 
   const load = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 12000);
-      const r = await fetch("/api/chat/messages?limit=100", { cache: "no-store", signal: ctrl.signal });
+      const r = await fetch("/api/chat/messages?limit=100", {
+        cache: "no-store",
+        signal: ctrl.signal,
+      });
       clearTimeout(t);
       if (!r.ok) {
-        setLoadState((prev) => (messagesNullRef.current && prev === "connecting" ? "unavailable" : prev));
+        setLoadState((prev) =>
+          messagesNullRef.current && prev === "connecting"
+            ? "unavailable"
+            : prev,
+        );
         return;
       }
-      const b = (await r.json().catch(() => null)) as { messages?: ChatMessageView[] } | null;
+      const b = (await r.json().catch(() => null)) as {
+        messages?: ChatMessageView[];
+      } | null;
       if (b && Array.isArray(b.messages)) {
         messagesNullRef.current = false;
         // Functional update avoids re-reading state and keeps identity stable.
-        setMessages(() => b.messages as ChatMessageView[]);
+        if (requestId !== requestIdRef.current) return;
+        const el = listRef.current;
+        const anchor = el
+          ? Array.from(
+              el.querySelectorAll<HTMLElement>("[data-message-id]"),
+            ).find(
+              (node) =>
+                node.getBoundingClientRect().bottom >
+                el.getBoundingClientRect().top,
+            )
+          : undefined;
+        scrollAnchor.current = {
+          bottom: !el || el.scrollHeight - el.scrollTop - el.clientHeight < 100,
+          id: anchor?.dataset.messageId,
+          offset:
+            anchor && el
+              ? anchor.getBoundingClientRect().top -
+                el.getBoundingClientRect().top
+              : 0,
+        };
+        setMessages(recentMessages(b.messages as ChatMessageView[]));
         setLive(true);
         setLoadState("ready");
       } else if (messagesNullRef.current) {
         setLoadState("unavailable");
       }
     } catch {
-      setLoadState((prev) => (messagesNullRef.current && prev === "connecting" ? "unavailable" : prev));
+      setLoadState((prev) =>
+        messagesNullRef.current && prev === "connecting" ? "unavailable" : prev,
+      );
     }
   }, []);
 
@@ -92,11 +153,19 @@ export function ChatPanel({
       if (db) {
         const ch = db
           .channel("global-chat")
-          .on("postgres_changes", { event: "*", schema: "public", table: "chat_messages" }, () => {
-            void load();
-          })
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "chat_messages" },
+            () => {
+              void load();
+            },
+          )
           .subscribe((status) => {
-            if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+            if (
+              status === "CHANNEL_ERROR" ||
+              status === "TIMED_OUT" ||
+              status === "CLOSED"
+            ) {
               if (!pollRef.current) {
                 pollRef.current = setInterval(() => {
                   void load();
@@ -162,23 +231,25 @@ export function ChatPanel({
     };
   }, [load, subscribe, cleanupSubscription]);
 
-  // Container-only autoscroll: never scroll the page (scrollIntoView on an
-  // inner node bubbles to the document and yanks the game out from under
-  // the user's cursor on desktop where the sidebar is always visible).
-  // Only follows when already near the bottom, so reading history is stable.
-  useEffect(() => {
-    const el = listRef.current;
-    if (!el) return;
-    try {
-      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 160;
-      if (nearBottom) el.scrollTop = el.scrollHeight;
-    } catch {
-      // ignore
+  useLayoutEffect(() => {
+    const el = listRef.current,
+      anchor = scrollAnchor.current;
+    if (!el || !anchor) return;
+    if (anchor.bottom) el.scrollTop = el.scrollHeight;
+    else {
+      const row = Array.from(
+        el.querySelectorAll<HTMLElement>("[data-message-id]"),
+      ).find((node) => node.dataset.messageId === anchor.id);
+      if (row)
+        el.scrollTop +=
+          row.getBoundingClientRect().top -
+          el.getBoundingClientRect().top -
+          (anchor.offset ?? 0);
     }
-  }, [messages?.length]);
+  }, [messages]);
 
   const send = useCallback(async () => {
-    if (sendingRef.current) return;
+    if (sendingRef.current || Date.now() < cooldownUntil) return;
     const text = draft.trim();
     if (!text) return;
     // P0: Send is ALWAYS a chat action — it must never open Profile and must
@@ -235,28 +306,60 @@ export function ChatPanel({
       const res = await fetch("/api/chat/send", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ body }),
+        body: JSON.stringify({
+          body,
+          clientId: (sendIdentityRef.current?.body === body
+            ? sendIdentityRef.current
+            : (sendIdentityRef.current = { body, id: crypto.randomUUID() })
+          ).id,
+        }),
       });
-      const b = (await res.json().catch(() => null)) as { error?: string } | null;
+      const b = (await res.json().catch(() => null)) as {
+        error?: string;
+        retryAfterMs?: number;
+        cooldownMs?: number;
+      } | null;
       if (!res.ok) {
         // 401 here means the session did not stick: keep draft for retry.
         if (res.status === 401) pendingSendRef.current = true;
+        if (res.status === 429)
+          setCooldownUntil(
+            Date.now() + Math.min(60000, Math.max(1, b?.retryAfterMs ?? 3000)),
+          );
         setNote(b?.error ?? "Could not send.");
         return;
       }
       pendingSendRef.current = false;
       setDraft("");
+      sendIdentityRef.current = null;
+      if (b?.cooldownMs) setCooldownUntil(Date.now() + b.cooldownMs);
       await load();
+    } catch {
+      setNote("Connection interrupted. Retry safely; your draft is kept.");
     } finally {
       sendingRef.current = false;
       setSending(false);
     }
-  }, [authed, draft, load, hasWallet, onEnsureAuth, onNeedWallet, onNeedAuth]);
+  }, [
+    authed,
+    draft,
+    load,
+    hasWallet,
+    onEnsureAuth,
+    onNeedWallet,
+    onNeedAuth,
+    cooldownUntil,
+  ]);
 
   // After external auth completes (e.g. session refresh), automatically
   // continue the preserved send once. Draft stays intact until success.
   useEffect(() => {
-    if (authed && pendingSendRef.current && draft.trim() && !sendingRef.current) {
+    if (
+      authed &&
+      pendingSendRef.current &&
+      draft.trim() &&
+      !sendingRef.current
+    ) {
       pendingSendRef.current = false;
       void send();
     }
@@ -266,20 +369,31 @@ export function ChatPanel({
   }, [authed, draft, send]);
 
   return (
-    <section aria-label="Global chat" className="glass flex h-full min-h-[560px] w-full min-w-0 flex-1 flex-col rounded-3xl p-4">
+    <section
+      aria-label="Global chat"
+      className="glass flex h-full min-h-[560px] w-full min-w-0 flex-1 flex-col rounded-3xl p-4"
+    >
       <div className="flex items-center gap-2">
-        <h2 className="font-display text-[16px] font-bold text-white">Global Chat</h2>
+        <h2 className="font-display text-[16px] font-bold text-white">
+          Global Chat
+        </h2>
         <span
           title={live ? "Live updates" : "Connecting…"}
           className={`h-2 w-2 rounded-full ${live ? "bg-[var(--heads)]" : "bg-white/20"}`}
           aria-hidden="true"
         />
       </div>
-      <div ref={listRef} aria-live="polite" className="mt-2 flex max-h-[52svh] min-h-[280px] flex-1 flex-col gap-2 overflow-y-auto pr-1 xl:max-h-none xl:min-h-0">
+      <div
+        ref={listRef}
+        aria-live="polite"
+        className="mt-2 flex max-h-[52svh] min-h-[280px] flex-1 flex-col gap-2 overflow-y-auto pr-1 xl:max-h-none xl:min-h-0"
+      >
         {messages === null ? (
           loadState === "unavailable" ? (
             <div className="flex flex-col items-center gap-2 py-6">
-              <p className="text-center text-[13px] text-[var(--text-secondary)]">Chat unavailable</p>
+              <p className="text-center text-[13px] text-[var(--text-secondary)]">
+                Chat unavailable
+              </p>
               <button
                 type="button"
                 onClick={() => {
@@ -293,7 +407,9 @@ export function ChatPanel({
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 py-6">
-              <p className="text-center text-[13px] text-[var(--text-secondary)]">Connecting...</p>
+              <p className="text-center text-[13px] text-[var(--text-secondary)]">
+                Connecting...
+              </p>
               <button
                 type="button"
                 onClick={() => {
@@ -306,13 +422,25 @@ export function ChatPanel({
             </div>
           )
         ) : messages.length === 0 ? (
-          <p className="py-6 text-center text-[13px] text-[var(--text-secondary)]">No messages yet. Say hi.</p>
+          <p className="py-6 text-center text-[13px] text-[var(--text-secondary)]">
+            No messages yet. Say hi.
+          </p>
         ) : (
           messages.map((m) => (
-            <div key={m.id} className="flex items-start gap-2">
+            <div
+              key={m.id}
+              data-message-id={m.id}
+              className="flex items-start gap-2"
+            >
               {m.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={m.avatarUrl} alt="" width={24} height={24} className="mt-0.5 h-6 w-6 shrink-0 rounded-full object-cover" />
+                <img
+                  src={m.avatarUrl}
+                  alt=""
+                  width={24}
+                  height={24}
+                  className="mt-0.5 h-6 w-6 shrink-0 rounded-full object-cover"
+                />
               ) : (
                 <span
                   aria-hidden="true"
@@ -333,15 +461,22 @@ export function ChatPanel({
                   <span className="rounded-full border border-white/10 px-1 text-[9px] font-bold tracking-widest text-white/50">
                     {m.displayRank}
                   </span>
-                  <span className="text-[10px] text-white/30">{timeShort(m.createdAt)}</span>
+                  <span className="text-[10px] text-white/30">
+                    {timeShort(m.createdAt)}
+                  </span>
                 </p>
-                <p className="break-words text-[13.5px] leading-snug text-white/90">{m.body}</p>
+                <p className="break-words text-[13.5px] leading-snug text-white/90">
+                  {m.body}
+                </p>
               </div>
             </div>
           ))
         )}
       </div>
-      <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1" aria-label="Emoji picker">
+      <div
+        className="mt-2 flex gap-1.5 overflow-x-auto pb-1"
+        aria-label="Emoji picker"
+      >
         {EMOJI.map((e) => (
           <button
             key={e}
@@ -382,12 +517,23 @@ export function ChatPanel({
         <button
           type="button"
           onClick={() => void send()}
-          disabled={sending || authing}
+          disabled={sending || authing || remaining > 0}
           className="font-display inline-flex min-h-[44px] shrink-0 items-center rounded-2xl bg-white px-5 text-[14px] font-bold text-black transition hover:bg-slate-200 disabled:opacity-60"
         >
-          {sending ? "…" : authing ? "Verifying…" : "Send"}
+          {remaining > 0
+            ? `${remaining}s`
+            : sending
+              ? "…"
+              : authing
+                ? "Verifying…"
+                : "Send"}
         </button>
       </div>
+      {remaining > 0 && (
+        <p role="status" className="mt-1 text-xs text-white/60">
+          Ready again in {remaining}s.
+        </p>
+      )}
       {note && (
         <p role="alert" className="mt-1 text-[12px] font-medium text-[#ff9db1]">
           {note}

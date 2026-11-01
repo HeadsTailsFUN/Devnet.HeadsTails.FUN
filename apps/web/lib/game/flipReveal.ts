@@ -19,7 +19,10 @@ export function shouldRevealFlip(args: {
   // Historical settled state (never observed flipping): reveal immediately.
   if (flipStartedAtMs === null) return true;
   if (resultArrivedAtMs === null) return false;
-  const revealAt = Math.max(flipStartedAtMs + MIN_FLIP_REVEAL_MS, resultArrivedAtMs);
+  const revealAt = Math.max(
+    flipStartedAtMs + MIN_FLIP_REVEAL_MS,
+    resultArrivedAtMs,
+  );
   return nowMs >= revealAt;
 }
 
@@ -31,7 +34,10 @@ export function flipRevealDelayMs(args: {
 }): number {
   const { flipStartedAtMs, resultArrivedAtMs, nowMs } = args;
   if (flipStartedAtMs === null || resultArrivedAtMs === null) return 0;
-  const revealAt = Math.max(flipStartedAtMs + MIN_FLIP_REVEAL_MS, resultArrivedAtMs);
+  const revealAt = Math.max(
+    flipStartedAtMs + MIN_FLIP_REVEAL_MS,
+    resultArrivedAtMs,
+  );
   return Math.max(0, revealAt - nowMs);
 }
 
@@ -54,7 +60,9 @@ export function classifyMatchObservation(args: {
   trackedMatchId: string | null;
   observedMatchId: string;
 }): FlipObservation {
-  return args.trackedMatchId !== args.observedMatchId ? "init-new-round" : "same-round";
+  return args.trackedMatchId !== args.observedMatchId
+    ? "init-new-round"
+    : "same-round";
 }
 
 export interface VisibleRevealPlan {
@@ -81,18 +89,18 @@ export function planVisibleReveal(args: {
 }): VisibleRevealPlan {
   const revealAtMs = Math.max(
     args.visibleStartedAtMs + MIN_FLIP_REVEAL_MS,
-    args.resultArrivedAtMs
+    args.resultArrivedAtMs,
   );
   return { revealAtMs, delayMs: Math.max(0, revealAtMs - args.nowMs) };
 }
 
 /**
  * Result-screen hold (presentation-only): YOU WIN / YOU LOSE stays on
- * screen at least 10000ms before the automatic Ready transition. Chain
+ * screen at least 4500ms before manual Play Again is enabled. Chain
  * settlement/payout/profile/history work is never delayed — only the UI
- * transition back to ready waits.
+ * replay affordance waits; results never automatically disappear.
  */
-export const MIN_RESULT_HOLD_MS = 10000;
+export const MIN_RESULT_HOLD_MS = 4500;
 
 /** Milliseconds of result hold remaining from `nowMs` (0 = may go Ready). */
 export function resultHoldRemainingMs(args: {

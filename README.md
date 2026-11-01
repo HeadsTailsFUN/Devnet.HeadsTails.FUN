@@ -54,6 +54,8 @@ Copy the blank `.env.example` to ignored `apps/web/.env.local` and configure you
 
 See [development](docs/DEVELOPMENT.md), [architecture](docs/ARCHITECTURE.md), [database setup](docs/DATABASE.md), [HTS model](docs/HTS.md), [USD reference](docs/USD_REFERENCE.md) and [third-party notices](THIRD_PARTY_NOTICES.md). Building source does not authorize deployments, migrations, signing or account changes.
 
+The [UI/community refinement candidate](docs/UI_REFINEMENT.md) documents the responsive update, optional teams, bounded chat/history and its separate additive migration/cutover requirement.
+
 ## License
 
 No project-wide open-source license has been selected or granted. Public source publication does not grant additional reuse rights to project code or artwork. Dependencies retain their respective licenses; wallet marks remain third-party trademarks. See THIRD_PARTY_NOTICES.md.

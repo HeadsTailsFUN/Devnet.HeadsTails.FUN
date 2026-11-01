@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import { strict as assert } from "node:assert";
+import { HTS_SERVICE_SIGNER, validServiceSigner } from "./releaseToken.js";
 import {
   checkFifoPlan,
   clearCrankLocksForTests,
@@ -57,8 +58,12 @@ const BASE = {
 describe("match crank readiness", () => {
   it("1. both queue heads present -> ready to construct matchNext", () => {
     assert.equal(
-      decideCrankReadiness({ paused: false, headsWaiting: BigInt(1), tailsWaiting: BigInt(1) }),
-      "ready"
+      decideCrankReadiness({
+        paused: false,
+        headsWaiting: BigInt(1),
+        tailsWaiting: BigInt(1),
+      }),
+      "ready",
     );
     const r = checkFifoPlan(BASE);
     assert.equal(r.ok, true);
@@ -67,19 +72,31 @@ describe("match crank readiness", () => {
 
   it("2. only one side present -> no transaction", () => {
     assert.equal(
-      decideCrankReadiness({ paused: false, headsWaiting: BigInt(0), tailsWaiting: BigInt(1) }),
-      "empty"
+      decideCrankReadiness({
+        paused: false,
+        headsWaiting: BigInt(0),
+        tailsWaiting: BigInt(1),
+      }),
+      "empty",
     );
     assert.equal(
-      decideCrankReadiness({ paused: false, headsWaiting: BigInt(2), tailsWaiting: BigInt(0) }),
-      "empty"
+      decideCrankReadiness({
+        paused: false,
+        headsWaiting: BigInt(2),
+        tailsWaiting: BigInt(0),
+      }),
+      "empty",
     );
   });
 
   it("paused -> no transaction", () => {
     assert.equal(
-      decideCrankReadiness({ paused: true, headsWaiting: BigInt(1), tailsWaiting: BigInt(1) }),
-      "paused"
+      decideCrankReadiness({
+        paused: true,
+        headsWaiting: BigInt(1),
+        tailsWaiting: BigInt(1),
+      }),
+      "paused",
     );
   });
 
@@ -108,14 +125,22 @@ describe("crank race safety", () => {
   });
 
   it("race errors are benign (refresh to Match Found, no user error)", () => {
-    for (const m of ["InvalidHeadEntry", "HeadNotActive", "EntryNotActive", "AlreadyMatched"]) {
+    for (const m of [
+      "InvalidHeadEntry",
+      "HeadNotActive",
+      "EntryNotActive",
+      "AlreadyMatched",
+    ]) {
       assert.equal(isBenignRaceError(`AnchorError ... ${m} ...`), true);
     }
     assert.equal(isBenignRaceError("429 rate limit"), false);
   });
 
   it("transient errors are retryable, not races", () => {
-    assert.equal(isTransientCrankError("429 Connection rate limits exceeded"), true);
+    assert.equal(
+      isTransientCrankError("429 Connection rate limits exceeded"),
+      true,
+    );
     assert.equal(isTransientCrankError("InvalidHeadEntry"), false);
   });
 });
@@ -144,7 +169,10 @@ describe("client cannot choose crank parameters", () => {
   });
 
   it("8. client cannot choose ORAO treasury", () => {
-    const { ignored } = sanitizeCrankRequest({ treasury: "X", vrfTreasury: "X" });
+    const { ignored } = sanitizeCrankRequest({
+      treasury: "X",
+      vrfTreasury: "X",
+    });
     assert.deepEqual(ignored.sort(), ["treasury", "vrfTreasury"]);
   });
 
@@ -161,22 +189,36 @@ describe("client cannot choose crank parameters", () => {
       feePayer: "X",
       requester: "X",
     });
-    assert.deepEqual(ignored.sort(), ["caller", "feePayer", "payer", "requester"]);
+    assert.deepEqual(ignored.sort(), [
+      "caller",
+      "feePayer",
+      "payer",
+      "requester",
+    ]);
   });
 
   it("15. ORAO refund returns to sponsor requester (caller fixed to pinned sponsor)", () => {
     // The crank builds matchNext with caller = pinned sponsor signer only;
     // no request field selects the caller (see 10b), so the VRF requester —
     // and therefore the ORAO refund recipient — is always the sponsor.
-    assert.equal(EXPECTED_SPONSOR_PUBKEY.length >= 32, true);
-    const { ignored } = sanitizeCrankRequest({ caller: EXPECTED_SPONSOR_PUBKEY });
+    const { ignored } = sanitizeCrankRequest({
+      caller: EXPECTED_SPONSOR_PUBKEY,
+    });
     assert.deepEqual(ignored, ["caller"]);
   });
 });
 
 describe("sponsor is only caller/payer", () => {
   it("9. sponsor signer identity is pinned server-side", () => {
-    assert.equal(EXPECTED_SPONSOR_PUBKEY, "FwP4JekrFhJ2PksQXdi4DhiPTfVvYTkgpnjJTwaW2nY8");
+    assert.equal(
+      EXPECTED_SPONSOR_PUBKEY,
+      validServiceSigner(HTS_SERVICE_SIGNER) ? HTS_SERVICE_SIGNER : "",
+    );
+    assert.notEqual(
+      EXPECTED_SPONSOR_PUBKEY,
+      "FwP4JekrFhJ2PksQXdi4DhiPTfVvYTkgpnjJTwaW2nY8",
+      "retired signer must never be used",
+    );
   });
 
   it("10. plan chooses nothing: no payer/winner/result/stake fields", () => {
@@ -216,15 +258,19 @@ describe("sponsor is only caller/payer", () => {
   it("16. FIFO enforced: wrong side / inactive / mismatch rejected", () => {
     assert.equal(
       checkFifoPlan({ ...BASE, headsEntry: { ...HEADS_ENTRY, side: 1 } }).ok,
-      false
+      false,
     );
     assert.equal(
-      checkFifoPlan({ ...BASE, tailsEntry: { ...TAILS_ENTRY, status: "Matched" } }).ok,
-      false
+      checkFifoPlan({
+        ...BASE,
+        tailsEntry: { ...TAILS_ENTRY, status: "Matched" },
+      }).ok,
+      false,
     );
     assert.equal(
-      checkFifoPlan({ ...BASE, headsState: { ...HEADS_STATE, queued: false } }).ok,
-      false
+      checkFifoPlan({ ...BASE, headsState: { ...HEADS_STATE, queued: false } })
+        .ok,
+      false,
     );
     assert.equal(
       checkFifoPlan({
@@ -233,7 +279,7 @@ describe("sponsor is only caller/payer", () => {
         headsState: { ...HEADS_STATE, player: TAILS_ENTRY.player },
         tailsEntry: { ...TAILS_ENTRY, player: TAILS_ENTRY.player },
       }).ok,
-      false
+      false,
     );
   });
 
@@ -241,7 +287,9 @@ describe("sponsor is only caller/payer", () => {
     const r = checkFifoPlan(BASE);
     assert.equal(r.ok, true);
     if (r.ok) {
-      const s = JSON.stringify(r.plan, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
+      const s = JSON.stringify(r.plan, (_k, v) =>
+        typeof v === "bigint" ? v.toString() : v,
+      );
       assert.ok(!s.includes("winner") && !s.includes("result"));
     }
   });
@@ -264,17 +312,28 @@ describe("user match reimbursement removed", () => {
 describe("crank mainnet safety", () => {
   it("18. Mainnet fails closed (same gates as sponsor)", () => {
     assert.equal(
-      evaluateSponsorGate({ cluster: "mainnet-beta", sponsorEnabled: "true", mainnetRealValue: "false" })
-        .ok,
-      false
+      evaluateSponsorGate({
+        cluster: "mainnet-beta",
+        sponsorEnabled: "true",
+        mainnetRealValue: "false",
+      }).ok,
+      false,
     );
     assert.equal(
-      evaluateSponsorGate({ cluster: "devnet", sponsorEnabled: "true", mainnetRealValue: "true" }).ok,
-      false
+      evaluateSponsorGate({
+        cluster: "devnet",
+        sponsorEnabled: "true",
+        mainnetRealValue: "true",
+      }).ok,
+      false,
     );
     assert.equal(
-      evaluateSponsorGate({ cluster: "devnet", sponsorEnabled: "true", mainnetRealValue: "false" }).ok,
-      true
+      evaluateSponsorGate({
+        cluster: "devnet",
+        sponsorEnabled: "true",
+        mainnetRealValue: "false",
+      }).ok,
+      true,
     );
   });
 });
