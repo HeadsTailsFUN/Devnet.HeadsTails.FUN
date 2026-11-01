@@ -1,4 +1,6 @@
-# HeadsTails — Solana Devnet Beta
+# Devnet.HeadsTails.FUN
+
+HeadsTails Solana Devnet Beta. Source repository: [HeadsTailsFUN/Devnet.HeadsTails.FUN](https://github.com/HeadsTailsFUN/Devnet.HeadsTails.FUN).
 
 Play the hosted application at [headstails-devnet-beta.vercel.app](https://headstails-devnet-beta.vercel.app/). The current deployment uses signed-wallet admission for owner-designated restricted QA; public source availability does not open gameplay to every wallet.
 
