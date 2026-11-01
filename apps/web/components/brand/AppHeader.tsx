@@ -1,7 +1,12 @@
 import type { ReactNode } from "react";
 import { LogoLockup } from "@/components/brand/Logo";
 import { WalletButton } from "@/components/wallet/WalletButton";
-import { DiscordIcon, TelegramIcon, XIcon } from "@/components/ui/icons";
+import {
+  DiscordIcon,
+  GitHubIcon,
+  TelegramIcon,
+  XIcon,
+} from "@/components/ui/icons";
 import { HeartIcon } from "@/components/ui/icons";
 import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
 import type { GameStateId } from "@/lib/mockGameData";
@@ -39,27 +44,63 @@ export function AppHeader({
       </span>
       <p className="hidden items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] lg:flex">
         <span>Fair</span>
-        <span aria-hidden="true" className="text-[10px]">•</span>
+        <span aria-hidden="true" className="text-[10px]">
+          •
+        </span>
         <span>Simple</span>
-        <span aria-hidden="true" className="text-[10px]">•</span>
+        <span aria-hidden="true" className="text-[10px]">
+          •
+        </span>
         <span>On-Chain</span>
-        <span aria-hidden="true" className="text-[10px]">•</span>
+        <span aria-hidden="true" className="text-[10px]">
+          •
+        </span>
         <span>For the Degens</span>
         <HeartIcon className="h-3.5 w-3.5 text-[var(--heads)]" />
       </p>
-      <span className="order-2 ml-auto flex items-center gap-1.5 sm:gap-2">
+      <span className="order-2 flex w-full min-w-0 items-center justify-between gap-1.5 sm:ml-auto sm:w-auto sm:justify-end sm:gap-2">
         <span className="hidden sm:inline-flex sm:items-center sm:gap-2">
           {faucet}
         </span>
-        <nav aria-label="Social links" className="flex items-center gap-0.5 sm:gap-1">
-          <a href={SOCIAL_LINKS.x} target="_blank" rel="noopener noreferrer" aria-label="X" className="inline-flex min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white">
+        <nav
+          aria-label="Social links"
+          className="mr-auto flex shrink-0 items-center gap-0.5 sm:mr-0 sm:gap-1"
+        >
+          <a
+            href={SOCIAL_LINKS.x}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="X"
+            className="inline-flex min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white"
+          >
             <XIcon className="h-4 w-4" />
           </a>
-          <a href={SOCIAL_LINKS.discord} target="_blank" rel="noopener noreferrer" aria-label="Discord" className="inline-flex min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white">
+          <a
+            href={SOCIAL_LINKS.discord}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Discord"
+            className="inline-flex min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white"
+          >
             <DiscordIcon className="h-5 w-5" />
           </a>
-          <a href={SOCIAL_LINKS.telegram} target="_blank" rel="noopener noreferrer" aria-label="Telegram" className="inline-flex min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white">
+          <a
+            href={SOCIAL_LINKS.telegram}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Telegram"
+            className="inline-flex min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white"
+          >
             <TelegramIcon className="h-4 w-4" />
+          </a>
+          <a
+            href={SOCIAL_LINKS.github}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="GitHub"
+            className="hidden min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white sm:inline-flex"
+          >
+            <GitHubIcon className="h-4 w-4" />
           </a>
         </nav>
         {addressLabel ? (
@@ -71,7 +112,13 @@ export function AppHeader({
           >
             {profileAvatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={profileAvatarUrl} alt="" width={24} height={24} className="h-6 w-6 rounded-full object-cover" />
+              <img
+                src={profileAvatarUrl}
+                alt=""
+                width={24}
+                height={24}
+                className="h-6 w-6 rounded-full object-cover"
+              />
             ) : (
               <span
                 aria-hidden="true"
@@ -80,9 +127,13 @@ export function AppHeader({
                 {(profileName ?? addressLabel).slice(0, 1).toUpperCase()}
               </span>
             )}
-            <span className="max-w-[110px] truncate">{profileName ?? addressLabel}</span>
+            <span className="max-w-[110px] truncate">
+              {profileName ?? addressLabel}
+            </span>
             {balanceLabel ? (
-              <span className="hidden text-[12px] font-bold text-[var(--heads)] md:inline">{balanceLabel}</span>
+              <span className="hidden text-[12px] font-bold text-[var(--heads)] md:inline">
+                {balanceLabel}
+              </span>
             ) : null}
             {(notificationCount ?? 0) > 0 && (
               <span

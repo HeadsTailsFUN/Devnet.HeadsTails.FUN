@@ -1,3 +1,4 @@
+import Image from "next/image";
 const HEADS_IMG = "/assets/coin/heads-coin.webp";
 const TAILS_IMG = "/assets/coin/tails-coin.webp";
 
@@ -26,7 +27,11 @@ function QueueCell({
       {/* Fixed value slot: counters share one baseline whether set or loading. */}
       <span
         className={`font-display flex h-8 items-center justify-center text-[26px] font-bold leading-none ${
-          accent === "heads" ? "text-[var(--heads)]" : accent === "tails" ? "text-[var(--tails)]" : "text-white"
+          accent === "heads"
+            ? "text-[var(--heads)]"
+            : accent === "tails"
+              ? "text-[var(--tails)]"
+              : "text-white"
         }`}
       >
         {value ?? "…"}
@@ -63,11 +68,19 @@ export function QueueStatusBar({
         row 2 = AUTO + HEADS — balanced, HEADS/TAILS remain opposite corners
         and immediately distinguishable.
       */}
-      <div className="glass grid min-w-0 grid-cols-2 gap-2 rounded-3xl p-2 sm:gap-0 sm:p-0 sm:grid-cols-4 sm:divide-x sm:divide-white/8">
+      <div className="queue-status-glass grid min-w-0 grid-cols-2 gap-2 rounded-3xl p-2 sm:gap-0 sm:p-0 sm:grid-cols-4 sm:divide-x sm:divide-white/8">
         {/* Waiting artwork reuses the real coin assets at the same footprint. */}
         <QueueCell
-          // eslint-disable-next-line @next/next/no-img-element
-          icon={<img src={TAILS_IMG} alt="" width={36} height={36} draggable={false} className="h-9 w-9 shrink-0 object-contain" />}
+          icon={
+            <Image
+              src={TAILS_IMG}
+              alt=""
+              width={36}
+              height={36}
+              draggable={false}
+              className="h-9 w-9 shrink-0 object-contain"
+            />
+          }
           label="Tails Waiting"
           value={tails.value}
           sub={tails.sub}
@@ -76,16 +89,38 @@ export function QueueStatusBar({
         <QueueCell
           label="FIFO Queue"
           sub="Fair. First in, first matched."
-          icon={<span aria-hidden="true" className="inline-block h-9 w-9 shrink-0 text-center text-[22px] font-bold leading-9 text-slate-200">≡</span>}
+          icon={
+            <span
+              aria-hidden="true"
+              className="inline-block h-9 w-9 shrink-0 text-center text-[22px] font-bold leading-9 text-slate-200"
+            >
+              ≡
+            </span>
+          }
         />
         <QueueCell
           label="Auto On-Chain"
           sub="Transparent • Provably fair"
-          icon={<span aria-hidden="true" className="inline-block h-9 w-9 shrink-0 text-center text-[22px] font-bold leading-9 text-slate-200">◈</span>}
+          icon={
+            <span
+              aria-hidden="true"
+              className="inline-block h-9 w-9 shrink-0 text-center text-[22px] font-bold leading-9 text-slate-200"
+            >
+              ◈
+            </span>
+          }
         />
         <QueueCell
-          // eslint-disable-next-line @next/next/no-img-element
-          icon={<img src={HEADS_IMG} alt="" width={36} height={36} draggable={false} className="h-9 w-9 shrink-0 object-contain" />}
+          icon={
+            <Image
+              src={HEADS_IMG}
+              alt=""
+              width={36}
+              height={36}
+              draggable={false}
+              className="h-9 w-9 shrink-0 object-contain"
+            />
+          }
           label="Heads Waiting"
           value={heads.value}
           sub={heads.sub}

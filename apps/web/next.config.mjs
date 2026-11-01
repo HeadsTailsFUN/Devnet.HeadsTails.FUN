@@ -5,6 +5,7 @@ const nextConfig = {
   outputFileTracingRoot: fileURLToPath(new URL("../../", import.meta.url)),
   images: {
     formats: ["image/avif", "image/webp"],
+    qualities: [75, 90],
   },
   // HT-QA-004: intentional application-wide baseline. Minimal and safe:
   // - frame-ancestors 'none' blocks clickjacking without restricting

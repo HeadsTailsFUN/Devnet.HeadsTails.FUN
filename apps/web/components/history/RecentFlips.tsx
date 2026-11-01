@@ -26,7 +26,9 @@ export function RecentFlipDetailsModal({
   onClose: () => void;
 }) {
   const settlementUrl = solscanTxUrl(flip.settlementSignature, SOLANA_CLUSTER);
-  const matchUrl = flip.matchPda ? solscanAccountUrl(flip.matchPda, SOLANA_CLUSTER) : null;
+  const matchUrl = flip.matchPda
+    ? solscanAccountUrl(flip.matchPda, SOLANA_CLUSTER)
+    : null;
   const randomnessUrl = flip.randomnessAccount
     ? solscanAccountUrl(flip.randomnessAccount, SOLANA_CLUSTER)
     : null;
@@ -57,23 +59,63 @@ export function RecentFlipDetailsModal({
         aria-label={`ROUND #${flip.matchId} details`}
         className="glass relative max-h-[85svh] w-full max-w-sm min-w-0 overflow-y-auto rounded-t-3xl p-5 text-left text-xs shadow-xl sm:rounded-3xl"
       >
-        <p className="font-display text-[15px] font-bold text-white">ROUND #{flip.matchId}</p>
+        <p className="font-display text-[15px] font-bold text-white">
+          ROUND #{flip.matchId}
+        </p>
         <p className="mt-0.5 text-[11px] font-bold tracking-widest text-white/60">
           ROOM ${flip.tierUsd}
         </p>
         <dl className="mt-2 space-y-1 text-[var(--text-secondary)]">
-          <div className="flex justify-between gap-2"><dt>HEADS</dt><dd className="break-all text-right font-semibold text-white">{shortWallet(flip.headsWallet)}</dd></div>
-          <div className="flex justify-between gap-2"><dt>TAILS</dt><dd className="break-all text-right font-semibold text-white">{shortWallet(flip.tailsWallet)}</dd></div>
-          <div className="flex justify-between gap-2"><dt>RESULT</dt><dd className="font-semibold text-white">{flip.result}</dd></div>
-          <div className="flex justify-between gap-2"><dt>WINNER</dt><dd className="break-all text-right font-semibold text-white">{shortWallet(flip.winnerWallet)}</dd></div>
-          <div className="flex justify-between gap-2"><dt>POT</dt><dd className="font-semibold text-white">{BigInt(flip.potBaseUnits).toLocaleString("en-US")} base units</dd></div>
+          <div className="flex justify-between gap-2">
+            <dt>HEADS</dt>
+            <dd className="break-all text-right font-semibold text-white">
+              {shortWallet(flip.headsWallet)}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>TAILS</dt>
+            <dd className="break-all text-right font-semibold text-white">
+              {shortWallet(flip.tailsWallet)}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>RESULT</dt>
+            <dd className="font-semibold text-white">{flip.result}</dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>WINNER</dt>
+            <dd className="break-all text-right font-semibold text-white">
+              {shortWallet(flip.winnerWallet)}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt>POT</dt>
+            <dd className="font-semibold text-white">
+              {BigInt(flip.potBaseUnits).toLocaleString("en-US")} base units
+            </dd>
+          </div>
           {flip.matchPda && (
-            <div className="flex justify-between gap-2"><dt>Match PDA</dt><dd className="break-all text-right font-mono text-[10px] text-white">{shortWallet(flip.matchPda)}</dd></div>
+            <div className="flex justify-between gap-2">
+              <dt>Match PDA</dt>
+              <dd className="break-all text-right font-mono text-[10px] text-white">
+                {shortWallet(flip.matchPda)}
+              </dd>
+            </div>
           )}
           {flip.randomnessAccount && (
-            <div className="flex justify-between gap-2"><dt>Randomness</dt><dd className="break-all text-right font-mono text-[10px] text-white">{shortWallet(flip.randomnessAccount)}</dd></div>
+            <div className="flex justify-between gap-2">
+              <dt>Randomness</dt>
+              <dd className="break-all text-right font-mono text-[10px] text-white">
+                {shortWallet(flip.randomnessAccount)}
+              </dd>
+            </div>
           )}
-          <div className="flex justify-between gap-2"><dt>Time</dt><dd className="font-semibold text-white">{timeAgo(flip.settledAt)}</dd></div>
+          <div className="flex justify-between gap-2">
+            <dt>Time</dt>
+            <dd className="font-semibold text-white">
+              {timeAgo(flip.settledAt)}
+            </dd>
+          </div>
         </dl>
         <div className="mt-3 flex flex-col gap-1.5">
           {settlementUrl && (
@@ -117,7 +159,7 @@ export function RecentFlipDetailsModal({
         </button>
       </div>
     </div>,
-    document.body
+    document.body,
   );
 }
 
@@ -169,7 +211,9 @@ export function RecentFlipItem({
           className="h-10 w-10 shrink-0 rounded-full object-contain object-center"
         />
       </button>
-      <span className="mt-0.5 text-[10px] font-bold leading-none text-white/60">#{flip.matchId}</span>
+      <span className="mt-0.5 text-[10px] font-bold leading-none text-white/60">
+        #{flip.matchId}
+      </span>
     </div>
   );
 }
@@ -187,7 +231,7 @@ export function RecentFlips({
 }) {
   // NEVER fall back to mock fixtures: empty stays empty. Tier-filtered.
   const items = (flips ?? []).filter((f) =>
-    typeof tierUsd === "number" ? f.tierUsd === tierUsd : true
+    typeof tierUsd === "number" ? f.tierUsd === tierUsd : true,
   );
   // Single-open dialog state: only one round details view open at once.
   // The dialog is portaled to document.body (outside the horizontal scroll
@@ -198,9 +242,11 @@ export function RecentFlips({
   const openFlip = items.find((f) => flipKey(f) === openKey) ?? null;
   return (
     <section aria-label="Recent flips" className="w-full max-w-[880px] min-w-0">
-      <div className="glass flex min-w-0 items-center gap-4 overflow-hidden rounded-3xl px-4 py-3 sm:px-5">
+      <div className="recent-flips-glass flex min-w-0 items-center gap-3 rounded-3xl px-3 py-3 sm:gap-4 sm:px-5">
         <div className="shrink-0">
-          <h2 className="font-display text-[17px] font-bold text-white">Recent Flips</h2>
+          <h2 className="font-display text-[14px] font-bold sm:text-[17px] text-white">
+            Recent Flips
+          </h2>
         </div>
         {unavailable ? (
           <p className="flex-1 py-2 text-center text-[13px] text-[var(--text-secondary)]">
@@ -211,7 +257,11 @@ export function RecentFlips({
             No flips settled yet.
           </p>
         ) : (
-          <div className="no-scrollbar flex min-w-0 flex-1 items-start gap-2.5 overflow-x-auto px-1 py-2" role="list" aria-label={live ? "Latest on-chain results" : "Latest results"}>
+          <div
+            className="no-scrollbar flex min-w-0 flex-1 items-start gap-2.5 overflow-x-auto overscroll-x-contain scroll-smooth px-2 py-3"
+            role="list"
+            aria-label={live ? "Latest on-chain results" : "Latest results"}
+          >
             {items.map((f) => {
               const k = flipKey(f);
               return (
@@ -219,7 +269,9 @@ export function RecentFlips({
                   <RecentFlipItem
                     flip={f}
                     open={openKey === k}
-                    onToggle={() => setOpenKey((prev) => (prev === k ? null : k))}
+                    onToggle={() =>
+                      setOpenKey((prev) => (prev === k ? null : k))
+                    }
                   />
                 </div>
               );
@@ -227,11 +279,17 @@ export function RecentFlips({
           </div>
         )}
         {openFlip && (
-          <RecentFlipDetailsModal flip={openFlip} onClose={() => setOpenKey(null)} />
+          <RecentFlipDetailsModal
+            flip={openFlip}
+            onClose={() => setOpenKey(null)}
+          />
         )}
         <div className="hidden shrink-0 border-l border-white/10 pl-4 text-right sm:block">
           <p className="flex items-center justify-end gap-1.5 text-[12.5px] font-semibold text-white">
-            <span className="h-2 w-2 rounded-full bg-[var(--heads)]" aria-hidden="true" />
+            <span
+              className="h-2 w-2 rounded-full bg-[var(--heads)]"
+              aria-hidden="true"
+            />
             Latest results
           </p>
           <p className="text-[12px] text-[var(--text-secondary)]">Just now</p>

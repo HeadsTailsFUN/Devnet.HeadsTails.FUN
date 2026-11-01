@@ -3,9 +3,12 @@
 import { DevnetUsdQuoteAdapter } from "@/lib/solana/usdQuote";
 import { configPda, matchPda, playerPda } from "@/lib/solana/activeGame";
 
-
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AnchorProvider, Program, Wallet as AnchorWallet } from "@coral-xyz/anchor";
+import {
+  AnchorProvider,
+  Program,
+  Wallet as AnchorWallet,
+} from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { getAssociatedTokenAddress } from "@solana/spl-token";
 import {
@@ -22,7 +25,11 @@ import { AppFooter } from "@/components/brand/AppFooter";
 import { GameHero } from "@/components/game/GameHero";
 import { LegacyPositionNotice } from "@/components/game/LegacyPositionNotice";
 import { StakeTierSelector } from "@/components/game/StakeTierSelector";
-import { GameStatePanel, TransactionStatus } from "@/components/game/GameStatePanel";
+import { TeamWelcome } from "@/components/profile/TeamPreference";
+import {
+  GameStatePanel,
+  TransactionStatus,
+} from "@/components/game/GameStatePanel";
 import { RecentFlips } from "@/components/history/RecentFlips";
 import { QueueStatusBar } from "@/components/status/QueueStatusBar";
 import { DevStateSwitcher } from "@/components/ui/DevStateSwitcher";
@@ -55,9 +62,17 @@ import {
   requestReimbursement,
   type ReimbursableAction,
 } from "@/lib/solana/sponsorClient";
-import { fetchRecentFlips, type HistoryResult, type RecentFlip } from "@/lib/solana/history";
+import {
+  fetchRecentFlips,
+  type HistoryResult,
+  type RecentFlip,
+} from "@/lib/solana/history";
 import { useProfile } from "@/lib/profile/useProfile";
-import { currentSessionWallet, ensureSession, logoutSession } from "@/lib/auth/client";
+import {
+  currentSessionWallet,
+  ensureSession,
+  logoutSession,
+} from "@/lib/auth/client";
 import { ChatPanel } from "@/components/chat/ChatPanel";
 import { useSiteSettings } from "@/lib/site/useSiteSettings";
 import {
@@ -72,26 +87,27 @@ import {
 } from "@/lib/game/uiGuards";
 import { decideIdleRefresh } from "@/lib/game/matchLabel";
 import { useVisibleFlipAnchor } from "@/components/game/useVisibleFlipAnchor";
-import { DEFAULT_TIER_USD, ROOM_ACTIVATION_COPY, isRoomJoinable, mergeRoomLiveness, roomForTier } from "@/lib/game/rooms";
+import {
+  DEFAULT_TIER_USD,
+  ROOM_ACTIVATION_COPY,
+  isRoomJoinable,
+  mergeRoomLiveness,
+  roomForTier,
+} from "@/lib/game/rooms";
 import { traceGameEvent, traceTransition } from "@/lib/game/stateTrail";
-import { commitPassiveState, resolvePassiveSelectionView } from "@/lib/game/selectionGuard";
+import {
+  commitPassiveState,
+  resolvePassiveSelectionView,
+} from "@/lib/game/selectionGuard";
 import {
   createIntent,
   mayClearIntentForRefresh,
   shouldClearIntentOn,
   type SelectionIntent,
 } from "@/lib/game/selectionIntent";
-import {
-  ExistingTokenAdapter,
-  MockSolSwapAdapter,
-  describeQuote,
-  type FundingMethod,
-  type FundingQuote,
-} from "@/lib/game/entryFunding";
 import type { GameStateId, Side } from "@/lib/mockGameData";
 import {
   MIN_FLIP_REVEAL_MS,
-  MIN_RESULT_HOLD_MS,
   classifyMatchObservation,
   planVisibleReveal,
 } from "@/lib/game/flipReveal";
@@ -172,14 +188,16 @@ export function LiveGameClient() {
   useEffect(() => {
     let unsub: (() => void) | undefined;
     let cleared: (() => void) | undefined;
-    void import("@/lib/auth/sessionEvents").then((m) => {
-      unsub = m.subscribeSessionEstablished(() => {
-        reloadSession();
-      });
-      cleared = m.subscribeSessionCleared(() => {
-        setSessionWallet(null);
-      });
-    }).catch(() => undefined);
+    void import("@/lib/auth/sessionEvents")
+      .then((m) => {
+        unsub = m.subscribeSessionEstablished(() => {
+          reloadSession();
+        });
+        cleared = m.subscribeSessionCleared(() => {
+          setSessionWallet(null);
+        });
+      })
+      .catch(() => undefined);
     return () => {
       try {
         unsub?.();
@@ -199,46 +217,56 @@ export function LiveGameClient() {
   // After a successful Profile verification the pending ?ref= attribution
   // retries immediately because reloadSession() above flips sessionWallet.
   useEffect(() => {
-    void import("@/lib/referrals/client").then((m) => {
-      try {
-        m.storePendingReferralFromUrl();
-      } catch {
-        // ignore
-      }
-    }).catch(() => undefined);
+    void import("@/lib/referrals/client")
+      .then((m) => {
+        try {
+          m.storePendingReferralFromUrl();
+        } catch {
+          // ignore
+        }
+      })
+      .catch(() => undefined);
   }, []);
   const refAttrRef = useRef<string | null>(null);
   useEffect(() => {
     if (!address || !sessionWallet) return;
-    void import("@/lib/referrals/client").then((m) => {
-      const code = m.getPendingReferral();
-      if (!code || refAttrRef.current === code) return;
-      refAttrRef.current = code;
-      void fetch("/api/referrals/attribute", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code }),
-      })
-        .then(async (r) => {
-          // fetch() resolving is NOT success: only TERMINAL successful
-          // attribution clears the pending ref. Retryable failures
-          // (401/429/5xx, network) preserve ht_pending_ref for retry
-          // after auth/reconnect; self-referral is terminal-invalid.
-          const b = (await r.json().catch(() => null)) as { status?: string; error?: string } | null;
-          if (r.ok && (b?.status === "attributed" || b?.status === "already-attributed")) {
-            m.clearPendingReferral();
-            return;
-          }
-          if (r.status === 400 && /self referral/i.test(b?.error ?? "")) {
-            m.clearPendingReferral();
-            return;
-          }
-          refAttrRef.current = null;
+    void import("@/lib/referrals/client")
+      .then((m) => {
+        const code = m.getPendingReferral();
+        if (!code || refAttrRef.current === code) return;
+        refAttrRef.current = code;
+        void fetch("/api/referrals/attribute", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ code }),
         })
-        .catch(() => {
-          refAttrRef.current = null;
-        });
-    }).catch(() => undefined);
+          .then(async (r) => {
+            // fetch() resolving is NOT success: only TERMINAL successful
+            // attribution clears the pending ref. Retryable failures
+            // (401/429/5xx, network) preserve ht_pending_ref for retry
+            // after auth/reconnect; self-referral is terminal-invalid.
+            const b = (await r.json().catch(() => null)) as {
+              status?: string;
+              error?: string;
+            } | null;
+            if (
+              r.ok &&
+              (b?.status === "attributed" || b?.status === "already-attributed")
+            ) {
+              m.clearPendingReferral();
+              return;
+            }
+            if (r.status === 400 && /self referral/i.test(b?.error ?? "")) {
+              m.clearPendingReferral();
+              return;
+            }
+            refAttrRef.current = null;
+          })
+          .catch(() => {
+            refAttrRef.current = null;
+          });
+      })
+      .catch(() => undefined);
   }, [address, sessionWallet]);
 
   // P0: inline chat auth-then-send. Send stays a CHAT action: verify wallet
@@ -259,14 +287,14 @@ export function LiveGameClient() {
 
   const anchorWallet = useMemo(
     () => (address ? createAnchorWallet(address, signBytes) : null),
-    [address, signBytes]
+    [address, signBytes],
   );
 
   const program = useMemo(() => {
     const provider = new AnchorProvider(
       connection,
       (anchorWallet ?? {}) as AnchorWallet,
-      { commitment: "confirmed" }
+      { commitment: "confirmed" },
     );
     return new Program<HeadsOrTails>(gameIdlJson as HeadsOrTails, provider);
   }, [connection, anchorWallet]);
@@ -278,9 +306,7 @@ export function LiveGameClient() {
 
   // Historical helper names retain cents, but this release always converts
   // nominal tier IDs to exact HTS units; it never promises a USD peg.
-  const priceAdapter = useMemo(
-    () => new DevnetUsdQuoteAdapter(), []
-  );
+  const priceAdapter = useMemo(() => new DevnetUsdQuoteAdapter(), []);
 
   const [liveState, setLiveState] = useState<GameStateId>("disconnected");
   const [override, setOverride] = useState<GameStateId | null>(null);
@@ -290,7 +316,9 @@ export function LiveGameClient() {
   const [busyKind, setBusyKind] = useState<"join" | "leave" | null>(null);
   const busyRef = useRef(false);
   const [hasPosition, setHasPosition] = useState(false);
-  const [queue, setQueue] = useState<{ heads: number; tails: number } | null>(null);
+  const [queue, setQueue] = useState<{ heads: number; tails: number } | null>(
+    null,
+  );
   const [history, setHistory] = useState<HistoryResult>({ status: "empty" });
   // Ready copy is Pick Side — never a Loading… placeholder in user-facing UX.
   // entryLabel is kept for internal quote tracking; main status copy stays
@@ -298,27 +326,27 @@ export function LiveGameClient() {
   const [, setEntryLabel] = useState<string>("Pick Side");
   const [visible, setVisible] = useState(true);
   const [queuePos, setQueuePos] = useState<number | null>(null);
-  const [tokenBalanceLabel, setTokenBalanceLabel] = useState<string | null>(null);
-  const [tokenBalanceBaseUnits, setTokenBalanceBaseUnits] = useState<bigint | null>(null);
+  const [tokenBalanceLabel, setTokenBalanceLabel] = useState<string | null>(
+    null,
+  );
+  const [tokenBalanceBaseUnits, setTokenBalanceBaseUnits] = useState<
+    bigint | null
+  >(null);
   const [activeMatchId, setActiveMatchId] = useState<string | null>(null);
-  const [lastCompleted, setLastCompleted] = useState<CompletedRound | null>(null);
+  const [lastCompleted, setLastCompleted] = useState<CompletedRound | null>(
+    null,
+  );
   // Ref mirrors so the polling refresh closure always sees fresh values
   // without re-subscribing the interval on every round transition.
   const activeMatchIdRef = useRef<string | null>(null);
   activeMatchIdRef.current = activeMatchId;
   const lastCompletedRef = useRef<CompletedRound | null>(null);
   lastCompletedRef.current = lastCompleted;
-  // Result-screen hold (presentation-only): which match's YOU WIN/LOSS is
-  // being held, since when, and the pending auto-Ready timer.
-  const resultShownAtRef = useRef<{ matchId: string; shownAt: number } | null>(null);
-  const resultHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // A settled result stays anchored until the player explicitly continues.
   const [settlePending, setSettlePending] = useState(false);
   const [settleLine, setSettleLine] = useState<string | null>(null);
   const [retryPayoutBusy, setRetryPayoutBusy] = useState(false);
-  // Entry funding (Pay with Game Token / Pay with SOL DEVNET MOCK).
-  const [fundingMethod, setFundingMethod] = useState<FundingMethod>("token");
-  const [fundingQuote, setFundingQuote] = useState<FundingQuote | null>(null);
-  const [mockAcquired, setMockAcquired] = useState(false);
+  // Authoritative HTS quote and balance checks.
   const selRef = useRef<Side | null>(null);
   selRef.current = selectedSide;
   const hasPositionRef = useRef(false);
@@ -340,13 +368,23 @@ export function LiveGameClient() {
   // Timing anchor is visibleFlipStartedAtRef (post-render). Round ownership
   // is flipMatchIdRef. There is intentionally no observation-time start
   // ref: pre-network timestamps must never drive the reveal timer.
-  const pendingFlipRef = useRef<{ matchId: string; resultSide: Side; iWon: boolean; settled: boolean; arrivedAt: number } | null>(null);
+  const pendingFlipRef = useRef<{
+    matchId: string;
+    resultSide: Side;
+    iWon: boolean;
+    settled: boolean;
+    arrivedAt: number;
+  } | null>(null);
   const flipTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [, setFlipTick] = useState(0);
   const bumpEpoch = useCallback(() => {
     selectionEpochRef.current += 1;
   }, []);
-  const snapshotCacheRef = useRef<{ at: number; tier: number; data: QueueSnapshot | null }>({ at: 0, tier: 1, data: null });
+  const snapshotCacheRef = useRef<{
+    at: number;
+    tier: number;
+    data: QueueSnapshot | null;
+  }>({ at: 0, tier: 1, data: null });
 
   // Which live Match ID currently owns the flip presentation. First
   // observation registers it; repeat polls must never re-register it; round
@@ -356,10 +394,17 @@ export function LiveGameClient() {
   // When the Flipping presentation for a Match ID actually committed to
   // the screen (post-render anchor). The 5000ms reveal timer runs from
   // here — never from pre-network observation time.
-  const visibleFlipStartedAtRef = useRef<{ matchId: string; startedAt: number } | null>(null);
+  const visibleFlipStartedAtRef = useRef<{
+    matchId: string;
+    startedAt: number;
+  } | null>(null);
 
   const resetFlipReveal = useCallback((matchId?: string | null) => {
-    if (matchId && pendingFlipRef.current && pendingFlipRef.current.matchId !== matchId) {
+    if (
+      matchId &&
+      pendingFlipRef.current &&
+      pendingFlipRef.current.matchId !== matchId
+    ) {
       // New match gets a fresh timer.
       if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
       flipTimerRef.current = null;
@@ -384,9 +429,6 @@ export function LiveGameClient() {
     bumpEpoch();
     intentRef.current = null;
     resetFlipReveal();
-    if (resultHoldTimerRef.current) clearTimeout(resultHoldTimerRef.current);
-    resultHoldTimerRef.current = null;
-    resultShownAtRef.current = null;
     setLastCompleted(null);
     setSelectedSide(null);
     setMatchResult(null);
@@ -397,8 +439,6 @@ export function LiveGameClient() {
     matchedAtRef.current = null;
     setActiveMatchId(null);
     setQueuePos(null);
-    setMockAcquired(false);
-    setFundingQuote(null);
   }, [bumpEpoch, resetFlipReveal]);
 
   const revealFlipResult = useCallback(
@@ -421,7 +461,7 @@ export function LiveGameClient() {
       }
       setFlipTick((t) => t + 1);
     },
-    []
+    [],
   );
 
   // Single scheduling point for delayed reveals: (re)arms the timer for
@@ -430,14 +470,17 @@ export function LiveGameClient() {
   const scheduleFlipReveal = useCallback(
     (forMatchId: string, delayMs: number) => {
       if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
-      flipTimerRef.current = setTimeout(() => {
-        const p = pendingFlipRef.current;
-        if (p && p.matchId === forMatchId) {
-          revealFlipResult(p.matchId, p.resultSide, p.iWon, p.settled);
-        }
-      }, Math.max(0, delayMs));
+      flipTimerRef.current = setTimeout(
+        () => {
+          const p = pendingFlipRef.current;
+          if (p && p.matchId === forMatchId) {
+            revealFlipResult(p.matchId, p.resultSide, p.iWon, p.settled);
+          }
+        },
+        Math.max(0, delayMs),
+      );
     },
-    [revealFlipResult]
+    [revealFlipResult],
   );
 
   const showError = useCallback((e: unknown) => {
@@ -448,68 +491,91 @@ export function LiveGameClient() {
 
   const loadHistory = useCallback(async (tier?: number) => {
     const t = tier ?? selectedTierRef.current;
-    const h = await fetchRecentFlips(10, t);
+    const h = await fetchRecentFlips(50, t);
     setHistory(h);
   }, []);
 
-  const refreshQueueSnapshot = useCallback(async (tier?: number): Promise<QueueSnapshot | null> => {
-    const t = tier ?? selectedTierRef.current;
-    const cached = snapshotCacheRef.current;
-    if (cached.data && cached.tier === t && Date.now() - cached.at < SNAPSHOT_CACHE_MS) return cached.data;
-    try {
-      // Every room (including $1) reads its tier-scoped V2 RoomState. The
-      // legacy V1 global pool is drain-only and never used for new joins.
-      const roomState = await sdk.fetchRoom(t);
-      const snap = await fetchRoomQueueSnapshot(connection, program.programId, t, {
-        headsHead: roomState.headsHead,
-        headsNext: roomState.headsNext,
-        tailsHead: roomState.tailsHead,
-        tailsNext: roomState.tailsNext,
-      });
-      snapshotCacheRef.current = { at: Date.now(), tier: t, data: snap };
-      setQueue({ heads: snap.headsActive, tails: snap.tailsActive });
-      return snap;
-    } catch {
-      // Room uninitialized/unreadable: honest empty, never another tier's
-      // cached counts.
-      if (t !== (snapshotCacheRef.current.tier ?? 1)) setQueue(null);
-      return cached.tier === t ? cached.data : null;
-    }
-  }, [connection, program, sdk]);
-
-  const refreshBalances = useCallback(async (owner: PublicKey): Promise<void> => {
-    try {
-      if (!PROJECT_TOKEN_MINT) {
-        setTokenBalanceLabel(null);
-        setTokenBalanceBaseUnits(null);
-        return;
-      }
-      const mint = new PublicKey(PROJECT_TOKEN_MINT);
-      const ata = await getAssociatedTokenAddress(mint, owner);
-      const bal = await connection.getTokenAccountBalance(ata).catch(() => null);
-      if (!bal) {
-        setTokenBalanceLabel(null);
-        setTokenBalanceBaseUnits(null);
-        return;
-      }
+  const refreshQueueSnapshot = useCallback(
+    async (tier?: number): Promise<QueueSnapshot | null> => {
+      const t = tier ?? selectedTierRef.current;
+      const cached = snapshotCacheRef.current;
+      if (
+        cached.data &&
+        cached.tier === t &&
+        Date.now() - cached.at < SNAPSHOT_CACHE_MS
+      )
+        return cached.data;
       try {
-        setTokenBalanceBaseUnits(BigInt(bal.value.amount));
+        // Every room (including $1) reads its tier-scoped V2 RoomState. The
+        // legacy V1 global pool is drain-only and never used for new joins.
+        const roomState = await sdk.fetchRoom(t);
+        const snap = await fetchRoomQueueSnapshot(
+          connection,
+          program.programId,
+          t,
+          {
+            headsHead: roomState.headsHead,
+            headsNext: roomState.headsNext,
+            tailsHead: roomState.tailsHead,
+            tailsNext: roomState.tailsNext,
+          },
+        );
+        snapshotCacheRef.current = { at: Date.now(), tier: t, data: snap };
+        setQueue({ heads: snap.headsActive, tails: snap.tailsActive });
+        return snap;
       } catch {
+        // Room uninitialized/unreadable: honest empty, never another tier's
+        // cached counts.
+        if (t !== (snapshotCacheRef.current.tier ?? 1)) setQueue(null);
+        return cached.tier === t ? cached.data : null;
+      }
+    },
+    [connection, program, sdk],
+  );
+
+  const refreshBalances = useCallback(
+    async (owner: PublicKey): Promise<void> => {
+      try {
+        if (!PROJECT_TOKEN_MINT) {
+          setTokenBalanceLabel(null);
+          setTokenBalanceBaseUnits(null);
+          return;
+        }
+        const mint = new PublicKey(PROJECT_TOKEN_MINT);
+        const ata = await getAssociatedTokenAddress(mint, owner);
+        const bal = await connection
+          .getTokenAccountBalance(ata)
+          .catch(() => null);
+        if (!bal) {
+          setTokenBalanceLabel(null);
+          setTokenBalanceBaseUnits(null);
+          return;
+        }
+        try {
+          setTokenBalanceBaseUnits(BigInt(bal.value.amount));
+        } catch {
+          setTokenBalanceBaseUnits(null);
+        }
+        const ui =
+          bal.value.uiAmountString ??
+          (() => {
+            try {
+              return (
+                Number(BigInt(bal.value.amount)) /
+                10 ** TOKEN_DECIMALS
+              ).toFixed(2);
+            } catch {
+              return null;
+            }
+          })();
+        setTokenBalanceLabel(ui === null ? null : `${ui} ${TOKEN_SYMBOL}`);
+      } catch {
+        setTokenBalanceLabel(null);
         setTokenBalanceBaseUnits(null);
       }
-      const ui = bal.value.uiAmountString ?? (() => {
-        try {
-          return (Number(BigInt(bal.value.amount)) / 10 ** TOKEN_DECIMALS).toFixed(2);
-        } catch {
-          return null;
-        }
-      })();
-      setTokenBalanceLabel(ui === null ? null : `${ui} ${TOKEN_SYMBOL}`);
-    } catch {
-      setTokenBalanceLabel(null);
-      setTokenBalanceBaseUnits(null);
-    }
-  }, [connection]);
+    },
+    [connection],
+  );
   const refreshBalancesRef = useRef(refreshBalances);
   refreshBalancesRef.current = refreshBalances;
 
@@ -525,27 +591,29 @@ export function LiveGameClient() {
     }
     reloadProfile();
   }, [reloadProfile]);
-  const restrictedQa = process.env.NEXT_PUBLIC_RESTRICTED_QA === "true";
   useDevnetWelcomeTokens(address, welcomeGranted, sessionWallet === address);
 
-  const ensureAutoSettlement = useCallback(async (matchId: string) => {
-    if (ensureSentRef.current.has(matchId)) return;
-    ensureSentRef.current.add(matchId);
-    try {
-      const res = await fetch("/api/settlement/ensure", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ matchId }),
-      });
-      if (res.ok) {
-        // Indexing/profile refresh happens when the chain shows Settled.
-        await loadHistory();
+  const ensureAutoSettlement = useCallback(
+    async (matchId: string) => {
+      if (ensureSentRef.current.has(matchId)) return;
+      ensureSentRef.current.add(matchId);
+      try {
+        const res = await fetch("/api/settlement/ensure", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ matchId }),
+        });
+        if (res.ok) {
+          // Indexing/profile refresh happens when the chain shows Settled.
+          await loadHistory();
+        }
+      } catch {
+        // Reconciler + next refresh cycle retry; never surface infra errors.
+        ensureSentRef.current.delete(matchId);
       }
-    } catch {
-      // Reconciler + next refresh cycle retry; never surface infra errors.
-      ensureSentRef.current.delete(matchId);
-    }
-  }, [loadHistory]);
+    },
+    [loadHistory],
+  );
 
   const refresh = useCallback(async () => {
     if (RPC_MISSING) {
@@ -564,11 +632,11 @@ export function LiveGameClient() {
             currentEpoch: selectionEpochRef.current,
             currentTier: selectedTierRef.current,
             hasChainPosition: hasPositionRef.current,
-          }
-        ).state
+          },
+        ).state,
       );
       setDetail(
-        "Network configuration is missing (dedicated Devnet RPC). Public api.devnet.solana.com must not be the primary QA RPC — set NEXT_PUBLIC_RPC_URL."
+        "Network configuration is missing (dedicated Devnet RPC). Public api.devnet.solana.com must not be the primary QA RPC — set NEXT_PUBLIC_RPC_URL.",
       );
       return;
     }
@@ -582,7 +650,11 @@ export function LiveGameClient() {
     // Wallet account change (A -> B) intentionally resets selection state.
     // Null gaps (silent restore) do not: reconnecting the same wallet keeps
     // any pending explicit intent.
-    if (meAddr !== null && lastAddressRef.current !== null && meAddr !== lastAddressRef.current) {
+    if (
+      meAddr !== null &&
+      lastAddressRef.current !== null &&
+      meAddr !== lastAddressRef.current
+    ) {
       traceTransition({
         reason: "wallet-account-changed",
         from: stateRef.current,
@@ -626,7 +698,7 @@ export function LiveGameClient() {
       setDetail(
         `Wallet is on ${walletChains[0] ?? "an unknown network"} — switch to ${
           IS_DEVNET ? "Solana Devnet" : "Solana Mainnet"
-        } in your wallet to play.`
+        } in your wallet to play.`,
       );
       return;
     }
@@ -634,7 +706,9 @@ export function LiveGameClient() {
       const cfg = await sdk.fetchConfig();
       if (cfg.paused) {
         setLiveState("paused");
-        setDetail("New joins are disabled by game config. Existing matches still settle.");
+        setDetail(
+          "New joins are disabled by game config. Existing matches still settle.",
+        );
         return;
       }
       if (!PROJECT_TOKEN_MINT) {
@@ -653,10 +727,12 @@ export function LiveGameClient() {
               currentEpoch: selectionEpochRef.current,
               currentTier: selectedTierRef.current,
               hasChainPosition: hasPositionRef.current,
-            }
-          ).state
+            },
+          ).state,
         );
-        setDetail("Project token mint is not configured yet (devnet setup in progress).");
+        setDetail(
+          "Project token mint is not configured yet (devnet setup in progress).",
+        );
         return;
       }
       // Room liveness probe (30s cache): a tier opens only with a confirmed
@@ -699,7 +775,7 @@ export function LiveGameClient() {
             currentEpoch: selectionEpochRef.current,
             currentTier: selectedTierRef.current,
             hasChainPosition: false,
-          }
+          },
         );
         traceTransition({
           reason: "room-gate",
@@ -718,7 +794,7 @@ export function LiveGameClient() {
         setDetail(
           tier0 === 10
             ? `${ROOM_ACTIVATION_COPY} — 10 HTS opens automatically once its on-chain room is live.`
-            : "This room is Opening Soon."
+            : "This room is Opening Soon.",
         );
         return;
       }
@@ -759,7 +835,9 @@ export function LiveGameClient() {
           const quote = await priceAdapter.getQuote(PROJECT_TOKEN_MINT);
           const stake = stakeForUsd(quote, usdCents);
           const roomLabel = roomForTier(tier0)?.label ?? `$${tier0}`;
-          setEntryLabel(`Entry ≈ ${stake.toLocaleString("en-US")} base units ≈ ${roomLabel}`);
+          setEntryLabel(
+            `Entry ≈ ${stake.toLocaleString("en-US")} base units ≈ ${roomLabel}`,
+          );
           // Stale-refresh guards: epoch + explicit intent lock + room pin.
           if (
             !shouldCommitSelectionRefresh({
@@ -781,7 +859,8 @@ export function LiveGameClient() {
               chainHasPosition: false,
             }) &&
             curIntent !== null &&
-            (curIntent.intentId !== intent0?.intentId || selectedTierRef.current !== tier0)
+            (curIntent.intentId !== intent0?.intentId ||
+              selectedTierRef.current !== tier0)
           ) {
             return;
           }
@@ -790,11 +869,17 @@ export function LiveGameClient() {
           const solBal = await connection.getBalance(me).catch(() => null);
           const mint = new PublicKey(PROJECT_TOKEN_MINT);
           const ata = await getAssociatedTokenAddress(mint, me);
-          const bal = await connection.getTokenAccountBalance(ata).catch(() => null);
+          const bal = await connection
+            .getTokenAccountBalance(ata)
+            .catch(() => null);
           const balLabel = bal
             ? `Balance ${BigInt(bal.value.amount).toLocaleString("en-US")}`
             : "Balance unknown";
-          if (solBal !== null && solBal < 2_000_000 && !DEVNET_SPONSOR_UI_ENABLED) {
+          if (
+            solBal !== null &&
+            solBal < 2_000_000 &&
+            !DEVNET_SPONSOR_UI_ENABLED
+          ) {
             // Intent-preserving: a passive balance read must not clear an
             // explicit selection (Confirm re-validates funds anyway).
             const solGate = commitPassiveState(
@@ -811,7 +896,7 @@ export function LiveGameClient() {
                 currentEpoch: selectionEpochRef.current,
                 currentTier: selectedTierRef.current,
                 hasChainPosition: false,
-              }
+              },
             );
             traceTransition({
               reason: "refresh-low-sol",
@@ -828,7 +913,7 @@ export function LiveGameClient() {
             });
             setLiveState(solGate.state);
             setDetail(
-              "Insufficient SOL for transaction fees. Top up a little Devnet SOL — your project-token balance is unaffected."
+              "Insufficient SOL for transaction fees. Top up a little Devnet SOL — your project-token balance is unaffected.",
             );
             return;
           }
@@ -848,7 +933,7 @@ export function LiveGameClient() {
                   currentEpoch: selectionEpochRef.current,
                   currentTier: selectedTierRef.current,
                   hasChainPosition: false,
-                }
+                },
               );
               traceTransition({
                 reason: "refresh-low-tokens",
@@ -865,7 +950,7 @@ export function LiveGameClient() {
               });
               setLiveState(tokGate.state);
               setDetail(
-                `Insufficient project tokens: you need ${stake.toLocaleString("en-US")} base units for a ${roomLabel} flip (${balLabel}). You can still preview Pay with SOL (DEVNET MOCK).`
+                `Insufficient HTS: you need ${stake.toLocaleString("en-US")} base units for a ${roomLabel} flip (${balLabel}).`,
               );
               return;
             }
@@ -890,7 +975,7 @@ export function LiveGameClient() {
               currentEpoch: selectionEpochRef.current,
               currentTier: selectedTierRef.current,
               hasChainPosition: false,
-            }
+            },
           );
           traceTransition({
             reason: "refresh-no-selection",
@@ -928,7 +1013,7 @@ export function LiveGameClient() {
                 currentEpoch: selectionEpochRef.current,
                 currentTier: selectedTierRef.current,
                 hasChainPosition: false,
-              }
+              },
             );
             traceTransition({
               reason: "refresh-stale-quote",
@@ -944,7 +1029,9 @@ export function LiveGameClient() {
               chainHasPosition: false,
             });
             setLiveState(staleQ.state);
-            setDetail("Token price feed is unavailable. Entry amount hidden until it recovers.");
+            setDetail(
+              "Token price feed is unavailable. Entry amount hidden until it recovers.",
+            );
           } else {
             throw e;
           }
@@ -998,7 +1085,7 @@ export function LiveGameClient() {
             currentEpoch: selectionEpochRef.current,
             currentTier: selectedTierRef.current,
             hasChainPosition: false,
-          }
+          },
         );
         traceTransition({
           reason: "refresh-no-account",
@@ -1043,14 +1130,15 @@ export function LiveGameClient() {
             if (!roomState) {
               setQueuePos(null);
             } else {
-              const head = side === "HEADS" ? roomState.headsHead : roomState.tailsHead;
+              const head =
+                side === "HEADS" ? roomState.headsHead : roomState.tailsHead;
               const pos = await fetchUserRoomQueuePosition(
                 connection,
                 program.programId,
                 queuedTier,
                 side === "HEADS" ? 0 : 1,
                 seq,
-                head
+                head,
               );
               setQueuePos("position" in pos ? pos.position : null);
             }
@@ -1074,7 +1162,12 @@ export function LiveGameClient() {
         // itself is anchored separately, post-render, when Flipping
         // actually commits (see the visible-start effect below) — never
         // from pre-network observation time.
-        if (classifyMatchObservation({ trackedMatchId: flipMatchIdRef.current, observedMatchId: matchId.toString() }) === "init-new-round") {
+        if (
+          classifyMatchObservation({
+            trackedMatchId: flipMatchIdRef.current,
+            observedMatchId: matchId.toString(),
+          }) === "init-new-round"
+        ) {
           flipMatchIdRef.current = matchId.toString();
           // A new round supersedes any stale pending reveal state.
           if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
@@ -1084,7 +1177,9 @@ export function LiveGameClient() {
         const [mpda] = matchPda(program.programId, matchId);
         const m = await program.account.match.fetch(mpda);
         const mState = Object.keys(m.state as object)[0];
-        const mySide = (m.headsPlayer as PublicKey).equals(me) ? "HEADS" : "TAILS";
+        const mySide = (m.headsPlayer as PublicKey).equals(me)
+          ? "HEADS"
+          : "TAILS";
         // Chain proves match entry.
         intentRef.current = null;
         setSelectedSide(mySide);
@@ -1099,9 +1194,19 @@ export function LiveGameClient() {
         // time. If Flipping is ALREADY visibly anchored for this match
         // (result arrived later, e.g. fulfilled→settled upgrade), reschedule
         // from the anchor so the reveal honors max(visible+5000, arrival).
-        const holdAndReveal = (resultSide: Side, iWon: boolean, settled: boolean) => {
+        const holdAndReveal = (
+          resultSide: Side,
+          iWon: boolean,
+          settled: boolean,
+        ) => {
           const now = Date.now();
-          pendingFlipRef.current = { matchId: matchId.toString(), resultSide, iWon, settled, arrivedAt: now };
+          pendingFlipRef.current = {
+            matchId: matchId.toString(),
+            resultSide,
+            iWon,
+            settled,
+            arrivedAt: now,
+          };
           setMatchResult(null);
           setLiveState("flipping");
           setSettlePending(true);
@@ -1114,7 +1219,11 @@ export function LiveGameClient() {
           if (anchored && anchored.matchId === matchId.toString()) {
             scheduleFlipReveal(
               matchId.toString(),
-              planVisibleReveal({ visibleStartedAtMs: anchored.startedAt, resultArrivedAtMs: now, nowMs: now }).delayMs
+              planVisibleReveal({
+                visibleStartedAtMs: anchored.startedAt,
+                resultArrivedAtMs: now,
+                nowMs: now,
+              }).delayMs,
             );
           }
         };
@@ -1130,9 +1239,15 @@ export function LiveGameClient() {
           const now = Date.now();
           const anchored = visibleFlipStartedAtRef.current;
           const anchoredForMatch =
-            anchored && anchored.matchId === matchId.toString() ? anchored : null;
+            anchored && anchored.matchId === matchId.toString()
+              ? anchored
+              : null;
           const delay = anchoredForMatch
-            ? planVisibleReveal({ visibleStartedAtMs: anchoredForMatch.startedAt, resultArrivedAtMs: now, nowMs: now }).delayMs
+            ? planVisibleReveal({
+                visibleStartedAtMs: anchoredForMatch.startedAt,
+                resultArrivedAtMs: now,
+                nowMs: now,
+              }).delayMs
             : 1;
           if (delay > 0) {
             holdAndReveal(resultSide, iWon, true);
@@ -1151,7 +1266,11 @@ export function LiveGameClient() {
           setLiveState(iWon ? "win" : "loss");
           setSettlePending(false);
           setSettleLine(iWon ? "Payout sent ✓" : null);
-          setLastCompleted({ matchId: matchId.toString(), result: resultSide, iWon });
+          setLastCompleted({
+            matchId: matchId.toString(),
+            result: resultSide,
+            iWon,
+          });
           setDetail(resultSide);
           if (!settledSeenRef.current.has(matchId.toString())) {
             settledSeenRef.current.add(matchId.toString());
@@ -1251,7 +1370,7 @@ export function LiveGameClient() {
           currentEpoch: selectionEpochRef.current,
           currentTier: selectedTierRef.current,
           hasChainPosition: false,
-        }
+        },
       );
       traceTransition({
         reason: "refresh-idle-state",
@@ -1292,7 +1411,7 @@ export function LiveGameClient() {
           currentEpoch: selectionEpochRef.current,
           currentTier: selectedTierRef.current,
           hasChainPosition: hasPositionRef.current,
-        }
+        },
       );
       traceTransition({
         reason: "refresh-error",
@@ -1315,7 +1434,22 @@ export function LiveGameClient() {
       setLiveState("error");
       setDetail(c.message.slice(0, 220));
     }
-  }, [account, bumpEpoch, connection, priceAdapter, program, refreshBalances, refreshQueueSnapshot, sdk, usdCents, ensureAutoSettlement, loadHistory, reloadProfile, resetFlipReveal, scheduleFlipReveal]);
+  }, [
+    account,
+    bumpEpoch,
+    connection,
+    priceAdapter,
+    program,
+    refreshBalances,
+    refreshQueueSnapshot,
+    sdk,
+    usdCents,
+    ensureAutoSettlement,
+    loadHistory,
+    reloadProfile,
+    resetFlipReveal,
+    scheduleFlipReveal,
+  ]);
 
   // Visibility pause: background tabs burn no RPC quota.
   useEffect(() => {
@@ -1342,29 +1476,7 @@ export function LiveGameClient() {
     scheduleFlipReveal,
   });
 
-  // RESULT HOLD (post-render): keep YOU WIN / YOU LOSE on screen at least
-  // 10000ms before the automatic Ready transition. Presentation-only: polls,
-  // settlement, payout, profile, and history never wait — only this UI
-  // transition does. No dependency array (runs every commit; the per-match
-  // stamp makes it once-per-result). Skipped while settlement is still
-  // pending (transient pre-result), on manual Play Again (timer cleared),
-  // and once the user starts a new round (their action supersedes).
-  useEffect(() => {
-    if (!lastCompleted || settlePending) return;
-    const mid = lastCompleted.matchId;
-    const stamped = resultShownAtRef.current;
-    if (stamped && stamped.matchId === mid) return;
-    resultShownAtRef.current = { matchId: mid, shownAt: Date.now() };
-    if (resultHoldTimerRef.current) clearTimeout(resultHoldTimerRef.current);
-    resultHoldTimerRef.current = setTimeout(() => {
-      const cur = lastCompletedRef.current;
-      if (!cur || cur.matchId !== mid) return;
-      if (intentRef.current !== null || hasPositionRef.current) return;
-      traceGameEvent("auto-ready");
-      resetRoundState();
-      void refresh();
-    }, MIN_RESULT_HOLD_MS);
-  });
+  // Results remain visible until the player explicitly chooses Play Again.
 
   // State-aware polling + account subscriptions (fallback to bounded polling).
   useEffect(() => {
@@ -1393,11 +1505,15 @@ export function LiveGameClient() {
           sdk.config,
           () => {
             if (!cancelled) {
-              snapshotCacheRef.current = { at: 0, tier: selectedTierRef.current, data: null };
+              snapshotCacheRef.current = {
+                at: 0,
+                tier: selectedTierRef.current,
+                data: null,
+              };
               void refresh();
             }
           },
-          "confirmed"
+          "confirmed",
         );
       } catch {
         subId = null;
@@ -1407,7 +1523,9 @@ export function LiveGameClient() {
     return () => {
       cancelled = true;
       if (subId !== null) {
-        void connection.removeAccountChangeListener(subId).catch(() => undefined);
+        void connection
+          .removeAccountChangeListener(subId)
+          .catch(() => undefined);
       }
     };
   }, [connection, sdk, visible, refresh]);
@@ -1436,11 +1554,22 @@ export function LiveGameClient() {
       try {
         const me = new PublicKey(address);
         const [playerStatePk] = playerPda(program.programId, me);
-        const outcome = await probeJoinRecovery(connection, pending.signature, async () => {
-          const st = await fetchPlayerStateCompat(connection, playerStatePk).catch(() => null);
-          if (!st) return { exists: false, queued: false, inMatch: false };
-          return { exists: true, queued: Boolean(st.queued), inMatch: Boolean(st.inMatch) };
-        });
+        const outcome = await probeJoinRecovery(
+          connection,
+          pending.signature,
+          async () => {
+            const st = await fetchPlayerStateCompat(
+              connection,
+              playerStatePk,
+            ).catch(() => null);
+            if (!st) return { exists: false, queued: false, inMatch: false };
+            return {
+              exists: true,
+              queued: Boolean(st.queued),
+              inMatch: Boolean(st.inMatch),
+            };
+          },
+        );
         if (outcome === "queued" || outcome === "matched") {
           clearPendingSignature();
           await refresh();
@@ -1478,14 +1607,15 @@ export function LiveGameClient() {
       if (hasPosition) return;
       traceGameEvent(`user-pick:${s}`);
       bumpEpoch();
-      intentRef.current = createIntent(s, selectedTierRef.current, selectionEpochRef.current);
+      intentRef.current = createIntent(
+        s,
+        selectedTierRef.current,
+        selectionEpochRef.current,
+      );
       setSelectedSide(s);
-      setMockAcquired(false);
-      setFundingQuote(null);
-      setFundingMethod("token");
       setLiveState(s === "HEADS" ? "heads-selected" : "tails-selected");
     },
-    [hasPosition, bumpEpoch]
+    [hasPosition, bumpEpoch],
   );
 
   const handleSelectTier = useCallback(
@@ -1507,9 +1637,6 @@ export function LiveGameClient() {
       setQueuePos(null);
       setQueue(null);
       setLastCompleted(null);
-      setMockAcquired(false);
-      setFundingQuote(null);
-      setFundingMethod("token");
       lockedStakeRef.current = null;
       matchedAtRef.current = null;
       setActiveMatchId(null);
@@ -1517,18 +1644,7 @@ export function LiveGameClient() {
       void refresh();
       void loadHistory(tier);
     },
-    [bumpEpoch, refresh, loadHistory, resetFlipReveal]
-  );
-
-  // Entry-funding mock quote (DEVNET MOCK, SOL path only).
-  const refreshMockQuote = useCallback(
-    async (stake: bigint) => {
-      const adapter = new MockSolSwapAdapter();
-      const q = await adapter.quote(selectedTierRef.current, stake);
-      setFundingQuote(q);
-      return q;
-    },
-    []
+    [bumpEpoch, refresh, loadHistory, resetFlipReveal],
   );
 
   const runSponsored = useCallback(
@@ -1542,7 +1658,7 @@ export function LiveGameClient() {
         // Reimbursement is best-effort; gameplay already succeeded.
       }
     },
-    [address]
+    [address],
   );
 
   const handleConfirm = useCallback(async () => {
@@ -1553,10 +1669,7 @@ export function LiveGameClient() {
       setDetail("Verify your connected wallet for restricted QA first.");
       return;
     }
-    if ((IS_DEVNET || restrictedQa) && fundingMethod !== "token") {
-      setDetail("Restricted QA uses HTS token stakes only.");
-      return;
-    }
+
     // Confirm honors the intent lock: stale room/intent cannot join.
     if (intent && intent.tierUsd !== selectedTierRef.current) return;
     busyRef.current = true;
@@ -1567,38 +1680,34 @@ export function LiveGameClient() {
         setDetail("Preparing network fee…");
         const prep = await ensureSponsoredBalance(address);
         if (!prep.ok) {
-          setDetail(`Network fee preparation unavailable. Try again in a moment.`);
+          setDetail(
+            `Network fee preparation unavailable. Try again in a moment.`,
+          );
           return;
         }
       }
       const quote = await priceAdapter.getQuote(PROJECT_TOKEN_MINT);
       const stake = stakeForUsd(quote, usdCents);
-      // Funding-method gate: SOL mock quotes expire fail-closed.
-      if (fundingMethod === "sol") {
-        const q = fundingQuote ?? (await refreshMockQuote(stake));
-        if (q.isMock && Date.now() >= q.expiresAtMs) {
-          setDetail("Mock quote expired — request a new DEVNET MOCK quote before joining.");
-          return;
-        }
-        if (!mockAcquired) {
-          setDetail("Select “Acquire (DEVNET MOCK)” first to preview the mock acquisition state, then Join.");
-          return;
-        }
-      }
       const me = new PublicKey(address);
       const mint = new PublicKey(PROJECT_TOKEN_MINT);
       const ata = await getAssociatedTokenAddress(mint, me);
       const solBal = await connection.getBalance(me).catch(() => null);
       if (solBal !== null && solBal < 2_000_000 && !DEVNET_SPONSOR_UI_ENABLED) {
         setLiveState("insufficient-balance");
-        setDetail("Insufficient SOL for transaction fees. Top up a little Devnet SOL — your project-token balance is unaffected.");
+        setDetail(
+          "Insufficient SOL for transaction fees. Top up a little Devnet SOL — your project-token balance is unaffected.",
+        );
         return;
       }
-      const bal = await connection.getTokenAccountBalance(ata).catch(() => null);
+      const bal = await connection
+        .getTokenAccountBalance(ata)
+        .catch(() => null);
       if (!bal || BigInt(bal.value.amount) < stake) {
         const roomLabel = roomForTier(selectedTierRef.current)?.label ?? "$1";
         setLiveState("insufficient-balance");
-        setDetail(`Insufficient project tokens: you need ${stake.toLocaleString("en-US")} base units for a ${roomLabel} flip.`);
+        setDetail(
+          `Insufficient project tokens: you need ${stake.toLocaleString("en-US")} base units for a ${roomLabel} flip.`,
+        );
         return;
       }
       const cfg = await sdk.fetchConfig();
@@ -1612,12 +1721,13 @@ export function LiveGameClient() {
       setDetail("Submitting stake transaction…");
       // Every room joins through its tier-scoped V2 queue. Fail closed
       // unless the on-chain room was confirmed live.
-      const roomLabel = roomForTier(tier)?.label ?? `${tier.toLocaleString("en-US")}`;
+      const roomLabel =
+        roomForTier(tier)?.label ?? `${tier.toLocaleString("en-US")}`;
       if (!roomLiveRef.current[tier]) {
         setDetail(
           tier === 10
             ? `${ROOM_ACTIVATION_COPY} — 10 HTS opens automatically once its on-chain room is live.`
-            : `${roomLabel} room is not live on-chain yet.`
+            : `${roomLabel} room is not live on-chain yet.`,
         );
         setLiveState(sel === "HEADS" ? "heads-selected" : "tails-selected");
         return;
@@ -1626,7 +1736,9 @@ export function LiveGameClient() {
       try {
         roomState = await sdk.fetchRoom(tier);
       } catch {
-        setDetail(`${roomLabel} room is not readable on-chain right now. Try again in a moment.`);
+        setDetail(
+          `${roomLabel} room is not readable on-chain right now. Try again in a moment.`,
+        );
         setLiveState(sel === "HEADS" ? "heads-selected" : "tails-selected");
         return;
       }
@@ -1635,21 +1747,41 @@ export function LiveGameClient() {
         return;
       }
       const seq = side === 0 ? roomState.headsNext : roomState.tailsNext;
-      const { tx } = await sdk.joinQueueRoomTx(me, ata, mint, side, tier, stake, seq);
+      const { tx } = await sdk.joinQueueRoomTx(
+        me,
+        ata,
+        mint,
+        side,
+        tier,
+        stake,
+        seq,
+      );
       let joinSig = "";
       try {
-        joinSig = await signAndSend(connection, anchorWallet, tx, { action: "join" });
+        joinSig = await signAndSend(connection, anchorWallet, tx, {
+          action: "join",
+        });
       } catch (e) {
         const recSig = recoverySigFromError(e);
         const msg = e instanceof Error ? e.message : String(e);
         if (msg.includes("TRANSACTION_CONFIRMATION_UNKNOWN") && recSig) {
           setDetail("Transaction submitted. Checking its on-chain status…");
-          const outcome = await probeJoinRecovery(connection, recSig, async () => {
-            const [ps] = playerPda(program.programId, me);
-            const st = await fetchPlayerStateCompat(connection, ps).catch(() => null);
-            if (!st) return { exists: false, queued: false, inMatch: false };
-            return { exists: true, queued: Boolean(st.queued), inMatch: Boolean(st.inMatch) };
-          });
+          const outcome = await probeJoinRecovery(
+            connection,
+            recSig,
+            async () => {
+              const [ps] = playerPda(program.programId, me);
+              const st = await fetchPlayerStateCompat(connection, ps).catch(
+                () => null,
+              );
+              if (!st) return { exists: false, queued: false, inMatch: false };
+              return {
+                exists: true,
+                queued: Boolean(st.queued),
+                inMatch: Boolean(st.inMatch),
+              };
+            },
+          );
           if (outcome === "queued" || outcome === "matched") {
             clearPendingSignature();
             await runSponsored("join", recSig);
@@ -1693,7 +1825,20 @@ export function LiveGameClient() {
       busyRef.current = false;
       setBusyKind(null);
     }
-  }, [address, anchorWallet, bumpEpoch, connection, priceAdapter, program, refresh, sdk, showError, runSponsored, usdCents, fundingMethod, fundingQuote, mockAcquired, refreshMockQuote, restrictedQa, sessionWallet]);
+  }, [
+    address,
+    anchorWallet,
+    bumpEpoch,
+    connection,
+    priceAdapter,
+    program,
+    refresh,
+    sdk,
+    showError,
+    runSponsored,
+    usdCents,
+    sessionWallet,
+  ]);
 
   const handleLeave = useCallback(async () => {
     if (!address || !anchorWallet || busyRef.current) return;
@@ -1719,7 +1864,9 @@ export function LiveGameClient() {
         throw new Error("Invalid HTS room position");
       }
       const { tx } = await sdk.cancelQueueEntryRoomTx(me, ata, mint);
-      const sig = await signAndSend(connection, anchorWallet, tx, { action: "cancel" });
+      const sig = await signAndSend(connection, anchorWallet, tx, {
+        action: "cancel",
+      });
       await runSponsored("cancel", sig);
       intentRef.current = null;
       shouldClearIntentOn("user-cancel");
@@ -1735,7 +1882,17 @@ export function LiveGameClient() {
       busyRef.current = false;
       setBusyKind(null);
     }
-  }, [address, anchorWallet, bumpEpoch, connection, refresh, sdk, showError, runSponsored, program]);
+  }, [
+    address,
+    anchorWallet,
+    bumpEpoch,
+    connection,
+    refresh,
+    sdk,
+    showError,
+    runSponsored,
+    program,
+  ]);
 
   const handleRetryPayout = useCallback(async () => {
     // Server-only retry: ensures the settlement job exists. No wallet tx.
@@ -1774,36 +1931,29 @@ export function LiveGameClient() {
     void refresh();
   }, [resetRoundState, refresh]);
 
-  const handleAcquireMock = useCallback(async () => {
-    try {
-      const quote = await priceAdapter.getQuote(PROJECT_TOKEN_MINT);
-      const stake = stakeForUsd(quote, usdCents);
-      const q = await refreshMockQuote(stake);
-      // DEVNET MOCK: no value moves, no custodial wallet. Marks the tested
-      // mock-acquisition state so the Join transition can be exercised.
-      setFundingQuote(q);
-      setMockAcquired(true);
-    } catch (e) {
-      showError(e);
-    }
-  }, [priceAdapter, usdCents, refreshMockQuote, showError]);
-
   const baseVisual: GameStateId =
     override ?? (busyKind === "join" ? "joining" : liveState);
-  // Preserve a completed round on screen until Play Again or the automatic
-  // Ready transition after the 10s result hold (chain cleared state).
+  // Preserve a completed result until explicit Play Again; polling never dismisses it.
   const visualState: GameStateId =
     lastCompleted && !settlePending && baseVisual === "ready"
-      ? (lastCompleted.iWon ? "win" : "loss")
+      ? lastCompleted.iWon
+        ? "win"
+        : "loss"
       : baseVisual;
-  const displayResult = matchResult ?? (visualState === "win" || visualState === "loss" ? lastCompleted?.result ?? null : null);
+  const displayResult =
+    matchResult ??
+    (visualState === "win" || visualState === "loss"
+      ? (lastCompleted?.result ?? null)
+      : null);
   // Coin flip target (presentation-only): the authoritative pending result
   // face while Flipping, plus its absolute reveal timestamp, so the coin
   // decelerates onto the correct face exactly at reveal time. Fresh on
   // every hold commit via the flip-tick bump in holdAndReveal.
   const pendingFlipNow = pendingFlipRef.current;
   const flipTarget: Side | null =
-    liveState === "flipping" && pendingFlipNow !== null && pendingFlipNow.matchId === activeMatchId
+    liveState === "flipping" &&
+    pendingFlipNow !== null &&
+    pendingFlipNow.matchId === activeMatchId
       ? pendingFlipNow.resultSide
       : null;
   const flipRevealAtMs: number | null =
@@ -1813,25 +1963,30 @@ export function LiveGameClient() {
     pendingFlipNow !== null
       ? Math.max(
           visibleFlipStartedAtRef.current.startedAt + MIN_FLIP_REVEAL_MS,
-          pendingFlipNow.arrivedAt
+          pendingFlipNow.arrivedAt,
         )
       : null;
   const headerState: GameStateId = address ? visualState : "disconnected";
-  const flips: RecentFlip[] | undefined = history.status === "ok" ? history.flips : undefined;
+  const flips: RecentFlip[] | undefined =
+    history.status === "ok" ? history.flips : undefined;
   const historyUnavailable = history.status === "unavailable";
   const isDev = process.env.NODE_ENV !== "production";
   const queuedSide: Side | null =
-    visualState === "queued-heads" ? "HEADS" : visualState === "queued-tails" ? "TAILS" : null;
+    visualState === "queued-heads"
+      ? "HEADS"
+      : visualState === "queued-tails"
+        ? "TAILS"
+        : null;
   const queuePositionLine = queuedSide
     ? queuePositionText(queuedSide, queuePos ?? undefined)
     : undefined;
-  const matchLabel = activeMatchId !== null ? `MATCH #${activeMatchId}` : undefined;
+  const matchLabel =
+    activeMatchId !== null ? `MATCH #${activeMatchId}` : undefined;
   const showPlayAgain = playAgainReady({
     isWinOrLoss: visualState === "win" || visualState === "loss",
     claimPending: settlePending,
     settledObserved: lastCompleted !== null && !settlePending,
   });
-  const showFunding = visualState === "heads-selected" || visualState === "tails-selected";
 
   // Desktop side rails share one width token so Leaderboard and Chat stay
   // symmetrical around the center game (--desktop-side-panel-width).
@@ -1866,7 +2021,9 @@ export function LiveGameClient() {
           account={account}
           address={address}
           profile={profile}
-          pendingPayout={settlePending && activeMatchId ? { matchId: activeMatchId } : null}
+          pendingPayout={
+            settlePending && activeMatchId ? { matchId: activeMatchId } : null
+          }
           onRetryPayout={() => void handleRetryPayout()}
           retryPayoutBusy={retryPayoutBusy}
           onClose={() => setProfileOpen(false)}
@@ -1878,11 +2035,24 @@ export function LiveGameClient() {
         />
       )}
       {inspectedWallet && (
-        <PublicProfileModal wallet={inspectedWallet} onClose={() => setInspectedWallet(null)} />
+        <PublicProfileModal
+          wallet={inspectedWallet}
+          onClose={() => setInspectedWallet(null)}
+        />
       )}
       {chatOpen && (
-        <div role="dialog" aria-modal="true" aria-label="Global chat" className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4 xl:hidden">
-          <button type="button" aria-label="Close chat" onClick={() => setChatOpen(false)} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Global chat"
+          className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4 xl:hidden"
+        >
+          <button
+            type="button"
+            aria-label="Close chat"
+            onClick={() => setChatOpen(false)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          />
           <div className="relative flex max-h-[85svh] w-full max-w-sm min-w-0 flex-col overflow-hidden rounded-t-3xl sm:rounded-3xl">
             <ChatPanel
               authed={sessionWallet !== null}
@@ -1905,10 +2075,25 @@ export function LiveGameClient() {
         </div>
       )}
       {boardOpen && (
-        <div role="dialog" aria-modal="true" aria-label="Leaderboard" className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4">
-          <button type="button" aria-label="Close leaderboard" onClick={() => setBoardOpen(false)} className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Leaderboard"
+          className="fixed inset-0 z-[60] flex items-end justify-center p-0 sm:items-center sm:p-4"
+        >
+          <button
+            type="button"
+            aria-label="Close leaderboard"
+            onClick={() => setBoardOpen(false)}
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          />
           <div className="glass relative max-h-[85svh] w-full max-w-sm min-w-0 overflow-y-auto rounded-t-3xl p-4 sm:rounded-3xl">
-            <LeaderboardPanel onSelectUser={(w) => { setBoardOpen(false); setInspectedWallet(w); }} />
+            <LeaderboardPanel
+              onSelectUser={(w) => {
+                setBoardOpen(false);
+                setInspectedWallet(w);
+              }}
+            />
             <button
               type="button"
               onClick={() => setBoardOpen(false)}
@@ -1919,160 +2104,152 @@ export function LiveGameClient() {
           </div>
         </div>
       )}
-      <main className={`relative z-10 mx-auto grid w-full max-w-[1440px] min-w-0 flex-1 gap-6 overflow-x-clip px-4 pb-10 pt-6 sm:px-6 ${gridCols}`}>
+      <main
+        className={`relative z-10 mx-auto grid w-full max-w-[1440px] min-w-0 flex-1 gap-6 overflow-x-clip px-4 pb-10 pt-6 sm:px-6 ${gridCols}`}
+      >
         {site.leaderboardEnabled && (
-          <aside className="hidden w-full min-w-0 self-stretch xl:block xl:w-[var(--desktop-side-panel-width)] xl:shrink-0" aria-label="Leaderboard sidebar">
+          <aside
+            className="hidden w-full min-w-0 self-stretch xl:block xl:w-[var(--desktop-side-panel-width)] xl:shrink-0"
+            aria-label="Leaderboard sidebar"
+          >
             <div className="sticky top-6 flex h-full min-h-[560px] flex-col xl:min-h-[680px]">
               <LeaderboardPanel onSelectUser={setInspectedWallet} />
             </div>
           </aside>
         )}
         <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col items-center gap-6">
-        <LegacyPositionNotice program={program} address={address} onChanged={() => { void refresh(); }} onSubmit={async tx => {
-          if (!anchorWallet) throw new Error("Wallet unavailable");
-          return signAndSend(connection, anchorWallet, tx, { action: "cancel" });
-        }} />
-        {RPC_MISSING && (
-          <p role="alert" className="w-full max-w-[560px] rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-center text-[13px] font-semibold text-red-200">
-            Network configuration missing: set a dedicated Devnet RPC (NEXT_PUBLIC_RPC_URL). Public api.devnet.solana.com is not the QA RPC.
-          </p>
-        )}
-        {RPC_IS_PUBLIC_FALLBACK && !RPC_MISSING && (
-          <p role="status" className="w-full max-w-[560px] rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-center text-[12px] font-medium text-amber-200">
-            Local diagnostic RPC (public Devnet). QA deploys must use a dedicated provider.
-          </p>
-        )}
-        {/* Product cleanup: no visible Devnet sponsor banner in normal
+          <LegacyPositionNotice
+            program={program}
+            address={address}
+            onChanged={() => {
+              void refresh();
+            }}
+            onSubmit={async (tx) => {
+              if (!anchorWallet) throw new Error("Wallet unavailable");
+              return signAndSend(connection, anchorWallet, tx, {
+                action: "cancel",
+              });
+            }}
+          />
+          {RPC_MISSING && (
+            <p
+              role="alert"
+              className="w-full max-w-[560px] rounded-2xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-center text-[13px] font-semibold text-red-200"
+            >
+              Network configuration missing: set a dedicated Devnet RPC
+              (NEXT_PUBLIC_RPC_URL). Public api.devnet.solana.com is not the QA
+              RPC.
+            </p>
+          )}
+          {RPC_IS_PUBLIC_FALLBACK && !RPC_MISSING && (
+            <p
+              role="status"
+              className="w-full max-w-[560px] rounded-2xl border border-amber-300/30 bg-amber-400/10 px-4 py-2 text-center text-[12px] font-medium text-amber-200"
+            >
+              Local diagnostic RPC (public Devnet). QA deploys must use a
+              dedicated provider.
+            </p>
+          )}
+          {/* Product cleanup: no visible Devnet sponsor banner in normal
             gameplay UX. Sponsorship (APIs, caps, ledger, gates,
             reimbursement) continues internally; transient action detail
             uses neutral copy ("Preparing network fee…"). */}
-        {address && sessionWallet !== address && (
-          <button type="button" className="min-h-[44px] rounded-xl border border-white/20 px-4 py-2 text-white"
-            onClick={() => { void ensureChatAuth().then(ok => {
-              if (!ok) setDetail("Wallet verification was not completed. Try again when ready.");
-            }); }}>
-            Verify wallet to play
-          </button>
-        )}
-        <GameHero
-          state={visualState}
-          selectedSide={selectedSide}
-          result={displayResult}
-          onPick={handlePick}
-          subtitle={site.heroSubtitle}
-          images={{ heads: site.coinHeadsUrl, tails: site.coinTailsUrl, def: site.coinDefaultUrl }}
-          roomLabel={`${roomForTier(selectedTier)?.label ?? "$1"} FLIP`}
-          flipTarget={flipTarget}
-          flipRoundId={activeMatchId}
-          flipRevealAtMs={flipRevealAtMs}
-        />
-        {site.announcementText && (
-          <p role="status" className="w-full max-w-[560px] rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-center text-[13px] font-medium text-white">
-            {site.announcementText}
-          </p>
-        )}
-        <div className="flex w-full max-w-[560px] gap-2 xl:hidden">
-          {site.leaderboardEnabled && (
-            <button
-              type="button"
-              onClick={() => setBoardOpen(true)}
-              className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-2xl border border-white/15 text-sm font-bold text-white transition hover:bg-white/10"
+          <GameHero
+            state={visualState}
+            selectedSide={selectedSide}
+            result={displayResult}
+            onPick={handlePick}
+            subtitle={site.heroSubtitle}
+            images={{
+              heads: site.coinHeadsUrl,
+              tails: site.coinTailsUrl,
+              def: site.coinDefaultUrl,
+            }}
+            roomLabel={`${roomForTier(selectedTier)?.label ?? "$1"} FLIP`}
+            flipTarget={flipTarget}
+            flipRoundId={activeMatchId}
+            flipRevealAtMs={flipRevealAtMs}
+          />
+          {site.announcementText && (
+            <p
+              role="status"
+              className="w-full max-w-[560px] rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-center text-[13px] font-medium text-white"
             >
-              Leaderboard
-            </button>
+              {site.announcementText}
+            </p>
           )}
-          {site.chatEnabled && (
-            <button
-              type="button"
-              onClick={() => setChatOpen(true)}
-              className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-2xl border border-white/15 text-sm font-bold text-white transition hover:bg-white/10"
-            >
-              Global Chat
-            </button>
-          )}
-        </div>
-        <TransactionStatus state={visualState} />
-        <GameStatePanel
-          state={visualState}
-          selectedSide={selectedSide}
-          result={displayResult}
-          onConfirm={() => void handleConfirm()}
-          onLeave={() => void handleLeave()}
-          onRetry={handleRetry}
-          detail={detail}
-          live
-          matchLabel={matchLabel}
-          queuePositionText={queuePositionLine}
-          playAgainReady={showPlayAgain}
-          onPlayAgain={handlePlayAgain}
-          settleLine={settleLine}
-          onRetryPayout={settlePending ? () => void handleRetryPayout() : undefined}
-          retryPayoutBusy={retryPayoutBusy}
-        />
-        {showFunding && (
-          <section aria-label="Entry funding" className="glass w-full max-w-[560px] rounded-3xl border border-white/10 px-5 py-4 text-center">
-            <h3 className="font-display text-[15px] font-bold text-white">Entry funding</h3>
-            <div className="mt-2 grid grid-cols-2 gap-2">
+          <div className="flex w-full max-w-[560px] gap-2 xl:hidden">
+            {site.leaderboardEnabled && (
               <button
                 type="button"
-                onClick={() => { setFundingMethod("token"); setFundingQuote(null); }}
-                aria-pressed={fundingMethod === "token"}
-                className={`min-h-[44px] rounded-2xl px-3 text-[13px] font-bold transition ${fundingMethod === "token" ? "bg-white text-black" : "border border-white/15 text-white hover:bg-white/10"}`}
+                onClick={() => setBoardOpen(true)}
+                className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-2xl border border-white/15 text-sm font-bold text-white transition hover:bg-white/10"
               >
-                Pay with Game Token
+                Leaderboard
               </button>
-              {!IS_DEVNET && !restrictedQa && <button
+            )}
+            {site.chatEnabled && (
+              <button
                 type="button"
-                onClick={() => { setFundingMethod("sol"); setMockAcquired(false); void (async () => {
-                  try {
-                    const quote = await priceAdapter.getQuote(PROJECT_TOKEN_MINT);
-                    const stake = stakeForUsd(quote, usdCents);
-                    await refreshMockQuote(stake);
-                  } catch { /* price errors surface in main panel */ }
-                })(); }}
-                aria-pressed={fundingMethod === "sol"}
-                className={`min-h-[44px] rounded-2xl px-3 text-[13px] font-bold transition ${fundingMethod === "sol" ? "bg-white text-black" : "border border-white/15 text-white hover:bg-white/10"}`}
+                onClick={() => setChatOpen(true)}
+                className="inline-flex min-h-[44px] flex-1 items-center justify-center rounded-2xl border border-white/15 text-sm font-bold text-white transition hover:bg-white/10"
               >
-                Pay with SOL
-              </button>}
-            </div>
-            {fundingMethod === "sol" && (
-              <div className="mt-3 rounded-2xl border border-amber-300/30 bg-amber-300/5 px-4 py-3 text-left">
-                <p className="text-[11px] font-bold tracking-widest text-amber-200">DEVNET MOCK — no real swap</p>
-                <p className="mt-1 text-[12.5px] leading-relaxed text-white/80">
-                  {fundingQuote ? describeQuote(fundingQuote) : "Requesting mock quote…"}
-                </p>
-                {fundingQuote && (
-                  <p className="mt-1 text-[12px] text-white/60">
-                    Room {roomForTier(selectedTier)?.label ?? ""} • max slippage {(fundingQuote.maxSlippageBps / 100).toFixed(2)}% • expires in{" "}
-                    {Math.max(0, Math.ceil((fundingQuote.expiresAtMs - Date.now()) / 1000))}s
-                  </p>
-                )}
-                <button
-                  type="button"
-                  onClick={() => void handleAcquireMock()}
-                  className="mt-2 inline-flex min-h-[40px] items-center rounded-xl bg-white/10 px-4 text-[12.5px] font-bold text-white transition hover:bg-white/15"
-                >
-                  {mockAcquired ? "Mock acquired ✓ — ready to Join" : "Acquire (DEVNET MOCK)"}
-                </button>
-                <p className="mt-2 text-[11px] leading-relaxed text-white/40">
-                  Non-custodial by design: Mainnet would route USER SOL → verified aggregator → project token into YOUR ATA, then the normal Join. This site wallet never holds swap principal.
-                </p>
-              </div>
+                Global Chat
+              </button>
             )}
-            {fundingMethod === "token" && (
-              <p className="mt-2 text-[12px] text-white/50">
-                Default when your game-token balance covers the {roomForTier(selectedTier)?.label ?? ""} stake.
-              </p>
-            )}
-          </section>
-        )}
-        <StakeTierSelector selectedTier={selectedTier} onSelect={handleSelectTier} liveTiers={liveTiers} connected={address !== null} />
-        <RecentFlips flips={flips} live unavailable={historyUnavailable} tierUsd={selectedTier} />
-        <QueueStatusBar headsWaiting={queue?.heads ?? null} tailsWaiting={queue?.tails ?? null} />
+          </div>
+          <TransactionStatus
+            state={visualState}
+            needsVerification={Boolean(address && sessionWallet !== address)}
+          />
+          <GameStatePanel
+            state={visualState}
+            selectedSide={selectedSide}
+            result={displayResult}
+            walletAddress={address}
+            completedMatchId={lastCompleted?.matchId ?? null}
+            needsVerification={Boolean(address && sessionWallet !== address)}
+            onVerify={() => {
+              void ensureChatAuth();
+            }}
+            onConnect={() => setWalletOpen(true)}
+            onConfirm={() => void handleConfirm()}
+            onLeave={() => void handleLeave()}
+            onRetry={handleRetry}
+            detail={detail}
+            live
+            matchLabel={matchLabel}
+            queuePositionText={queuePositionLine}
+            playAgainReady={showPlayAgain}
+            onPlayAgain={handlePlayAgain}
+            settleLine={settleLine}
+            onRetryPayout={
+              settlePending ? () => void handleRetryPayout() : undefined
+            }
+            retryPayoutBusy={retryPayoutBusy}
+          />
+          <StakeTierSelector
+            selectedTier={selectedTier}
+            onSelect={handleSelectTier}
+            liveTiers={liveTiers}
+            connected={address !== null}
+          />
+          <RecentFlips
+            flips={flips}
+            live
+            unavailable={historyUnavailable}
+            tierUsd={selectedTier}
+          />
+          <QueueStatusBar
+            headsWaiting={queue?.heads ?? null}
+            tailsWaiting={queue?.tails ?? null}
+          />
         </div>
         {site.chatEnabled && (
-          <aside className="hidden w-full min-w-0 self-stretch xl:block xl:w-[var(--desktop-side-panel-width)] xl:shrink-0" aria-label="Global chat sidebar">
+          <aside
+            className="hidden w-full min-w-0 self-stretch xl:block xl:w-[var(--desktop-side-panel-width)] xl:shrink-0"
+            aria-label="Global chat sidebar"
+          >
             <div className="sticky top-6 flex h-full min-h-[560px] flex-col xl:min-h-[680px]">
               <ChatPanel
                 authed={sessionWallet !== null}
@@ -2085,6 +2262,9 @@ export function LiveGameClient() {
           </aside>
         )}
       </main>
+      {address && sessionWallet === address && (
+        <TeamWelcome key={address} wallet={address} onSaved={reloadProfile} />
+      )}
       <AppFooter />
       <DevStateSwitcher
         enabled={isDev}

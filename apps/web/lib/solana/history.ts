@@ -1,8 +1,5 @@
 import { getBrowserSupabase } from "@/lib/supabase/browserClient";
-import {
-  SUPABASE_PUBLISHABLE_KEY,
-  SUPABASE_URL,
-} from "./cluster";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./cluster";
 
 export type FlipResult = "HEADS" | "TAILS";
 
@@ -75,14 +72,19 @@ export function formatPotBaseUnits(heads: string, tails: string): string {
 }
 
 function isValidSignature(sig: string): boolean {
-  return sig.length >= 80 && sig.length <= 100 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(sig);
+  return (
+    sig.length >= 80 && sig.length <= 100 && /^[1-9A-HJ-NP-Za-km-z]+$/.test(sig)
+  );
 }
 
 /**
  * Build a Solscan transaction URL ONLY from a verified signature.
  * Never trust a URL supplied by database/client. Returns null for bad input.
  */
-export function solscanTxUrl(signature: string, cluster: string): string | null {
+export function solscanTxUrl(
+  signature: string,
+  cluster: string,
+): string | null {
   if (!isValidSignature(signature)) return null;
   const base = `https://solscan.io/tx/${signature}`;
   return cluster === "mainnet-beta" ? base : `${base}?cluster=devnet`;
@@ -116,7 +118,10 @@ export function mapRowToFlip(r: MatchRow): RecentFlip {
 }
 
 /** Solscan account URL (program/match/randomness) with Devnet cluster param. */
-export function solscanAccountUrl(address: string, cluster: string): string | null {
+export function solscanAccountUrl(
+  address: string,
+  cluster: string,
+): string | null {
   if (address.length < 32 || address.length > 44) return null;
   if (!/^[1-9A-HJ-NP-Za-km-z]+$/.test(address)) return null;
   const base = `https://solscan.io/account/${address}`;
@@ -129,7 +134,10 @@ export function solscanAccountUrl(address: string, cluster: string): string | nu
  * server-side. Never fabricates results: empty stays empty, failures report
  * unavailable. Disabled rooms ($100/$1000) never show fake history.
  */
-export async function fetchRecentFlips(limit = 10, tierUsd?: number): Promise<HistoryResult> {
+export async function fetchRecentFlips(
+  limit = 50,
+  tierUsd?: number,
+): Promise<HistoryResult> {
   if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
     return { status: "unavailable", reason: "history backend not configured" };
   }
@@ -139,15 +147,26 @@ export async function fetchRecentFlips(limit = 10, tierUsd?: number): Promise<Hi
     // detected" warnings with duplicated storage listeners.
     const db = getBrowserSupabase();
     if (!db) {
-      return { status: "unavailable", reason: "history backend not configured" };
+      return {
+        status: "unavailable",
+        reason: "history backend not configured",
+      };
     }
     let query = db
       .from("matches")
       .select(
-        "onchain_match_id,result,winner_wallet,heads_wallet,tails_wallet,heads_amount,tails_amount,token_mint,settled_at,transaction_signature,tier_usd,match_pda,randomness_account,settlement_signature,match_signature,orao_fulfillment_signature,created_slot,settled_slot"
+        "onchain_match_id,result,winner_wallet,heads_wallet,tails_wallet,heads_amount,tails_amount,token_mint,settled_at,transaction_signature,tier_usd,match_pda,randomness_account,settlement_signature,match_signature,orao_fulfillment_signature,created_slot,settled_slot",
       )
       .order("settled_at", { ascending: false, nullsFirst: false })
-      .limit(limit);
+      .order("settled_slot", { ascending: false, nullsFirst: false })
+      .order("id", { ascending: false })
+      .not("settled_at", "is", null)
+      .limit(
+        Math.min(
+          50,
+          Math.max(1, Number.isFinite(limit) ? Math.floor(limit) : 50),
+        ),
+      );
     if (typeof tierUsd === "number") {
       query = query.eq("tier_usd", tierUsd);
     }
@@ -155,7 +174,14 @@ export async function fetchRecentFlips(limit = 10, tierUsd?: number): Promise<Hi
     if (error) return { status: "unavailable", reason: error.message };
     const rows = (data ?? []) as MatchRow[];
     if (rows.length === 0) return { status: "empty" };
-    return { status: "ok", flips: rows.map(mapRowToFlip) };
+    return {
+      status: "ok",
+      flips: [
+        ...new Map(
+          rows.map((row) => [row.onchain_match_id, mapRowToFlip(row)]),
+        ).values(),
+      ],
+    };
   } catch (e) {
     return {
       status: "unavailable",
