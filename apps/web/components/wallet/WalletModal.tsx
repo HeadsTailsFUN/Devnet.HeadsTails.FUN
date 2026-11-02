@@ -136,10 +136,10 @@ export function WalletModal({
           Connect wallet
         </h2>
         {IS_DEVNET && (
-          <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-            Devnet test beta — set your wallet to <strong className="text-white">Solana Devnet</strong> before playing.
-            {" "}New eligible wallets automatically receive <strong className="text-white">200 test HTS</strong> after connecting and verifying wallet ownership.
-          </p>
+          <div className="mt-3 space-y-1 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            <p>Network: <strong className="text-white">Solana Devnet</strong></p>
+            <p>Welcome: <strong className="text-white">200 test HTS</strong> after verification (eligible new wallets).</p>
+          </div>
         )}
         {wallets.length === 0 && !mobile && (
           <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] text-[var(--text-secondary)]">
