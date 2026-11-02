@@ -8,6 +8,24 @@ const mint="HiteMiqxQG1GjLGDmvV1JmVyR9ayWm46ZjhjHzJrN9R4";
 const env={HEADSTAILS_RESTRICTED_QA:"true",NEXT_PUBLIC_RESTRICTED_QA:"true",NEXT_PUBLIC_SOLANA_CLUSTER:"devnet",NEXT_PUBLIC_HTS_TOKEN_MINT:mint,NEXT_PUBLIC_PROJECT_TOKEN_MINT:mint};
 const req=(wallet:unknown)=>new Request("https://fixture.invalid/api/devnet/welcome-tokens",{method:"POST",headers:{"content-type":"application/json",cookie:"forged=public-address"},body:JSON.stringify({wallet})});
 
+test("public beta admits verified wallets outside the QA list, without recipient substitution",async()=>{
+  const publicEnv={...env,HEADSTAILS_RESTRICTED_QA:"false",NEXT_PUBLIC_RESTRICTED_QA:"false"};
+  const wallet="11111111111111111111111111111111"; // Mock session identity, not a signer.
+  assert.equal(QA_PLAYERS.has(wallet),false);
+  assert.equal(await restrictedQaAdmission(req(wallet),publicEnv,async()=>wallet),null);
+  assert.equal((await restrictedQaAdmission(req(wallet),publicEnv,async()=>null))?.status,401);
+  assert.equal((await restrictedQaAdmission(req(A),publicEnv,async()=>wallet))?.status,403);
+  assert.equal((await restrictedQaAdmission(req(wallet),publicEnv,async()=>A))?.status,403);
+});
+
+test("public beta fails closed on missing flags, wrong network or session errors",async()=>{
+  const publicEnv={...env,HEADSTAILS_RESTRICTED_QA:"false",NEXT_PUBLIC_RESTRICTED_QA:"false"};
+  for(const patch of [{NEXT_PUBLIC_SOLANA_CLUSTER:"mainnet-beta"},{HEADSTAILS_RESTRICTED_QA:undefined},{NEXT_PUBLIC_RESTRICTED_QA:undefined}]){
+    assert.equal((await restrictedQaAdmission(req(A),{...publicEnv,...patch},async()=>A))?.status,503);
+  }
+  assert.equal((await restrictedQaAdmission(req(A),publicEnv,async()=>{throw new Error("expired session");}))?.status,401);
+});
+
 test("the additional owner-approved wallet requires its own verified session",async()=>{
   const wallet="BKYA1MNgLvnj8WkRaaBEcnyVEwFmm6nrGzov3KhMkKRo";
   assert.equal(QA_PLAYERS.size,3);

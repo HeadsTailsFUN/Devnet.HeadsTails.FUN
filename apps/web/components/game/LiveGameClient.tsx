@@ -1667,7 +1667,7 @@ export function LiveGameClient() {
     const intent = intentRef.current;
     if (!address || !anchorWallet || !sel || busyRef.current) return;
     if (sessionWallet !== address) {
-      setDetail("Verify your connected wallet for restricted QA first.");
+      setDetail("Verify your connected wallet before playing.");
       return;
     }
 

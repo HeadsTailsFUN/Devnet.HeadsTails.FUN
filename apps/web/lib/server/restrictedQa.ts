@@ -8,20 +8,20 @@ export const QA_PLAYERS = new Set([
   "BKYA1MNgLvnj8WkRaaBEcnyVEwFmm6nrGzov3KhMkKRo",
 ]);
 
-/** Uses the existing signed-challenge session, never a submitted wallet as identity. */
+/** Public beta removes the QA allowlist, never signed wallet ownership. */
 export async function restrictedQaAdmission(
   req: Request,
   env: Readonly<Record<string, string | undefined>> = process.env,
   sessionWallet: (req: Request) => Promise<string | null> = getSessionWallet,
 ): Promise<NextResponse | null> {
-  if (env.HEADSTAILS_RESTRICTED_QA !== "true" && env.NEXT_PUBLIC_RESTRICTED_QA !== "true") return null;
-  if (env.HEADSTAILS_RESTRICTED_QA !== "true" || env.NEXT_PUBLIC_RESTRICTED_QA !== "true" ||
-      !devnetEnvironmentAllowed(env)) {
+  const qa = env.HEADSTAILS_RESTRICTED_QA === "true" && env.NEXT_PUBLIC_RESTRICTED_QA === "true";
+  const publicBeta = env.HEADSTAILS_RESTRICTED_QA === "false" && env.NEXT_PUBLIC_RESTRICTED_QA === "false";
+  if ((!qa && !publicBeta) || !devnetEnvironmentAllowed(env)) {
     return NextResponse.json({ error: "Restricted QA unavailable" }, { status: 503 });
   }
   const wallet = await sessionWallet(req).catch(() => null);
-  if (!wallet) return NextResponse.json({ error: "Verify wallet ownership for restricted QA" }, { status: 401 });
-  if (!QA_PLAYERS.has(wallet)) return NextResponse.json({ error: "Restricted QA access only" }, { status: 403 });
+  if (!wallet) return NextResponse.json({ error: qa ? "Verify wallet ownership for restricted QA" : "Verify wallet ownership" }, { status: 401 });
+  if (qa && !QA_PLAYERS.has(wallet)) return NextResponse.json({ error: "Restricted QA access only" }, { status: 403 });
   if (req.method === "POST") {
     const body = await req.clone().json().catch(() => null) as { wallet?: unknown } | null;
     if (body?.wallet !== undefined && body.wallet !== wallet) {

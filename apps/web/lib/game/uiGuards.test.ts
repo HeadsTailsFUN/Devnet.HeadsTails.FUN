@@ -11,6 +11,7 @@ describe("network fee preparation feedback", () => {
   it("distinguishes restricted admission from temporary funding failures", () => {
     assert.match(networkFeePreparationMessage("Restricted QA access only"), /not enabled for restricted testing/);
     assert.match(networkFeePreparationMessage("Verify wallet ownership for restricted QA"), /Verify your connected wallet/);
+    assert.match(networkFeePreparationMessage("Verify wallet ownership"), /Verify your connected wallet/);
     assert.match(networkFeePreparationMessage("Connected wallet does not match verified session"), /Verify your connected wallet/);
   });
   it("does not reflect unexpected server error content", () => {
