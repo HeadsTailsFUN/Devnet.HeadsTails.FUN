@@ -363,10 +363,10 @@ export function TransactionStatus({
   return (
     <ol
       aria-label="Progress"
-      className="flex w-full max-w-[560px] items-center justify-center gap-1.5 text-[11px] font-semibold"
+      className="flex w-full max-w-[560px] items-center justify-center gap-1 text-[11px] font-semibold sm:gap-1.5"
     >
       {steps.map((s, i) => (
-        <li key={s} className="flex items-center gap-1.5">
+        <li key={s} className="flex items-center gap-1 sm:gap-1.5">
           <span
             className={`inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 ${
               done || i < active
@@ -389,7 +389,7 @@ export function TransactionStatus({
           {i < steps.length - 1 && (
             <span
               aria-hidden="true"
-              className="mx-1 h-px w-4 bg-white/20 sm:w-8"
+              className="h-px w-2 bg-white/20 sm:mx-1 sm:w-8"
             />
           )}
         </li>
