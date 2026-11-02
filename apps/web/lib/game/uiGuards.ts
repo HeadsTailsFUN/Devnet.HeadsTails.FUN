@@ -5,7 +5,7 @@ export function networkFeePreparationMessage(reason?: string): string {
   if (reason === "Restricted QA access only") {
     return "This wallet is not enabled for restricted testing. Use an approved QA wallet.";
   }
-  if (reason === "Verify wallet ownership for restricted QA" ||
+  if (reason === "Verify wallet ownership" || reason === "Verify wallet ownership for restricted QA" ||
       reason === "Connected wallet does not match verified session") {
     return "Verify your connected wallet before preparing Devnet network fees.";
   }
