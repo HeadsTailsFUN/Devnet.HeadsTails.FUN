@@ -20,7 +20,7 @@ const coin = (): string =>
 /**
  * Flip feel + minimum read time and explicit replay (presentation-only UX improvement).
  * Chain/settlement/payout/oracle behavior is untouched — only the visible
- * timing (Flipping >=5000ms, then result >=4500ms before manual replay) and the
+ * timing (Flipping >=5000ms, then result >=12000ms before manual replay) and the
  * coin's physical deceleration change.
  */
 
@@ -105,20 +105,20 @@ describe("flip feel motion planner (pure)", () => {
 });
 
 describe("minimum result read time", () => {
-  it("allows manual replay only after 4.5 seconds; flip timing stays unchanged", () => {
-    assert.equal(MIN_RESULT_HOLD_MS, 4500);
+  it("allows manual replay only after 12 seconds; flip timing stays unchanged", () => {
+    assert.equal(MIN_RESULT_HOLD_MS, 12000);
     assert.equal(MIN_FLIP_REVEAL_MS, 5000);
-    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 0 }), 4500);
-    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 4499 }), 1);
-    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 4500 }), 0);
+    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 0 }), 12000);
+    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 11999 }), 1);
+    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 12000 }), 0);
   });
   it("measures from display time, independent of the result side and network delay", () => {
     assert.equal(
-      resultHoldRemainingMs({ resultShownAtMs: 12000, nowMs: 16499 }),
+      resultHoldRemainingMs({ resultShownAtMs: 12000, nowMs: 23999 }),
       1,
     );
     assert.equal(
-      resultHoldRemainingMs({ resultShownAtMs: 12000, nowMs: 16500 }),
+      resultHoldRemainingMs({ resultShownAtMs: 12000, nowMs: 24000 }),
       0,
     );
   });

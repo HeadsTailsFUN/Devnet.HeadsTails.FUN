@@ -17,16 +17,16 @@ export function TeamPreference({
       <p className="mb-2 text-xs text-white/60">
         A preference, never your game side.
       </p>
-      <div className="grid grid-cols-3 gap-2">
-        {(["HEADS", "TAILS", null] as const).map((team) => (
+      <div className="grid grid-cols-2 gap-2">
+        {(["HEADS", "TAILS"] as const).map((team) => (
           <button
             type="button"
-            key={team ?? "none"}
+            key={team}
             aria-pressed={value === team}
             onClick={() => onSave(team)}
             className={`min-h-[44px] rounded-xl border px-2 text-xs font-bold ${value === team ? "border-[var(--heads)] bg-white/10" : "border-white/15"}`}
           >
-            {team ? `TEAM ${team}` : "Choose Later"}
+            {`TEAM ${team}`}
           </button>
         ))}
       </div>

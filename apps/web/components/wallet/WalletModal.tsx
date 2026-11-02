@@ -131,10 +131,16 @@ export function WalletModal({
         onClick={onClose}
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
       />
-      <div ref={dialogRef} tabIndex={-1} className="glass relative w-full max-w-sm rounded-3xl p-5">
+      <div ref={dialogRef} tabIndex={-1} className="glass relative max-h-[calc(100dvh-2rem)] w-full max-w-sm overflow-y-auto rounded-3xl p-5">
         <h2 className="font-display text-[19px] font-bold text-white">
           Connect wallet
         </h2>
+        {IS_DEVNET && (
+          <p className="mt-3 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
+            Devnet test beta — set your wallet to <strong className="text-white">Solana Devnet</strong> before playing.
+            {" "}New eligible wallets automatically receive <strong className="text-white">200 test HTS</strong> after connecting and verifying wallet ownership.
+          </p>
+        )}
         {wallets.length === 0 && !mobile && (
           <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] text-[var(--text-secondary)]">
             No wallets detected. Install a Solana wallet extension, then try
@@ -158,7 +164,7 @@ export function WalletModal({
                       alt=""
                       width={28}
                       height={28}
-                      className="h-7 w-7 rounded-full"
+                      className="h-7 w-7 shrink-0 rounded-full object-contain"
                     />
                   ) : (
                     <span
@@ -243,7 +249,7 @@ export function WalletModal({
                         alt=""
                         width={28}
                         height={28}
-                        className="h-7 w-7 rounded-full"
+                        className="h-7 w-7 shrink-0 rounded-full object-contain"
                       />
                     ) : (
                       <span
