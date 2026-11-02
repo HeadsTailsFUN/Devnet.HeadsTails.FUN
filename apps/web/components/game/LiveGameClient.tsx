@@ -84,6 +84,7 @@ import {
   playAgainReady,
   queuePositionText,
   shouldCommitSelectionRefresh,
+  networkFeePreparationMessage,
 } from "@/lib/game/uiGuards";
 import { decideIdleRefresh } from "@/lib/game/matchLabel";
 import { useVisibleFlipAnchor } from "@/components/game/useVisibleFlipAnchor";
@@ -1680,9 +1681,7 @@ export function LiveGameClient() {
         setDetail("Preparing network fee…");
         const prep = await ensureSponsoredBalance(address);
         if (!prep.ok) {
-          setDetail(
-            `Network fee preparation unavailable. Try again in a moment.`,
-          );
+          setDetail(networkFeePreparationMessage(prep.reason));
           return;
         }
       }

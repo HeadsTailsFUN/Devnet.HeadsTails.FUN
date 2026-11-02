@@ -5,6 +5,7 @@ import { devnetEnvironmentAllowed } from "@/lib/solana/devnetSafety";
 export const QA_PLAYERS = new Set([
   "EWMAhKQsGZ7ynGBRNjPHiw36xkur6hoQ3EfhY8xvU1qt",
   "DQ3X2k93Kc1gdrVokhwbDUMRA1wwihvB9RpFcpkuzbQn",
+  "BKYA1MNgLvnj8WkRaaBEcnyVEwFmm6nrGzov3KhMkKRo",
 ]);
 
 /** Uses the existing signed-challenge session, never a submitted wallet as identity. */

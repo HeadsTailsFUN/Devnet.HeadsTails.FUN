@@ -1,5 +1,17 @@
 import type { Side } from "@/lib/mockGameData";
 
+/** Explain known access denials without reflecting arbitrary backend errors. */
+export function networkFeePreparationMessage(reason?: string): string {
+  if (reason === "Restricted QA access only") {
+    return "This wallet is not enabled for restricted testing. Use an approved QA wallet.";
+  }
+  if (reason === "Verify wallet ownership for restricted QA" ||
+      reason === "Connected wallet does not match verified session") {
+    return "Verify your connected wallet before preparing Devnet network fees.";
+  }
+  return "Network fee preparation unavailable. Try again in a moment.";
+}
+
 /**
  * Local-intent epoch guard: a stale async refresh must NEVER clear a newer
  * user side selection.

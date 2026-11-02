@@ -4,7 +4,22 @@ import {
   playAgainReady,
   queuePositionText,
   shouldCommitSelectionRefresh,
+  networkFeePreparationMessage,
 } from "./uiGuards.js";
+
+describe("network fee preparation feedback", () => {
+  it("distinguishes restricted admission from temporary funding failures", () => {
+    assert.match(networkFeePreparationMessage("Restricted QA access only"), /not enabled for restricted testing/);
+    assert.match(networkFeePreparationMessage("Verify wallet ownership for restricted QA"), /Verify your connected wallet/);
+    assert.match(networkFeePreparationMessage("Connected wallet does not match verified session"), /Verify your connected wallet/);
+  });
+  it("does not reflect unexpected server error content", () => {
+    const fallback = "Network fee preparation unavailable. Try again in a moment.";
+    for (const reason of [undefined, "Sponsor unavailable", "private diagnostic: unexpected credential"]) {
+      assert.equal(networkFeePreparationMessage(reason), fallback);
+    }
+  });
+});
 
 describe("selection epoch guard", () => {
   it("stale refresh cannot clear HEADS after user picks it", () => {
