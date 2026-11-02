@@ -1676,6 +1676,7 @@ export function LiveGameClient() {
     busyRef.current = true;
     bumpEpoch();
     setBusyKind("join");
+    let joinStage = "FEE_PREPARATION";
     try {
       if (DEVNET_SPONSOR_UI_ENABLED) {
         setDetail("Preparing network fee…");
@@ -1685,8 +1686,10 @@ export function LiveGameClient() {
           return;
         }
       }
+      joinStage = "QUOTE";
       const quote = await priceAdapter.getQuote(PROJECT_TOKEN_MINT);
       const stake = stakeForUsd(quote, usdCents);
+      joinStage = "BALANCE";
       const me = new PublicKey(address);
       const mint = new PublicKey(PROJECT_TOKEN_MINT);
       const ata = await getAssociatedTokenAddress(mint, me);
@@ -1709,6 +1712,7 @@ export function LiveGameClient() {
         );
         return;
       }
+      joinStage = "CONFIG";
       const cfg = await sdk.fetchConfig();
       if (cfg.paused) {
         setLiveState("paused");
@@ -1746,6 +1750,7 @@ export function LiveGameClient() {
         return;
       }
       const seq = side === 0 ? roomState.headsNext : roomState.tailsNext;
+      joinStage = "BUILD";
       const { tx } = await sdk.joinQueueRoomTx(
         me,
         ata,
@@ -1757,6 +1762,7 @@ export function LiveGameClient() {
       );
       let joinSig = "";
       try {
+        joinStage = "SIGN_AND_SEND";
         joinSig = await signAndSend(connection, anchorWallet, tx, {
           action: "join",
         });
@@ -1820,6 +1826,8 @@ export function LiveGameClient() {
       intentRef.current = null;
       shouldClearIntentOn("join-terminal-error");
       showError(e);
+      const failure = classifyError(e);
+      setDetail(`${failure.message} Support code: JOIN_${joinStage}/${failure.code}.`);
     } finally {
       busyRef.current = false;
       setBusyKind(null);

@@ -32,6 +32,9 @@ export interface ClassifiedError {
 function technicalOf(e: unknown): string {
   if (e instanceof Error) return `${e.name}: ${e.message}`.slice(0, 500);
   try {
+    if (e && typeof e === "object" && "message" in e && typeof e.message === "string") {
+      return e.message.slice(0, 500);
+    }
     return String(e).slice(0, 500);
   } catch {
     return "unknown error";
@@ -73,6 +76,22 @@ function isInsufficientFundsProgram(e: unknown): boolean {
 
 export function classifyError(e: unknown): ClassifiedError {
   const technical = technicalOf(e);
+  // WalletProvider throws ClassifiedError objects; send.ts wraps their codes
+  // in Error messages. Preserve both forms through every error boundary.
+  const declared = e && typeof e === "object" && "code" in e ? e.code : undefined;
+  const wrapped = technical.match(/^(?:\w*Error: )?([A-Z_]+):/)?.[1];
+  const knownCodes: readonly TxErrorCode[] = [
+    "RPC_RATE_LIMIT", "RPC_UNAVAILABLE", "WALLET_REJECTED", "WALLET_CONNECT_UNSUPPORTED",
+    "WALLET_SIGNING_UNSUPPORTED", "WALLET_SIGNING_INVALID_OUTPUT", "TRANSACTION_SERIALIZATION_ERROR",
+    "TRANSACTION_SEND_FAILED", "TRANSACTION_CONFIRMATION_UNKNOWN", "WRONG_NETWORK",
+    "INSUFFICIENT_PROJECT_TOKEN", "INSUFFICIENT_SOL", "PROGRAM_ERROR", "ALREADY_ACTIVE",
+  ];
+  const code = knownCodes.find(c => c === declared || c === wrapped);
+  if (code) return {
+    code, message: userMessageForCode(code), technical,
+    retryable: ["RPC_RATE_LIMIT", "RPC_UNAVAILABLE", "TRANSACTION_SEND_FAILED",
+      "TRANSACTION_CONFIRMATION_UNKNOWN", "INSUFFICIENT_SOL"].includes(code),
+  };
 
   // The minified `e is not iterable` (and friends) always indicates a
   // malformed signing/serialization path — never show it raw.

@@ -1,9 +1,26 @@
 import { describe, it } from "node:test";
 import { strict as assert } from "node:assert";
-import { classifyError, isRateLimitError, userMessageForCode } from "./errors.js";
+import { classifyError, classifySigningError, isRateLimitError, userMessageForCode } from "./errors.js";
 import { normalizeSigningOutput } from "../../components/wallet/WalletProvider.js";
 
 describe("wallet error classification", () => {
+  it("preserves real signing failures through provider, sender and UI boundaries", () => {
+    for (const error of [new Error("User rejected the request"),new Error("switch to Solana Devnet"),new Error("Internal wallet transport failure")]) {
+      const providerFailure=classifySigningError("sign-request",error);
+      const senderFailure=classifyError(providerFailure);
+      const uiFailure=classifyError(new Error(`${senderFailure.code}: ${senderFailure.message}`));
+      assert.notEqual(providerFailure.code,"UNKNOWN");
+      assert.equal(senderFailure.code,providerFailure.code);
+      assert.equal(uiFailure.code,providerFailure.code);
+      assert.equal(uiFailure.message,userMessageForCode(providerFailure.code));
+    }
+  });
+
+  it("reads plain wallet error messages without exposing arbitrary object fields", () => {
+    const c=classifyError({message:"User rejected the request",secret:"DO_NOT_DISPLAY"});
+    assert.equal(c.code,"WALLET_REJECTED");
+    assert.ok(!c.technical.includes("DO_NOT_DISPLAY"));
+  });
   it("maps 429 to RPC_RATE_LIMIT with retry message", () => {
     const e = new Error('429 : {"jsonrpc":"2.0","error":{"code":429,"message":"Connection rate limits exceeded"}}');
     assert.equal(isRateLimitError(e), true);
