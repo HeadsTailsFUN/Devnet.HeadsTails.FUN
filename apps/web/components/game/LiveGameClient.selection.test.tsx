@@ -322,7 +322,7 @@ describe("video scenario: selection survives background refresh", () => {
 
       // Game settles (room gate fails closed while rooms unconfirmed).
       await screen.findByText(
-        "Pick your side and wait for a match",
+        "Pick your side to play",
         {},
         { timeout: 15000 },
       );
