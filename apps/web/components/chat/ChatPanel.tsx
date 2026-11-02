@@ -512,7 +512,7 @@ export function ChatPanel({
           maxLength={280}
           placeholder={CHAT_INPUT_PLACEHOLDER}
           aria-label="Chat message"
-          className="max-h-24 min-h-[44px] min-w-0 flex-1 resize-none rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 text-[13.5px] text-white placeholder:text-white/30"
+          className="max-h-24 min-h-[44px] min-w-0 flex-1 resize-none rounded-2xl border border-white/10 bg-white/5 px-3 py-2.5 text-base text-white placeholder:text-white/30"
         />
         <button
           type="button"

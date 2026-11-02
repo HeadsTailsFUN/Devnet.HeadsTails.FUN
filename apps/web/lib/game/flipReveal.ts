@@ -96,11 +96,11 @@ export function planVisibleReveal(args: {
 
 /**
  * Result-screen hold (presentation-only): YOU WIN / YOU LOSE stays on
- * screen at least 4500ms before manual Play Again is enabled. Chain
+ * screen at least 12000ms before manual Play Again is enabled. Chain
  * settlement/payout/profile/history work is never delayed — only the UI
  * replay affordance waits; results never automatically disappear.
  */
-export const MIN_RESULT_HOLD_MS = 4500;
+export const MIN_RESULT_HOLD_MS = 12_000;
 
 /** Milliseconds of result hold remaining from `nowMs` (0 = may go Ready). */
 export function resultHoldRemainingMs(args: {

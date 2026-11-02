@@ -51,7 +51,7 @@ test("an expired session cannot open the preference prompt or write", async () =
   await waitFor(() => assert(!screen.queryByRole("dialog")));
   assert.equal(writes, 0);
 });
-test("team preference can switch or clear without selecting a gameplay side", () => {
+test("profile team preference offers only HEADS and TAILS, without selecting a gameplay side", () => {
   const changes: Array<string | null> = [];
   render(
     createElement(TeamPreference, {
@@ -62,8 +62,9 @@ test("team preference can switch or clear without selecting a gameplay side", ()
     }),
   );
   fireEvent.click(screen.getByRole("button", { name: "TEAM TAILS" }));
-  fireEvent.click(screen.getByRole("button", { name: "Choose Later" }));
-  assert.deepEqual(changes, ["TAILS", null]);
+  assert.equal(screen.queryByRole("button", { name: "Choose Later" }), null);
+  fireEvent.click(screen.getByRole("button", { name: "TEAM HEADS" }));
+  assert.deepEqual(changes, ["TAILS", "HEADS"]);
 });
 test("avatar Change stays directly under the avatar; existing validated input is reused", () => {
   globalThis.fetch = async () => Response.json({ team: null, completed: true });

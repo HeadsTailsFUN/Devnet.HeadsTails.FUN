@@ -17,8 +17,8 @@ test("fresh authenticated-origin test rate works with phone clock ahead or behin
     Date.now = () => serverNow + skew;
     serve();
     const quote = await new DevnetUsdQuoteAdapter().getQuote(mint);
-    assert.equal(stakeForUsd(quote,100),100_000_000n);
-    assert.equal(stakeForUsd(quote,1000),1_000_000_000n);
+    assert.equal(stakeForUsd(quote,100),BigInt(100_000_000));
+    assert.equal(stakeForUsd(quote,1000),BigInt(1_000_000_000));
     assert.ok(Date.now()-quote.updatedAtMs >= 500,"TTL conservatively includes Date precision");
     assert.ok(quote.maxAgeMs-(Date.now()-quote.updatedAtMs) < 30_000);
   }
