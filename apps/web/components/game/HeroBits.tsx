@@ -1,10 +1,12 @@
 import { InfoIcon, SolanaIcon } from "@/components/ui/icons";
+import type { ReactNode } from "react";
 
-export function FlipPill({ label }: { label?: string } = {}) {
+export function FlipPill({ label, children }: { label?: string; children?: ReactNode } = {}) {
   return (
     <span className="glass inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-bold tracking-widest">
       <SolanaIcon className="h-5 w-5 text-[var(--heads)]" />
       <span className="font-display text-[17px]">{label ?? "$1 FLIP"}</span>
+      {children}
     </span>
   );
 }
@@ -29,7 +31,7 @@ export function LivePriceNotice({ mode }: { mode: "live" | "unavailable" | "paus
   return (
     <p className="inline-flex items-center gap-2 text-[13.5px] text-[var(--text-secondary)]">
       <InfoIcon className="h-4 w-4" aria-hidden="true" />
-      Devnet Test Rate: 100 HTS = $1 simulated USD; no guaranteed USD value
+      <span>Devnet Test Rate: 100 HTS = $1 simulated USD<span className="desktop-rate-disclosure">; no guaranteed USD value</span></span>
     </p>
   );
 }

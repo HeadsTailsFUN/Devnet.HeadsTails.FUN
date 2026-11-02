@@ -371,7 +371,7 @@ export function ChatPanel({
   return (
     <section
       aria-label="Global chat"
-      className="glass flex h-full min-h-[560px] w-full min-w-0 flex-1 flex-col rounded-3xl p-4"
+      className="chat-panel glass flex h-full min-h-[560px] w-full min-w-0 flex-1 flex-col rounded-3xl p-4"
     >
       <div className="flex items-center gap-2">
         <h2 className="font-display text-[16px] font-bold text-white">
@@ -386,7 +386,7 @@ export function ChatPanel({
       <div
         ref={listRef}
         aria-live="polite"
-        className="mt-2 flex max-h-[52svh] min-h-[280px] flex-1 flex-col gap-2 overflow-y-auto pr-1 xl:max-h-none xl:min-h-0"
+        className="chat-message-list mt-2 flex max-h-[52svh] min-h-[280px] flex-1 flex-col gap-2 overflow-y-auto pr-1 xl:max-h-none xl:min-h-0"
       >
         {messages === null ? (
           loadState === "unavailable" ? (

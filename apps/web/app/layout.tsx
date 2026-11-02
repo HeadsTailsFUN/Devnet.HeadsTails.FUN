@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./fonts.css";
 import "./globals.css";
+import "./mobile-app.css";
 
 const display = { variable: "ht-font-display" };
 const body = { variable: "ht-font-body" };

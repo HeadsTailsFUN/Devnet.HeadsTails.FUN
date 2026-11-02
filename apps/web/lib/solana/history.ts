@@ -11,6 +11,8 @@ export interface RecentFlip {
   headsWallet: string;
   tailsWallet: string;
   potBaseUnits: string;
+  headsStakeBaseUnits?: string;
+  tailsStakeBaseUnits?: string;
   tokenMint: string;
   settledAt: string | null;
   settlementSignature: string;
@@ -105,6 +107,8 @@ export function mapRowToFlip(r: MatchRow): RecentFlip {
       }
     })(),
     tokenMint: r.token_mint,
+    headsStakeBaseUnits: r.heads_amount,
+    tailsStakeBaseUnits: r.tails_amount,
     settledAt: r.settled_at,
     settlementSignature: r.settlement_signature ?? r.transaction_signature,
     tierUsd: typeof r.tier_usd === "number" ? r.tier_usd : 1,

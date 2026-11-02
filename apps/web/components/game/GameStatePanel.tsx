@@ -107,12 +107,14 @@ export function GameStatePanel({
   walletAddress,
   completedMatchId,
   needsVerification,
+  needsConnection,
   onVerify,
   onConnect,
 }: {
   walletAddress?: string | null;
   completedMatchId?: string | null;
   needsVerification?: boolean;
+  needsConnection?: boolean;
   onVerify?: () => void;
   onConnect?: () => void;
   state: GameStateId;
@@ -141,7 +143,7 @@ export function GameStatePanel({
     const timer = setTimeout(() => setCanReplay(true), MIN_RESULT_HOLD_MS);
     return () => clearTimeout(timer);
   }, [final, completedMatchId]);
-  const c = needsVerification
+  const c = needsConnection ? COPY.disconnected : needsVerification
     ? {
         ...COPY.connected,
         title: "Verify your wallet",
@@ -159,7 +161,7 @@ export function GameStatePanel({
             ? "border-[rgba(251,191,36,.4)]"
             : "border-white/10";
   const showConfirm =
-    !needsVerification &&
+    !needsConnection && !needsVerification &&
     (state === "heads-selected" || state === "tails-selected");
   const showLeave = state === "queued-heads" || state === "queued-tails";
   const showRetry = state === "error";
@@ -216,7 +218,7 @@ export function GameStatePanel({
         </p>
       )}
       <p className="mx-auto mt-1 max-w-[46ch] text-[13.5px] leading-relaxed text-[var(--text-secondary)]">
-        {needsVerification ? c.body : (detail ?? c.body)}
+        {needsConnection || needsVerification ? c.body : (detail ?? c.body)}
       </p>
       {queuePositionText ? (
         <p className="mt-2 text-[12px] font-bold tracking-widest text-white">
@@ -228,7 +230,7 @@ export function GameStatePanel({
         </p>
       ) : null}
       <div className="mt-3 flex flex-col items-center justify-center gap-2 sm:flex-row">
-        {state === "disconnected" && onConnect && (
+        {(state === "disconnected" || needsConnection) && onConnect && (
           <button
             type="button"
             onClick={onConnect}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { Wallet, WalletAccount } from "@wallet-standard/base";
 import { shortAddr } from "@/components/wallet/WalletProvider";
 import { currentSessionWallet, ensureSession } from "@/lib/auth/client";
@@ -23,6 +23,10 @@ export function ProfileModal({
   onClose,
   onChanged,
   onLogout,
+  presentation = "modal",
+  footer,
+  balanceLabel,
+  hidden,
 }: {
   wallet: Wallet | null;
   account: WalletAccount | null;
@@ -35,12 +39,18 @@ export function ProfileModal({
   onClose: () => void;
   onChanged: () => void;
   onLogout: () => void;
+  presentation?: "modal" | "page";
+  footer?: ReactNode;
+  balanceLabel?: string;
+  hidden?: boolean;
 }) {
   const [tab, setTab] = useState<Tab>("profile");
   const [nameInput, setNameInput] = useState("");
   const [busy, setBusy] = useState<"name" | "avatar" | "team" | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [team, setTeam] = useState<Team>(null);
+  const pageRef=useRef<HTMLDivElement>(null),pageScroll=useRef(0);
+  useLayoutEffect(()=>{if(presentation==="page"&&!hidden&&pageRef.current)pageRef.current.scrollTop=pageScroll.current;},[presentation,hidden]);
   useEffect(() => {
     let stopped = false;
     void fetch(`/api/profile/team?wallet=${encodeURIComponent(address)}`, {
@@ -146,18 +156,22 @@ export function ProfileModal({
 
   return (
     <div
-      role="dialog"
-      aria-modal="true"
+      hidden={hidden}
+      ref={pageRef}
+      onScroll={presentation === "page" ? e=>{if(!hidden)pageScroll.current=e.currentTarget.scrollTop;} : undefined}
+      role={presentation === "page" ? "region" : "dialog"}
+      aria-modal={presentation === "modal" ? true : undefined}
       aria-label="Profile"
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+      id={presentation === "page" ? "mobile-profile" : undefined}
+      className={presentation === "page" ? "mobile-profile-page" : "fixed inset-0 z-[60] flex items-center justify-center p-4"}
     >
-      <button
+      {presentation === "modal" && <button
         type="button"
         aria-label="Close profile"
         onClick={onClose}
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
-      <div className="glass relative flex max-h-[85svh] w-full max-w-sm flex-col overflow-hidden rounded-3xl p-5">
+      />}
+      <div className={`glass relative flex max-h-[85svh] w-full max-w-sm flex-col overflow-hidden rounded-3xl p-5 ${presentation === "page" ? "mobile-profile-card" : ""}`}>
         <div className="flex items-center gap-3">
           <div className="flex shrink-0 flex-col items-center gap-1">
             {profile?.avatarUrl ? (
@@ -245,9 +259,14 @@ export function ProfileModal({
           ))}
         </div>
 
-        <div className="mt-3 min-h-0 flex-1 overflow-y-auto">
+        <div className={`mt-3 min-h-0 flex-1 overflow-y-auto ${presentation === "page" ? "mobile-profile-fields" : ""}`}>
           {tab === "profile" && (
             <div>
+              {presentation === "page" && <div className="mb-3 space-y-2 text-sm text-[var(--text-secondary)]">
+                <p className="break-all">{address}</p>
+                <button type="button" className="min-h-[44px] rounded-2xl bg-white/10 px-4 text-xs font-bold text-white hover:bg-white/15" onClick={async()=>{try{await navigator.clipboard.writeText(address);setNote("Address copied.");}catch{setNote("Could not copy address.");}}}>Copy address</button>
+                {balanceLabel && <p className="font-bold text-[var(--heads)]">{balanceLabel}</p>}
+              </div>}
               <dl className="mt-1 grid grid-cols-4 gap-2 text-center">
                 {[
                   ["Games", String(profile?.gamesPlayed ?? 0)],
@@ -360,9 +379,10 @@ export function ProfileModal({
           onClick={onClose}
           className="mt-2 inline-flex min-h-[40px] w-full shrink-0 items-center justify-center rounded-2xl text-[13px] font-semibold text-[var(--text-secondary)] transition hover:text-white"
         >
-          Close
+          {presentation === "page" ? "Back to Play" : "Close"}
         </button>
       </div>
+      {presentation === "page" && footer}
     </div>
   );
 }

@@ -21,9 +21,11 @@ function flipKey(f: RecentFlip): string {
 export function RecentFlipDetailsModal({
   flip,
   onClose,
+  presentation = "modal",
 }: {
   flip: RecentFlip;
   onClose: () => void;
+  presentation?: "modal" | "page";
 }) {
   const settlementUrl = solscanTxUrl(flip.settlementSignature, SOLANA_CLUSTER);
   const matchUrl = flip.matchPda
@@ -42,22 +44,22 @@ export function RecentFlipDetailsModal({
   }, [onClose]);
 
   if (typeof document === "undefined") return null;
-  return createPortal(
+  const content = (
     <div
-      className="fixed inset-0 z-[70] flex items-end justify-center p-0 sm:items-center sm:p-4"
+      className={presentation === "page" ? "mobile-round-details" : "fixed inset-0 z-[70] flex items-end justify-center p-0 sm:items-center sm:p-4"}
       role="presentation"
     >
-      <button
+      {presentation === "modal" && <button
         type="button"
         aria-label="Close round details"
         onClick={onClose}
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
+      />}
       <div
-        role="dialog"
-        aria-modal="true"
+        role={presentation === "page" ? "region" : "dialog"}
+        aria-modal={presentation === "modal" ? true : undefined}
         aria-label={`ROUND #${flip.matchId} details`}
-        className="glass relative max-h-[85svh] w-full max-w-sm min-w-0 overflow-y-auto rounded-t-3xl p-5 text-left text-xs shadow-xl sm:rounded-3xl"
+        className={presentation === "page" ? "glass relative min-w-0 rounded-3xl p-5 text-left text-xs" : "glass relative max-h-[85svh] w-full max-w-sm min-w-0 overflow-y-auto rounded-t-3xl p-5 text-left text-xs shadow-xl sm:rounded-3xl"}
       >
         <p className="font-display text-[15px] font-bold text-white">
           ROUND #{flip.matchId}
@@ -66,6 +68,15 @@ export function RecentFlipDetailsModal({
           ROOM ${flip.tierUsd}
         </p>
         <dl className="mt-2 space-y-1 text-[var(--text-secondary)]">
+          {presentation === "page" && <>
+            <div className="flex justify-between gap-2"><dt>Status</dt><dd>Settled</dd></div>
+            <div className="flex justify-between gap-2"><dt>Timestamp</dt><dd className="text-right">{flip.settledAt ? new Date(flip.settledAt).toLocaleString() : "Not recorded"}</dd></div>
+            {flip.settledSlot!==null && <div className="flex justify-between gap-2"><dt>Settled slot</dt><dd>{flip.settledSlot}</dd></div>}
+            {flip.headsStakeBaseUnits && <div className="flex justify-between gap-2"><dt>HEADS stake</dt><dd>{flip.headsStakeBaseUnits} base units</dd></div>}
+            {flip.tailsStakeBaseUnits && <div className="flex justify-between gap-2"><dt>TAILS stake</dt><dd>{flip.tailsStakeBaseUnits} base units</dd></div>}
+            <div className="flex justify-between gap-2"><dt>Mint</dt><dd className="break-all text-right">{flip.tokenMint}</dd></div>
+            <div className="flex justify-between gap-2"><dt>Payout evidence</dt><dd>Settlement transaction below</dd></div>
+          </>}
           <div className="flex justify-between gap-2">
             <dt>HEADS</dt>
             <dd className="break-all text-right font-semibold text-white">
@@ -118,6 +129,7 @@ export function RecentFlipDetailsModal({
           </div>
         </dl>
         <div className="mt-3 flex flex-col gap-1.5">
+          {presentation === "page" && [ ["Match transaction",flip.matchSignature], ["ORAO fulfillment",flip.oraoFulfillmentSignature] ].map(([label,signature])=>{const url=signature?solscanTxUrl(signature,SOLANA_CLUSTER):null;return url?<a key={label} href={url} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-center font-semibold text-white hover:bg-white/15">{label} ↗</a>:null;})}
           {settlementUrl && (
             <a
               href={settlementUrl}
@@ -155,12 +167,12 @@ export function RecentFlipDetailsModal({
           autoFocus
           className="mt-2 inline-flex min-h-[44px] w-full items-center justify-center rounded-lg py-1 text-[13px] font-semibold text-[var(--text-secondary)] hover:text-white"
         >
-          Close
+          {presentation === "page" ? "Back to Flips" : "Close"}
         </button>
       </div>
-    </div>,
-    document.body,
+    </div>
   );
+  return presentation === "page" ? content : createPortal(content,document.body);
 }
 
 export function RecentFlipItem({

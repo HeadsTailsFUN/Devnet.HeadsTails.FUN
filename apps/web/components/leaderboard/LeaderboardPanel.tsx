@@ -83,7 +83,7 @@ export function LeaderboardList({ tab, onSelectUser }: { tab: LeaderboardTab; on
 export function LeaderboardPanel({ onSelectUser }: { onSelectUser?: (wallet: string) => void }) {
   const [tab, setTab] = useState<LeaderboardTab>("wins");
   return (
-    <section aria-label="Leaderboard" className="glass flex h-full min-h-[560px] w-full min-w-0 flex-1 flex-col rounded-3xl p-4">
+    <section aria-label="Leaderboard" className="leaderboard-panel glass flex h-full min-h-[560px] w-full min-w-0 flex-1 flex-col rounded-3xl p-4">
       <h2 className="font-display text-[16px] font-bold text-white">Leaderboard</h2>
       <div role="tablist" aria-label="Leaderboard tabs" className="mt-2 grid grid-cols-2 gap-1 rounded-2xl bg-white/5 p-1">
         {(["wins", "played"] as LeaderboardTab[]).map((t) => (
