@@ -7,6 +7,15 @@ const [A,B] = [...QA_PLAYERS];
 const mint="HiteMiqxQG1GjLGDmvV1JmVyR9ayWm46ZjhjHzJrN9R4";
 const env={HEADSTAILS_RESTRICTED_QA:"true",NEXT_PUBLIC_RESTRICTED_QA:"true",NEXT_PUBLIC_SOLANA_CLUSTER:"devnet",NEXT_PUBLIC_HTS_TOKEN_MINT:mint,NEXT_PUBLIC_PROJECT_TOKEN_MINT:mint};
 const req=(wallet:unknown)=>new Request("https://fixture.invalid/api/devnet/welcome-tokens",{method:"POST",headers:{"content-type":"application/json",cookie:"forged=public-address"},body:JSON.stringify({wallet})});
+
+test("the additional owner-approved wallet requires its own verified session",async()=>{
+  const wallet="BKYA1MNgLvnj8WkRaaBEcnyVEwFmm6nrGzov3KhMkKRo";
+  assert.equal(QA_PLAYERS.size,3);
+  assert.equal(await restrictedQaAdmission(req(wallet),env,async()=>wallet),null);
+  assert.equal((await restrictedQaAdmission(req(wallet),env,async()=>null))?.status,401);
+  assert.equal((await restrictedQaAdmission(req(wallet),env,async()=>A))?.status,403);
+  assert.equal((await restrictedQaAdmission(req(A),env,async()=>wallet))?.status,403);
+});
 test("public address and forged cookies alone cannot authorize either approved player",async()=>{
   for(const wallet of [A,B])assert.equal((await restrictedQaAdmission(req(wallet),env,async()=>null))?.status,401);
 });
