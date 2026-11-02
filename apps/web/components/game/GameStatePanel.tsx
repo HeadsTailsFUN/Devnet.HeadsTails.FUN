@@ -191,7 +191,7 @@ export function GameStatePanel({
             data-character="TAILS"
             sizes="(max-width: 640px) 64px, 96px"
             quality={90}
-            src="/assets/characters/Tail.png"
+            src="/assets/characters/Tail.png?v=84ea5af5"
             alt=""
             width={92}
             height={92}
