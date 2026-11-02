@@ -16,7 +16,7 @@ function QueueCell({
   accent?: "heads" | "tails";
 }) {
   return (
-    <div className="flex min-w-0 flex-col items-center gap-1 rounded-2xl border border-white/8 px-3 py-3 text-center sm:rounded-none sm:border-0 sm:px-4">
+    <div data-queue-metric={accent ?? "info"} className="flex min-w-0 flex-col items-center gap-1 rounded-2xl border border-white/8 px-3 py-3 text-center sm:rounded-none sm:border-0 sm:px-4">
       <span className="flex h-9 items-center justify-center" aria-hidden="true">
         {icon}
       </span>

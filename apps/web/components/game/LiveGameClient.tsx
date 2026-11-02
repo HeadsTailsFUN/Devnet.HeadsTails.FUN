@@ -3,7 +3,14 @@
 import { DevnetUsdQuoteAdapter } from "@/lib/solana/usdQuote";
 import { configPda, matchPda, playerPda } from "@/lib/solana/activeGame";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import dynamic from "next/dynamic";
+import { useMobileNavigation } from "@/lib/mobile/useMobileNavigation";
+import { canChangeMobileRoom, mobileGameFeedback, type InformationPage } from "@/lib/mobile/navigation";
+import { MobileNavigation, MobileSocialSwitch } from "@/components/mobile/MobileNavigation";
+import { MobileRoomSelector } from "@/components/mobile/MobileRoomSelector";
+import { MobileFlips } from "@/components/mobile/MobileFlips";
+import { WalletButton } from "@/components/wallet/WalletButton";
 import {
   AnchorProvider,
   Program,
@@ -140,8 +147,11 @@ interface CompletedRound {
   result: Side;
   iWon: boolean;
 }
+const MobileInformation = dynamic(()=>import("@/components/mobile/MobileInformation"));
 
 export function LiveGameClient() {
+  const mobileNav = useMobileNavigation();
+  const [socialView,setSocialView] = useState<"chat"|"leaderboard">("chat");
   const { account, wallet, signBytes, disconnect } = useWalletState();
   const connection = useMemo(() => new Connection(RPC_URL, "confirmed"), []);
   const [walletOpen, setWalletOpen] = useState(false);
@@ -308,6 +318,27 @@ export function LiveGameClient() {
   // Historical helper names retain cents, but this release always converts
   // nominal tier IDs to exact HTS units; it never promises a USD peg.
   const priceAdapter = useMemo(() => new DevnetUsdQuoteAdapter(), []);
+  const roomProbePendingRef=useRef<Promise<void>|null>(null);
+  const updateRoomLiveness=useCallback(async()=>{
+    if(RPC_MISSING)return;
+    if(roomProbePendingRef.current)return roomProbePendingRef.current;
+    if(Date.now()-roomProbeRef.current.at<=30_000)return;
+    roomProbeRef.current.at=Date.now();
+    const pending=(async()=>{
+      const results:Array<{tier:number;live:boolean|null}>=[];
+      for(const tier of [1,10]){try{const value=await sdk.fetchRoom(tier);results.push({tier,live:value.active===true});}catch{results.push({tier,live:null});}}
+      const merged=mergeRoomLiveness(roomLiveRef.current,results);
+      if(merged.changed){roomLiveRef.current=merged.next;setRoomLive(merged.next);}
+    })();
+    roomProbePendingRef.current=pending;
+    try{await pending;}finally{if(roomProbePendingRef.current===pending)roomProbePendingRef.current=null;}
+  },[sdk]);
+  useEffect(()=>{
+    if(!mobileNav.mobile)return;
+    const load=()=>{if(!document.hidden)void updateRoomLiveness();};
+    load();const timer=setInterval(load,30_000);
+    return()=>clearInterval(timer);
+  },[mobileNav.mobile,updateRoomLiveness]);
 
   const [liveState, setLiveState] = useState<GameStateId>("disconnected");
   const [override, setOverride] = useState<GameStateId | null>(null);
@@ -345,6 +376,8 @@ export function LiveGameClient() {
   lastCompletedRef.current = lastCompleted;
   // A settled result stays anchored until the player explicitly continues.
   const [settlePending, setSettlePending] = useState(false);
+  const settlePendingRef = useRef(settlePending);
+  settlePendingRef.current = settlePending;
   const [settleLine, setSettleLine] = useState<string | null>(null);
   const [retryPayoutBusy, setRetryPayoutBusy] = useState(false);
   // Authoritative HTS quote and balance checks.
@@ -740,20 +773,7 @@ export function LiveGameClient() {
       // live on-chain RoomState. A failed probe keeps last-known values so a
       // flaky response can never flip live rooms (or a pending selection);
       // Join paths re-validate the room live before signing anything.
-      if (Date.now() - roomProbeRef.current.at > 30000) {
-        roomProbeRef.current.at = Date.now();
-        const results: Array<{ tier: number; live: boolean | null }> = [];
-        for (const t of [1, 10]) {
-          try {
-            const r = await sdk.fetchRoom(t);
-            results.push({ tier: t, live: r.active === true });
-          } catch {
-            results.push({ tier: t, live: null });
-          }
-        }
-        const merged = mergeRoomLiveness(roomLiveRef.current, results);
-        if (merged.changed) setRoomLive(merged.next);
-      }
+      await updateRoomLiveness();
       // Room gate: joins only with a live on-chain room; a tier must never
       // pretend to be OPEN beforehand. This gate previously reset an explicit
       // user selection to Ready on every background refresh while rooms were
@@ -1443,6 +1463,7 @@ export function LiveGameClient() {
     program,
     refreshBalances,
     refreshQueueSnapshot,
+    updateRoomLiveness,
     sdk,
     usdCents,
     ensureAutoSettlement,
@@ -1994,6 +2015,16 @@ export function LiveGameClient() {
     claimPending: settlePending,
     settledObserved: lastCompleted !== null && !settlePending,
   });
+  const roomLocked = !canChangeMobileRoom(liveState,busyKind!==null,hasPosition,settlePending);
+  const mobileFeedback=mobileGameFeedback(visualState,settlePending);
+  const mobileProgress = selectedSide!==null || !["disconnected","connected","ready"].includes(visualState);
+  const mobileFooterClick = (event:MouseEvent<HTMLElement>) => {
+    if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
+    const href=(event.target as Element).closest("a")?.getAttribute("href");
+    const match=href?.match(/^\/(tokenomics|roadmap|terms|privacy)$/);
+    if(match){event.preventDefault();mobileNav.navigate("profile",match[1] as InformationPage);}
+  };
+  const mobileFooter = <div className="mobile-profile-footer" onClickCapture={mobileFooterClick}><AppFooter/></div>;
 
   // Desktop side rails share one width token so Leaderboard and Chat stay
   // symmetrical around the center game (--desktop-side-panel-width).
@@ -2007,7 +2038,9 @@ export function LiveGameClient() {
           : "";
 
   return (
-    <div className="relative flex min-h-[100svh] w-full max-w-full flex-col overflow-x-clip">
+    <div ref={mobileNav.rootRef} data-mobile-tab={mobileNav.tab} data-mobile-info={mobileNav.info ?? undefined}
+      data-mobile-social={socialView} data-game-state={visualState} data-mobile-progress={String(mobileProgress)} data-mobile-queued={String(queuedSide!==null)}
+      className="heads-app relative flex min-h-[100svh] w-full max-w-full flex-col overflow-x-clip">
       <AppHeader
         state={headerState}
         onConnect={() => setWalletOpen(true)}
@@ -2018,11 +2051,11 @@ export function LiveGameClient() {
         profileName={profile?.username ?? null}
         profileAvatarUrl={profile?.avatarUrl ?? null}
         notificationCount={settlePending ? 1 : 0}
-        onProfileClick={() => setProfileOpen(true)}
+        onProfileClick={() => mobileNav.mobile ? mobileNav.navigate("profile") : setProfileOpen(true)}
         faucet={undefined}
       />
       <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
-      {profileOpen && address && (
+      {(profileOpen || mobileNav.mobile) && address && (
         <ProfileModal
           wallet={wallet}
           account={account}
@@ -2033,12 +2066,16 @@ export function LiveGameClient() {
           }
           onRetryPayout={() => void handleRetryPayout()}
           retryPayoutBusy={retryPayoutBusy}
-          onClose={() => setProfileOpen(false)}
+          onClose={() => mobileNav.mobile ? mobileNav.navigate("play") : setProfileOpen(false)}
           onChanged={() => {
             reloadProfile();
             reloadSession();
           }}
           onLogout={() => void handleLogout()}
+          presentation={mobileNav.mobile ? "page" : "modal"}
+          footer={mobileFooter}
+          balanceLabel={tokenBalanceLabel ?? undefined}
+          hidden={mobileNav.mobile && (mobileNav.tab!=="profile" || mobileNav.info!==null)}
         />
       )}
       {inspectedWallet && (
@@ -2047,7 +2084,7 @@ export function LiveGameClient() {
           onClose={() => setInspectedWallet(null)}
         />
       )}
-      {chatOpen && (
+      {chatOpen && !mobileNav.mobile && (
         <div
           role="dialog"
           aria-modal="true"
@@ -2081,7 +2118,7 @@ export function LiveGameClient() {
           </div>
         </div>
       )}
-      {boardOpen && (
+      {boardOpen && !mobileNav.mobile && (
         <div
           role="dialog"
           aria-modal="true"
@@ -2112,11 +2149,15 @@ export function LiveGameClient() {
         </div>
       )}
       <main
-        className={`relative z-10 mx-auto grid w-full max-w-[1440px] min-w-0 flex-1 gap-6 overflow-x-clip px-4 pb-10 pt-6 sm:px-6 ${gridCols}`}
+        hidden={mobileNav.mobile && (mobileNav.tab==="profile" || mobileNav.info!==null)}
+        className={`app-main relative z-10 mx-auto grid w-full max-w-[1440px] min-w-0 flex-1 gap-6 overflow-x-clip px-4 pb-10 pt-6 sm:px-6 ${gridCols}`}
       >
+        <MobileSocialSwitch value={socialView} onChange={setSocialView} enabled={mobileNav.mobile && mobileNav.tab==="social"}/>
         {site.leaderboardEnabled && (
           <aside
-            className="hidden w-full min-w-0 self-stretch xl:block xl:w-[var(--desktop-side-panel-width)] xl:shrink-0"
+            id="mobile-social-leaderboard" data-mobile-panel="social" data-social-view="leaderboard"
+            hidden={mobileNav.mobile && (mobileNav.tab!=="social" || socialView!=="leaderboard")}
+            className="mobile-social-panel hidden w-full min-w-0 self-stretch xl:block xl:w-[var(--desktop-side-panel-width)] xl:shrink-0"
             aria-label="Leaderboard sidebar"
           >
             <div className="sticky top-6 flex h-full min-h-[560px] flex-col xl:min-h-[680px]">
@@ -2124,7 +2165,7 @@ export function LiveGameClient() {
             </div>
           </aside>
         )}
-        <div className="mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col items-center gap-6">
+        <div id="mobile-play" hidden={mobileNav.mobile && mobileNav.tab!=="play"} data-mobile-panel="play" className="mobile-play-panel mx-auto flex w-full min-w-0 max-w-6xl flex-1 flex-col items-center gap-6">
           <LegacyPositionNotice
             program={program}
             address={address}
@@ -2176,6 +2217,10 @@ export function LiveGameClient() {
             flipTarget={flipTarget}
             flipRoundId={activeMatchId}
             flipRevealAtMs={flipRevealAtMs}
+            allowDisconnectedPick={mobileNav.mobile}
+            roomSelector={<MobileRoomSelector tier={selectedTier} locked={roomLocked} liveTiers={liveTiers} onSelect={tier=>{
+              if(canChangeMobileRoom(stateRef.current,busyRef.current,hasPositionRef.current,settlePendingRef.current))handleSelectTier(tier);
+            }}/>}
           />
           {site.announcementText && (
             <p
@@ -2185,7 +2230,7 @@ export function LiveGameClient() {
               {site.announcementText}
             </p>
           )}
-          <div className="flex w-full max-w-[560px] gap-2 xl:hidden">
+          <div className="legacy-social-buttons flex w-full max-w-[560px] gap-2 xl:hidden">
             {site.leaderboardEnabled && (
               <button
                 type="button"
@@ -2205,6 +2250,7 @@ export function LiveGameClient() {
               </button>
             )}
           </div>
+          <div className="mobile-game-progress">
           <TransactionStatus
             state={visualState}
             needsVerification={Boolean(address && sessionWallet !== address)}
@@ -2215,6 +2261,7 @@ export function LiveGameClient() {
             result={displayResult}
             walletAddress={address}
             completedMatchId={lastCompleted?.matchId ?? null}
+            needsConnection={mobileNav.mobile && !address}
             needsVerification={Boolean(address && sessionWallet !== address)}
             onVerify={() => {
               void ensureChatAuth();
@@ -2235,26 +2282,35 @@ export function LiveGameClient() {
             }
             retryPayoutBusy={retryPayoutBusy}
           />
+          </div>
+          <div className="desktop-room-cards">
           <StakeTierSelector
             selectedTier={selectedTier}
             onSelect={handleSelectTier}
             liveTiers={liveTiers}
             connected={address !== null}
           />
+          </div>
+          <div className="desktop-recent-flips">
           <RecentFlips
             flips={flips}
             live
             unavailable={historyUnavailable}
             tierUsd={selectedTier}
           />
+          </div>
+          <div className="mobile-game-queue">
           <QueueStatusBar
             headsWaiting={queue?.heads ?? null}
             tailsWaiting={queue?.tails ?? null}
           />
+          </div>
         </div>
         {site.chatEnabled && (
           <aside
-            className="hidden w-full min-w-0 self-stretch xl:block xl:w-[var(--desktop-side-panel-width)] xl:shrink-0"
+            id="mobile-social-chat" data-mobile-panel="social" data-social-view="chat"
+            hidden={mobileNav.mobile && (mobileNav.tab!=="social" || socialView!=="chat")}
+            className="mobile-social-panel hidden w-full min-w-0 self-stretch xl:block xl:w-[var(--desktop-side-panel-width)] xl:shrink-0"
             aria-label="Global chat sidebar"
           >
             <div className="sticky top-6 flex h-full min-h-[560px] flex-col xl:min-h-[680px]">
@@ -2268,11 +2324,24 @@ export function LiveGameClient() {
             </div>
           </aside>
         )}
+        <MobileFlips enabled={mobileNav.mobile} active={mobileNav.mobile && mobileNav.tab==="flips" && !mobileNav.info}/>
       </main>
+      {!address && <section hidden={!mobileNav.mobile || mobileNav.tab!=="profile" || mobileNav.info!==null} id="mobile-profile" className="mobile-profile-guest" aria-label="Profile">
+        <div className="glass mx-auto w-full max-w-[560px] rounded-3xl p-5 text-center">
+          <h2 className="font-display text-[19px] font-bold text-white">Profile</h2>
+          <p className="my-3 text-sm text-[var(--text-secondary)]">Connect a Solana wallet to view your profile.</p>
+          <WalletButton state="disconnected" onConnect={()=>setWalletOpen(true)} onDisconnect={()=>undefined}/>
+        </div>{mobileFooter}
+      </section>}
+      {mobileNav.mobile && mobileNav.info && <MobileInformation page={mobileNav.info} onBack={()=>mobileNav.navigate("profile")} onNavigate={page=>mobileNav.navigate("profile",page)}/>}
+      {mobileNav.tab!=="play"&&mobileFeedback&&<button type="button" className="mobile-game-notification glass min-h-[44px] rounded-2xl border border-white/15 px-4 text-sm font-bold text-white" onClick={()=>mobileNav.navigate("play")}>
+        {mobileFeedback} · View game
+      </button>}
       {address && sessionWallet === address && (
         <TeamWelcome key={address} wallet={address} onSaved={reloadProfile} />
       )}
-      <AppFooter />
+      <div className="desktop-site-footer"><AppFooter /></div>
+      <MobileNavigation enabled={mobileNav.mobile} tab={mobileNav.tab} onSelect={tab=>mobileNav.navigate(tab)}/>
       <DevStateSwitcher
         enabled={isDev}
         state={override ?? liveState}

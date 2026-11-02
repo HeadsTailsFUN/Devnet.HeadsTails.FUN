@@ -40,6 +40,7 @@ function setGlobal(key: string, value: unknown): void {
   }
 }
 setGlobal("window", dom.window as unknown);
+Object.defineProperty(dom.window,"matchMedia",{configurable:true,writable:true,value:(query:string)=>({matches:false,media:query,onchange:null,addEventListener(){},removeEventListener(){},addListener(){},removeListener(){},dispatchEvent(){return false;}})});
 setGlobal("document", dom.window.document as unknown);
 setGlobal("navigator", dom.window.navigator as unknown);
 setGlobal("HTMLElement", dom.window.HTMLElement as unknown);

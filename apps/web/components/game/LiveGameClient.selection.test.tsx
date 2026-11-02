@@ -28,10 +28,12 @@ import {
   screen,
   cleanup,
   within,
+  waitFor,
 } from "@testing-library/react";
 import { PublicKey } from "@solana/web3.js";
 import { getWallets } from "@wallet-standard/app";
 import { referenceQuote } from "@heads-or-tails/game-sdk";
+import { roomQueuePda } from "@/lib/solana/queueSnapshot";
 
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, init) => {
@@ -42,6 +44,7 @@ globalThis.fetch = async (input, init) => {
   if (String(input) === "/api/devnet/usd-quote") {
     return Response.json(
       referenceQuote(process.env.NEXT_PUBLIC_HTS_TOKEN_MINT!, Date.now()),
+      { headers: { Date: new Date().toUTCString() } },
     );
   }
   return originalFetch(input, init);
@@ -70,11 +73,12 @@ function b64Config(): string {
   return b.toString("base64");
 }
 
-function b64Room(tier: number): string {
+function b64Room(tier: number, queued = false): string {
   const b = Buffer.alloc(43);
   Buffer.from(disc("RoomState"), "hex").copy(b, 0);
   b[8] = tier;
   b[9] = 1;
+  if(queued && tier===1)b.writeBigUInt64LE(BigInt(1),18);
   return b.toString("base64");
 }
 
@@ -122,6 +126,9 @@ describe("video scenario: selection survives background refresh", () => {
   // When true, the player account reads as an existing IDLE PlayerState
   // (the post-game shape) instead of missing.
   let idlePlayer = false;
+  let queuedPlayer = false;
+  let signingRequests = 0;
+  let submittedTransactions = 0;
   // When true, the next config read is delayed past the user pick (stale
   // refresh / config-subscription race).
   let slowConfigOnce = false;
@@ -179,6 +186,7 @@ describe("video scenario: selection survives background refresh", () => {
               }),
             );
           };
+          if(method==="sendTransaction"){submittedTransactions++;return rpcError();}
           if (method === "getAccountInfo") {
             const addr = params[0] as string;
             if (
@@ -199,13 +207,15 @@ describe("video scenario: selection survives background refresh", () => {
               }
               return reply(acctInfo(b64Config(), 2036414520));
             }
-            if (idlePlayer && addr === playerPda) {
-              return reply(acctInfo(idlePlayerState(), 5000000));
+            if ((idlePlayer || queuedPlayer) && addr === playerPda) {
+              const data=Buffer.from(idlePlayerState(),"base64");
+              if(queuedPlayer){data[40]=1;data[42]=0;data[60]=1;data[61]=1;}
+              return reply(acctInfo(data.toString("base64"), 5000000));
             }
             if (addr === roomPda(1) || addr === roomPda(10)) {
               if (roomMode === "fail") return rpcError();
               const tier = addr === roomPda(1) ? 1 : 10;
-              return reply(acctInfo(b64Room(tier)));
+              return reply(acctInfo(b64Room(tier,queuedPlayer)));
             }
             return reply(acctInfo(null));
           }
@@ -233,7 +243,11 @@ describe("video scenario: selection survives background refresh", () => {
             method === "getMultipleAccountsInfo" ||
             method === "getMultipleAccounts"
           )
-            return reply({ context: { slot: 1 }, value: [] });
+            return reply({ context: { slot: 1 }, value: (params[0] as string[]).map(addr=>{
+              if(!queuedPlayer||addr!==roomQueuePda(new PublicKey(PROGRAM),1,0,BigInt(0)).toBase58())return null;
+              const data=Buffer.alloc(67);Buffer.from(disc("QueueEntry"),"hex").copy(data);new PublicKey(FAKE_WALLET).toBuffer().copy(data,8);data.writeBigUInt64LE(BigInt(100000000),49);
+              return acctInfo(data.toString("base64")).value;
+            }) });
           return reply({ context: { slot: 1 }, value: null });
         })();
       });
@@ -273,10 +287,11 @@ describe("video scenario: selection survives background refresh", () => {
           version: "1.0.0",
           connect: async () => ({ accounts: [account] }),
         },
+        "solana:signTransaction": { version:"1.0.0",supportedTransactionVersions:["legacy"],signTransaction:async()=>{signingRequests++;throw Error("No transaction signing permitted in this fixture");} },
       },
       accounts: [account],
     } as unknown as import("@wallet-standard/base").Wallet;
-    getWallets().register(wallet);
+    return getWallets().register(wallet);
   }
 
   it(
@@ -457,7 +472,7 @@ describe("video scenario: selection survives background refresh", () => {
       );
       fireEvent.click(disconnectBtn);
       assert.ok(
-        await screen.findByRole(
+        await within(screen.getByRole("banner")).findByRole(
           "button",
           { name: "Connect Wallet" },
           { timeout: 10000 },
@@ -469,7 +484,7 @@ describe("video scenario: selection survives background refresh", () => {
       // NOTE: disconnect cleared the selection above by design; re-pick first.
       roomMode = "live";
       fireEvent.click(
-        await screen.findByRole(
+        await within(screen.getByRole("banner")).findByRole(
           "button",
           { name: "Connect Wallet" },
           { timeout: 10000 },
@@ -503,4 +518,39 @@ describe("video scenario: selection survives background refresh", () => {
       view.unmount();
     },
   );
+  it("real controller retains wallet, side and a synthetic on-chain queue across all mobile tabs without signing",{timeout:45000},async(t)=>{
+    cleanup();window.localStorage.clear();roomMode="live";idlePlayer=true;queuedPlayer=false;
+    const originalMedia=window.matchMedia;
+    Object.defineProperty(window,"matchMedia",{configurable:true,writable:true,value:(media:string)=>({media,matches:true,addEventListener(){},removeEventListener(){}})});
+    t.after(()=>{Object.defineProperty(window,"matchMedia",{configurable:true,writable:true,value:originalMedia});queuedPlayer=false;});
+    window.history.replaceState(null,"","/");
+    const {LiveGameClient}=await import("./LiveGameClient.js"),{WalletStandardProvider}=await import("../wallet/WalletProvider.js"),React=await import("react");
+    const view=render(React.createElement(WalletStandardProvider,null,React.createElement(LiveGameClient)));
+    t.after(registerFakeWallet());
+    const header=()=>within(screen.getByRole("banner")),nav=()=>within(screen.getByRole("navigation",{name:"Mobile navigation"}));
+    fireEvent.click(screen.getByRole("button",{name:"Choose room, $1 selected"}));
+    const menu=within(screen.getByRole("group",{name:"Choose a room"}));
+    await waitFor(()=>assert.equal((menu.getByRole("button",{name:"$10"}) as HTMLButtonElement).disabled,false),{timeout:10000});
+    fireEvent.click(menu.getByRole("button",{name:"$10"}));assert(screen.getByRole("button",{name:"Choose room, $10 selected"}));
+    fireEvent.click(screen.getByRole("button",{name:"Choose room, $10 selected"}));fireEvent.click(within(screen.getByRole("group",{name:"Choose a room"})).getByRole("button",{name:"$1"}));
+    const game=()=>within(screen.getByRole("region",{name:"Flip game"}));
+    const heads=await game().findByRole("button",{name:"HEADS"});await waitFor(()=>assert.equal((heads as HTMLButtonElement).disabled,false));
+    fireEvent.click(heads);
+    const progress=within(screen.getByRole("region",{name:"Game status"}));
+    assert.equal(progress.queryByRole("button",{name:"Confirm"}),null,"Picking a side cannot stake before connection");
+    fireEvent.click(progress.getByRole("button",{name:"Connect Wallet"}));fireEvent.click(await screen.findByText("TestWallet",{},{timeout:10000}));
+    await screen.findByRole("heading",{name:"You Selected HEADS"});
+    fireEvent.click(nav().getByRole("button",{name:"social"}));const draft=screen.getByRole("textbox",{name:"Chat message"});fireEvent.change(draft,{target:{value:"Local unsent draft"}});
+    for(const tab of ["flips","profile"]){fireEvent.click(nav().getByRole("button",{name:tab}));assert(header().getByRole("button",{name:/Open profile/}));}
+    fireEvent.click(within(screen.getByRole("region",{name:"Profile"})).getByRole("link",{name:"Terms"}));
+    await screen.findByRole("heading",{name:"Terms (Devnet Beta)"});fireEvent.click(screen.getByRole("button",{name:"← Back to Profile"}));
+    fireEvent.click(nav().getByRole("button",{name:"play"}));assert(screen.getByRole("heading",{name:"You Selected HEADS"}));
+    queuedPlayer=true;
+    await waitFor(()=>assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-game-state'),'queued-heads'),{timeout:16000});
+    const chooser=screen.getByRole("button",{name:"Choose room, $1 selected"}) as HTMLButtonElement;assert.equal(chooser.disabled,true);
+    for(const tab of ["social","flips","profile"]){fireEvent.click(nav().getByRole("button",{name:tab}));assert(screen.getByRole("button",{name:"Queued · View game"}));}
+    fireEvent.click(nav().getByRole("button",{name:"social"}));assert.equal((screen.getByRole("textbox",{name:"Chat message"}) as HTMLTextAreaElement).value,"Local unsent draft");
+    fireEvent.click(nav().getByRole("button",{name:"play"}));assert(screen.getByRole("heading",{name:"You Selected HEADS"}));
+    assert.equal(signingRequests,0);assert.equal(submittedTransactions,0);view.unmount();
+  });
 });
