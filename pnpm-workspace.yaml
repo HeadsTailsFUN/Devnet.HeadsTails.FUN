@@ -2,6 +2,7 @@ packages:
   - "apps/*"
   - "packages/*"
 allowBuilds:
+  '@reown/appkit': true
   '@tailwindcss/oxide': true
   bigint-buffer: true
   bufferutil: true
