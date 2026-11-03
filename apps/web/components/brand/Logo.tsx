@@ -39,7 +39,7 @@ export function LogoLockup({ compact = false }: { compact?: boolean }) {
         </span>
         <span className="mt-1 flex items-center gap-2 text-[12.5px] font-medium tracking-wide text-[var(--text-secondary)]">
           <span>HeadsTails.fun</span>
-          {IS_DEVNET && <span className="rounded border border-[var(--heads)]/30 bg-white/5 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-[var(--heads)]">Devnet</span>}
+          {IS_DEVNET && <span className="rounded border border-orange-700/70 bg-orange-950/70 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-orange-300">Devnet</span>}
         </span>
       </span>
     </Link>

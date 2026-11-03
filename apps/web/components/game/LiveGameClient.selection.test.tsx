@@ -556,11 +556,11 @@ describe("video scenario: selection survives background refresh", () => {
     assert.equal(progress.queryByRole("button",{name:"Confirm"}),null,"Picking a side cannot stake before connection");
     fireEvent.click(progress.getByRole("button",{name:"Connect Wallet"}));fireEvent.click(await screen.findByText("TestWallet",{},{timeout:10000}));
     await screen.findByRole("heading",{name:"You Selected HEADS"});
-    fireEvent.click(screen.getByRole("button",{name:"← Back to sides"}));
+    fireEvent.click(screen.getByRole("button",{name:"Back to sides"}));
     assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-mobile-progress'),'false');
     fireEvent.click(game().getByRole("button",{name:"TAILS"}));
     await screen.findByRole("heading",{name:"You Selected TAILS"});
-    fireEvent.click(screen.getByRole("button",{name:"← Back to sides"}));
+    fireEvent.click(screen.getByRole("button",{name:"Back to sides"}));
     fireEvent.click(game().getByRole("button",{name:"HEADS"}));
     fireEvent.click(nav().getByRole("button",{name:"social"}));const draft=screen.getByRole("textbox",{name:"Chat message"});fireEvent.change(draft,{target:{value:"Local unsent draft"}});
     for(const tab of ["flips","profile"]){fireEvent.click(nav().getByRole("button",{name:tab}));assert(header().getByRole("button",{name:/Open profile/}));}
@@ -570,7 +570,7 @@ describe("video scenario: selection survives background refresh", () => {
     queuedPlayer=true;
     await waitFor(()=>assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-game-state'),'queued-heads'),{timeout:16000});
     const chooser=screen.getByRole("button",{name:"Choose room, $1 selected"}) as HTMLButtonElement;assert.equal(chooser.disabled,true);
-    assert.equal(screen.queryByRole("button",{name:"← Back to sides"}),null);
+    assert.equal(screen.queryByRole("button",{name:"Back to sides"}),null);
     for(const tab of ["social","flips","profile"]){fireEvent.click(nav().getByRole("button",{name:tab}));assert(screen.getByRole("button",{name:"Queued · View game"}));}
     fireEvent.click(nav().getByRole("button",{name:"social"}));assert.equal((screen.getByRole("textbox",{name:"Chat message"}) as HTMLTextAreaElement).value,"Local unsent draft");
     fireEvent.click(nav().getByRole("button",{name:"play"}));assert(screen.getByRole("heading",{name:"You Selected HEADS"}));
@@ -589,7 +589,7 @@ describe("video scenario: selection survives background refresh", () => {
     inMatchPlayer=true; // A stale RPC response repeats the already-dismissed Match #42.
     await new Promise(r=>setTimeout(r,11_000));
     assert(screen.getByRole("heading",{name:"You Selected TAILS"}));
-    assert(screen.getByRole("button",{name:"← Back to sides"}));
+    assert(screen.getByRole("button",{name:"Back to sides"}));
     assert.equal(signingRequests,0);assert.equal(submittedTransactions,0);view.unmount();
   });
 });

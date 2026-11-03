@@ -11,6 +11,7 @@ import {
   platformFromUserAgent,
 } from "@/lib/solana/mobileWallets";
 import { IS_DEVNET } from "@/lib/solana/cluster";
+import { LinkIcon } from "@/components/ui/icons";
 
 const EXPECTED_CHAIN = IS_DEVNET ? "solana:devnet" : "solana:mainnet";
 
@@ -21,7 +22,7 @@ export function WalletModal({
   open: boolean;
   onClose: () => void;
 }) {
-  const { wallets, connect, connecting, error } = useWalletState();
+  const { wallets, connect, connectWalletConnect, connecting, error } = useWalletState();
   const mobile = useMemo(
     () =>
       typeof navigator !== "undefined"
@@ -137,14 +138,22 @@ export function WalletModal({
         </h2>
         {IS_DEVNET && (
           <div className="mt-3 space-y-1 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
-            <p>Network: <strong className="text-white">Solana Devnet</strong></p>
-            <p>Welcome: <strong className="text-white">200 test HTS</strong> after verification (eligible new wallets).</p>
+            <p>Set your wallet network to <strong className="text-white">Devnet</strong></p>
+            <p>You&apos;ll receive <strong className="text-white">200 test HTS</strong> by connecting new wallet.</p>
           </div>
         )}
+        {IS_DEVNET && (showCurated || (!mobile && wallets.length===0)) && <div className="mt-4">
+          <button type="button" disabled={connecting} onClick={async()=>{if(await connectWalletConnect())onClose();}}
+            className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 text-left font-bold text-white transition hover:bg-white/10 disabled:opacity-60">
+            <LinkIcon className="h-7 w-7 shrink-0"/>
+            <span>{connecting ? "Connecting…" : "WalletConnect"}</span>
+          </button>
+          <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-secondary)]">{mobile ? "Stay in this browser. Approve in a wallet that supports Solana Devnet." : "Scan with a mobile wallet that supports Solana Devnet."}</p>
+          {mobile && <p className="mt-3 px-1 text-xs font-semibold text-white/60">Or open your wallet browser:</p>}
+        </div>}
         {wallets.length === 0 && !mobile && (
           <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] text-[var(--text-secondary)]">
-            No wallets detected. Install a Solana wallet extension, then try
-            again.
+            No wallet extension detected. Use WalletConnect above or install a Solana wallet extension.
           </p>
         )}
         {mobile && (inAppSingle || inAppMultiple) && (
