@@ -51,6 +51,7 @@ export interface WalletState {
   error: string | null;
   errorCode: string | null;
   connect: (wallet: Wallet) => Promise<void>;
+  connectWalletConnect: () => Promise<boolean>;
   disconnect: () => Promise<void>;
   /** Sign raw transaction bytes with the connected account. */
   signBytes: (txBytes: Uint8Array) => Promise<Uint8Array>;
@@ -77,6 +78,7 @@ export function WalletStandardProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<string | null>(null);
   const restoredRef = useRef(false);
+  const manualConnectEpochRef=useRef(0);
 
   const wallets = useMemo(
     () => dedupeWallets(rawWallets, EXPECTED_CHAIN),
@@ -156,6 +158,7 @@ export function WalletStandardProvider({ children }: { children: ReactNode }) {
 
   const connect = useCallback(
     async (w: Wallet) => {
+      manualConnectEpochRef.current++;restoredRef.current=true;setRestoring(false);
       setConnecting(true);
       setError(null);
       setErrorCode(null);
@@ -170,9 +173,45 @@ export function WalletStandardProvider({ children }: { children: ReactNode }) {
     [doConnect, fail]
   );
 
+  const connectWalletConnect=useCallback(async()=>{
+    if(!IS_DEVNET)return false;
+    const epoch=++manualConnectEpochRef.current;restoredRef.current=true;setRestoring(false);
+    setConnecting(true);setError(null);setErrorCode(null);
+    try{
+      const {getWalletConnectWallet}=await import("@/lib/solana/walletConnectClient");
+      const remoteWallet=await getWalletConnectWallet();
+      if(epoch!==manualConnectEpochRef.current)return false;
+      await doConnect(remoteWallet,{});
+      return true;
+    }catch(error){
+      if(epoch!==manualConnectEpochRef.current)return false;
+      if(error instanceof Error && /cancelled|canceled|user rejected/i.test(error.message))return false;
+      if(error instanceof Error && /origin|allowlist|not allowed/i.test(error.message)){
+        setError("WalletConnect is not enabled on this website address. Use the official HeadsTails beta URL.");
+        setErrorCode("WALLETCONNECT_ORIGIN_NOT_ALLOWED");return false;
+      }
+      setError("WalletConnect could not connect. Use a wallet supporting Solana Devnet, or open your wallet browser.");
+      setErrorCode("WALLETCONNECT_CONNECTION_FAILED");return false;
+    }finally{if(epoch===manualConnectEpochRef.current)setConnecting(false);}
+  },[doConnect]);
+
   // Silent restore of the previously authorized provider after refresh.
   useEffect(() => {
     if (restoredRef.current) return;
+    if(IS_DEVNET && getRememberedWallet()==="WalletConnect"){
+      restoredRef.current=true;
+      const epoch=manualConnectEpochRef.current;
+      void (async()=>{
+        try{
+          const {getWalletConnectWallet}=await import("@/lib/solana/walletConnectClient");
+          const remoteWallet=await getWalletConnectWallet();
+          if(epoch!==manualConnectEpochRef.current)return;
+          await doConnect(remoteWallet,{silent:true});
+        }catch{if(epoch===manualConnectEpochRef.current){setWallet(null);setAccount(null);forgetWallet();}}
+        finally{setRestoring(false);}
+      })();
+      return;
+    }
     if (rawWallets.length === 0) return;
     restoredRef.current = true;
     const run = async () => {
@@ -209,7 +248,27 @@ export function WalletStandardProvider({ children }: { children: ReactNode }) {
     void run();
   }, [rawWallets, doConnect]);
 
+  // WalletConnect session revocation/account changes must update the same
+  // context used by authentication and transaction construction.
+  useEffect(()=>{
+    if(!wallet || wallet.name!=="WalletConnect")return;
+    const events=wallet.features["standard:events"] as {on?:(event:"change",listener:(change:{accounts?:readonly WalletAccount[]})=>void)=>()=>void}|undefined;
+    if(!events?.on)return;
+    const update=(change:{accounts?:readonly WalletAccount[]})=>{
+      if(!change.accounts)return;
+      const next=selectSolanaAccount(change.accounts,EXPECTED_CHAIN);
+      setAccount(next);
+      if(!next){setWallet(null);forgetWallet();}
+    };
+    const off=events.on("change",update);
+    // Close the connect-render-subscribe race if the remote account changed
+    // before this effect was installed.
+    update({accounts:wallet.accounts});
+    return off;
+  },[wallet]);
+
   const disconnect = useCallback(async () => {
+    manualConnectEpochRef.current++;
     try {
       // Direct Wallet Standard access: features["standard:disconnect"] IS
       // { version, disconnect }. No nested lookup.
@@ -277,10 +336,11 @@ export function WalletStandardProvider({ children }: { children: ReactNode }) {
       error,
       errorCode,
       connect,
+      connectWalletConnect,
       disconnect,
       signBytes,
     }),
-    [wallets, account, wallet, connecting, restoring, error, errorCode, connect, disconnect, signBytes]
+    [wallets, account, wallet, connecting, restoring, error, errorCode, connect, connectWalletConnect, disconnect, signBytes]
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

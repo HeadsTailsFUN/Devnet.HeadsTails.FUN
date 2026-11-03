@@ -15,7 +15,8 @@
     "test:ui": "node --import tsx --test lib/chat/moderation.test.ts lib/chat/queryWindow.test.ts lib/chat/communityApi.test.ts lib/game/reaction.test.ts lib/site/socialLinks.test.ts lib/solana/history.test.ts",
     "test:ui-components": "node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit --test-timeout=180000 components/game/UiRefinement.test.tsx components/game/LiveGameClient.selection.test.tsx components/game/VisibleFlipAnchor.test.tsx components/history/RecentFlips.test.tsx components/status/QueueStatusBar.test.tsx components/profile/TeamPreference.test.tsx",
     "test:mobile": "node --import tsx --test lib/mobile/navigation.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --import ./lib/test/mobile-history-env.ts --test --test-force-exit components/mobile/MobileExperience.test.tsx",
-    "test:mobile-controller": "node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit --test-name-pattern=real.controller components/game/LiveGameClient.selection.test.tsx"
+    "test:mobile-controller": "node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit --test-name-pattern=real.controller components/game/LiveGameClient.selection.test.tsx",
+    "test:walletconnect": "node --import tsx --test lib/solana/walletConnectBridge.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/wallet/WalletConnectProvider.test.tsx"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1",
@@ -31,7 +32,9 @@
     "next": "15.5.28",
     "react": "19.1.1",
     "react-dom": "19.1.1",
-    "tweetnacl": "1.0.3"
+    "tweetnacl": "1.0.3",
+    "@reown/appkit": "1.8.19",
+    "@walletconnect/universal-provider": "2.23.7"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.1.13",

@@ -229,7 +229,7 @@ export function GameStatePanel({
       <h2 className="font-display text-[19px] font-bold text-white">
         {final ? (state === "win" ? "You won" : "You lost") : c.title}
       </h2>
-      {final && secondsLeft>0 && <p role="timer" aria-label="Result countdown" className="mt-2 text-sm font-bold text-white/80">Play again in {secondsLeft}s</p>}
+      {final && secondsLeft>0 && <span role="timer" aria-label="Result countdown" className="sr-only">{secondsLeft} seconds remaining</span>}
       {matchLabel && (
         <p className="mt-1 text-[12px] font-bold tracking-widest text-white/70">
           {matchLabel}
