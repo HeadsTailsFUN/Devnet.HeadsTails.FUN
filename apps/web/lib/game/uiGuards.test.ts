@@ -5,7 +5,24 @@ import {
   queuePositionText,
   shouldCommitSelectionRefresh,
   networkFeePreparationMessage,
+  anchoredResultState,
 } from "./uiGuards.js";
+
+describe("revealed result ownership",()=>{
+  const result={wallet:"player-a",matchId:"42",iWon:true};
+  const context={result,wallet:"player-a",activeMatchId:"42",hasNewIntent:false};
+  it("keeps a result through idle, low balance, errors and same-round polling without claiming payout",()=>{
+    for(const state of ["ready","insufficient-balance","error","paused","flipping"] as const)
+      assert.equal(anchoredResultState({...context,state}),"win");
+    assert.equal(anchoredResultState({...context,state:"ready",activeMatchId:null,result:{...result,iWon:false}}),"loss");
+  });
+  it("never shows another wallet's result or hides a newer explicit/chain-proven round",()=>{
+    assert.equal(anchoredResultState({...context,state:"ready",wallet:"player-b"}),"ready");
+    assert.equal(anchoredResultState({...context,state:"tails-selected",hasNewIntent:true}),"tails-selected");
+    assert.equal(anchoredResultState({...context,state:"flipping",activeMatchId:"43"}),"flipping");
+    assert.equal(anchoredResultState({...context,state:"queued-heads"}),"queued-heads");
+  });
+});
 
 describe("network fee preparation feedback", () => {
   it("distinguishes restricted admission from temporary funding failures", () => {

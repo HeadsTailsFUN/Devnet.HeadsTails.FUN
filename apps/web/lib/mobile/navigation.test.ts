@@ -1,6 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { canChangeMobileRoom, mobileLocation, readMobileLocation, mobileGameFeedback } from "./navigation";
+import { canChangeMobileRoom, canReturnToSidePicker, mobilePlayShowsProgress, mobileLocation, readMobileLocation, mobileGameFeedback } from "./navigation";
+
+test("Ready always restores mobile side buttons, regardless of a previous round's side",()=>{
+  for(const state of ["ready","connected","disconnected"])assert.equal(mobilePlayShowsProgress(state),false);
+  for(const state of ["heads-selected","queued-tails","flipping","win","loss"])assert.equal(mobilePlayShowsProgress(state),true);
+});
+test("Back changes only an unsubmitted selection, never a stake, pending signature, queue or result",()=>{
+  assert.equal(canReturnToSidePicker("heads-selected",false,false,false,false),true);
+  assert.equal(canReturnToSidePicker("tails-selected",false,false,false,false),true);
+  for(const state of ["joining","queued-heads","queued-tails","match-found","flipping","win","loss"])assert.equal(canReturnToSidePicker(state,false,false,false,false),false);
+  for(const args of [[true,false,false,false],[false,true,false,false],[false,false,true,false],[false,false,false,true]] as const)
+    assert.equal(canReturnToSidePicker("heads-selected",args[0],args[1],args[2],args[3]),false);
+});
 test("mobile deep links accept only the four tabs and existing information pages",()=>{
   assert.deepEqual(readMobileLocation(""),{tab:"play",info:null});
   assert.deepEqual(readMobileLocation("?tab=flips"),{tab:"flips",info:null});

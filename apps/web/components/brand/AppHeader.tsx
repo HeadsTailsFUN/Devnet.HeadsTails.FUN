@@ -39,8 +39,6 @@ export function AppHeader({
     <header className="safe-top relative z-20 mx-auto flex w-full min-w-0 max-w-[1440px] flex-wrap items-center justify-between gap-3 overflow-x-clip px-4 pt-5 sm:flex-nowrap sm:gap-4 sm:px-6">
       <span className="flex items-center gap-2">
         <LogoLockup />
-        {/* Product cleanup: no visible DEVNET badge beside the logo (UI-only;
-            the app remains Devnet and all safety gates are intact). */}
       </span>
       <p className="hidden items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] lg:flex">
         <span>Fair</span>
@@ -108,7 +106,7 @@ export function AppHeader({
             type="button"
             onClick={onProfileClick}
             aria-label={`Open profile for ${profileName ?? addressLabel}`}
-            className="glass relative inline-flex min-h-[44px] items-center gap-2 rounded-2xl px-3 text-sm font-semibold text-white transition hover:bg-[var(--bg-panel-hover)]"
+            className="header-account glass relative inline-flex min-h-[44px] min-w-0 items-center gap-2 rounded-2xl px-3 text-sm font-semibold text-white transition hover:bg-[var(--bg-panel-hover)]"
           >
             {profileAvatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -127,11 +125,11 @@ export function AppHeader({
                 {(profileName ?? addressLabel).slice(0, 1).toUpperCase()}
               </span>
             )}
-            <span className="max-w-[110px] truncate">
+            <span className="min-w-0 max-w-[110px] truncate">
               {profileName ?? addressLabel}
             </span>
             {balanceLabel ? (
-              <span className="hidden text-[12px] font-bold text-[var(--heads)] md:inline">
+              <span aria-label={`Available tokens ${balanceLabel}`} className="header-token-balance shrink-0 whitespace-nowrap text-[12px] font-bold text-[var(--heads)]">
                 {balanceLabel}
               </span>
             ) : null}

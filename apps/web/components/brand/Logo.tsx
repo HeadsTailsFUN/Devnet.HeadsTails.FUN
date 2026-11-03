@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { IS_DEVNET } from "@/lib/solana/cluster";
 
 export function LogoMark({ size = 44 }: { size?: number }) {
   return (
@@ -36,8 +37,9 @@ export function LogoLockup({ compact = false }: { compact?: boolean }) {
           <span className="text-white">OR</span>{" "}
           <span className="text-[var(--tails)]">TAILS</span>
         </span>
-        <span className="mt-1 block text-[12.5px] font-medium tracking-wide text-[var(--text-secondary)]">
-          HeadsTails.fun
+        <span className="mt-1 flex items-center gap-2 text-[12.5px] font-medium tracking-wide text-[var(--text-secondary)]">
+          <span>HeadsTails.fun</span>
+          {IS_DEVNET && <span className="rounded border border-[var(--heads)]/30 bg-white/5 px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-wider text-[var(--heads)]">Devnet</span>}
         </span>
       </span>
     </Link>

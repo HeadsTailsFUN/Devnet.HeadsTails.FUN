@@ -11,6 +11,7 @@ import {
 import { GameStatePanel } from "./GameStatePanel";
 import { WalletModal } from "../wallet/WalletModal";
 import { WalletStandardProvider } from "../wallet/WalletProvider";
+import { AppHeader } from "../brand/AppHeader";
 afterEach(cleanup);
 const base = {
   selectedSide: null,
@@ -28,8 +29,8 @@ test("mobile wallet list explains Devnet and the ownership-verified welcome gran
   });
   render(createElement(WalletStandardProvider,null,createElement(WalletModal,{open:true,onClose(){}})));
   const dialog = screen.getByRole("dialog",{name:"Connect a Solana wallet"});
-  assert.match(dialog.textContent ?? "",/set your wallet to Solana Devnet/);
-  assert.match(dialog.textContent ?? "",/200 test HTS.*verifying wallet ownership/);
+  assert.match(dialog.textContent ?? "",/Network: Solana Devnet/);
+  assert.match(dialog.textContent ?? "",/200 test HTS after verification \(eligible new wallets\)/);
   const trust = screen.getByRole("button",{name:/^Trust Wallet\s*Mainnet Only$/});
   const icon = trust.querySelector("img");
   assert.equal(icon?.getAttribute("width"),"28");
@@ -59,34 +60,40 @@ test("verification stays in game panel and never triggers an HTS transfer", () =
   assert.equal(verify, 1);
   assert.equal(stakes, 0);
 });
-test("GG result stays for 12 seconds before manual replay, and never auto-dismisses", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+test("GG has a real 10-second countdown, pauses off-screen and never auto-dismisses", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval","Date"] });
+  t.mock.method(performance,"now",()=>Date.now());
   let replay = 0;
-  render(
-    createElement(GameStatePanel, {
+  const props={
       ...base,
-      state: "win",
-      result: "HEADS",
+      state: "win" as const,
+      result: "HEADS" as const,
       completedMatchId: "42",
       playAgainReady: true,
       onPlayAgain() {
         replay++;
       },
-    }),
-  );
+    };
+  const view=render(createElement(GameStatePanel,props));
   assert.equal(
     (
       screen.getByRole("button", {
-        name: "Enjoy the result…",
+        name: "Play Again (10s)",
       }) as HTMLButtonElement
     ).disabled,
     true,
   );
   await act(async () => {
-    t.mock.timers.tick(11999);
+    t.mock.timers.tick(1000);
   });
+  assert.equal(screen.getByRole("timer").textContent,"Play again in 9s");
+  view.rerender(createElement(GameStatePanel,{...props,resultVisible:false}));
+  await act(async()=>{t.mock.timers.tick(30_000);});
+  assert.equal(screen.getByRole("timer").textContent,"Play again in 9s");
+  view.rerender(createElement(GameStatePanel,{...props,resultVisible:true}));
+  await act(async()=>{t.mock.timers.tick(8999);});
   assert.equal(replay, 0);
-  assert.equal((screen.getByRole("button", { name: "Enjoy the result…" }) as HTMLButtonElement).disabled,true);
+  assert.equal((screen.getByRole("button", { name: "Play Again (1s)" }) as HTMLButtonElement).disabled,true);
   await act(async () => {
     t.mock.timers.tick(1);
   });
@@ -96,6 +103,14 @@ test("GG result stays for 12 seconds before manual replay, and never auto-dismis
   assert(screen.getByRole("heading", { name: "You won" }));
   fireEvent.click(screen.getByRole("button", { name: "Play Again" }));
   assert.equal(replay, 1);
+  view.rerender(createElement(GameStatePanel,{...props,state:"loss",result:"TAILS",completedMatchId:"43"}));
+  assert(screen.getByRole("heading",{name:"You lost"}));
+  assert.equal(screen.getByRole("timer").textContent,"Play again in 10s");
+});
+test("connected header exposes the actual token balance and Devnet label",()=>{
+  render(createElement(AppHeader,{state:"ready",onConnect(){},onDisconnect(){},addressLabel:"EWM…U1qt",profileName:"Player A",balanceLabel:"1,400 HTS"}));
+  assert(screen.getByLabelText("Available tokens 1,400 HTS"));
+  assert(screen.getByText("Devnet"));
 });
 test("the ready panel uses both supplied characters and no funding selection", () => {
   const view = render(

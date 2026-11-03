@@ -34,6 +34,7 @@ import { PublicKey } from "@solana/web3.js";
 import { getWallets } from "@wallet-standard/app";
 import { referenceQuote } from "@heads-or-tails/game-sdk";
 import { roomQueuePda } from "@/lib/solana/queueSnapshot";
+import { matchPda as activeMatchPda } from "@/lib/solana/activeGame";
 
 const originalFetch = globalThis.fetch;
 globalThis.fetch = async (input, init) => {
@@ -127,6 +128,8 @@ describe("video scenario: selection survives background refresh", () => {
   // (the post-game shape) instead of missing.
   let idlePlayer = false;
   let queuedPlayer = false;
+  let inMatchPlayer = false;
+  let matchReads = 0;
   let signingRequests = 0;
   let submittedTransactions = 0;
   // When true, the next config read is delayed past the user pick (stale
@@ -141,6 +144,7 @@ describe("video scenario: selection survives background refresh", () => {
     [Buffer.from("hts-player"), new PublicKey(FAKE_WALLET).toBuffer()],
     new PublicKey(PROGRAM),
   )[0].toBase58();
+  const fixtureMatchPda=activeMatchPda(new PublicKey(PROGRAM),BigInt(42))[0].toBase58();
   const roomPda = (t: number) =>
     PublicKey.findProgramAddressSync(
       [Buffer.from("hts-room"), Buffer.from([t])],
@@ -207,10 +211,22 @@ describe("video scenario: selection survives background refresh", () => {
               }
               return reply(acctInfo(b64Config(), 2036414520));
             }
-            if ((idlePlayer || queuedPlayer) && addr === playerPda) {
+            if ((idlePlayer || queuedPlayer || inMatchPlayer) && addr === playerPda) {
               const data=Buffer.from(idlePlayerState(),"base64");
               if(queuedPlayer){data[40]=1;data[42]=0;data[60]=1;data[61]=1;}
+              if(inMatchPlayer){data[40]=0;data[50]=1;data.writeBigUInt64LE(BigInt(42),51);data[61]=1;}
               return reply(acctInfo(data.toString("base64"), 5000000));
+            }
+            if(addr===fixtureMatchPda){
+              // Synthetic settled match. The next PlayerState read is idle,
+              // reproducing settlement winning the race with presentation.
+              const b=Buffer.alloc(191);Buffer.from(disc("Match"),"hex").copy(b);
+              b.writeBigUInt64LE(BigInt(42),8);new PublicKey(FAKE_WALLET).toBuffer().copy(b,16);
+              new PublicKey("11111111111111111111111111111111").toBuffer().copy(b,48);
+              b.writeBigUInt64LE(BigInt(100000000),80);b.writeBigUInt64LE(BigInt(100000000),88);b.writeBigUInt64LE(BigInt(200000000),96);
+              b[104]=1;b.writeBigUInt64LE(BigInt(1),105);b[113]=1;b[146]=1;b[147]=0;b[148]=1;
+              new PublicKey(FAKE_WALLET).toBuffer().copy(b,149);b[181]=1;b.writeBigUInt64LE(BigInt(2),182);b[190]=255;
+              matchReads++;inMatchPlayer=false;idlePlayer=true;return reply(acctInfo(b.toString("base64")));
             }
             if (addr === roomPda(1) || addr === roomPda(10)) {
               if (roomMode === "fail") return rpcError();
@@ -518,11 +534,11 @@ describe("video scenario: selection survives background refresh", () => {
       view.unmount();
     },
   );
-  it("real controller retains wallet, side and a synthetic on-chain queue across all mobile tabs without signing",{timeout:45000},async(t)=>{
+  it("real controller retains queue/result, replays and changes sides on mobile without signing",{timeout:90000},async(t)=>{
     cleanup();window.localStorage.clear();roomMode="live";idlePlayer=true;queuedPlayer=false;
     const originalMedia=window.matchMedia;
     Object.defineProperty(window,"matchMedia",{configurable:true,writable:true,value:(media:string)=>({media,matches:true,addEventListener(){},removeEventListener(){}})});
-    t.after(()=>{Object.defineProperty(window,"matchMedia",{configurable:true,writable:true,value:originalMedia});queuedPlayer=false;});
+    t.after(()=>{Object.defineProperty(window,"matchMedia",{configurable:true,writable:true,value:originalMedia});queuedPlayer=false;inMatchPlayer=false;});
     window.history.replaceState(null,"","/");
     const {LiveGameClient}=await import("./LiveGameClient.js"),{WalletStandardProvider}=await import("../wallet/WalletProvider.js"),React=await import("react");
     const view=render(React.createElement(WalletStandardProvider,null,React.createElement(LiveGameClient)));
@@ -540,6 +556,12 @@ describe("video scenario: selection survives background refresh", () => {
     assert.equal(progress.queryByRole("button",{name:"Confirm"}),null,"Picking a side cannot stake before connection");
     fireEvent.click(progress.getByRole("button",{name:"Connect Wallet"}));fireEvent.click(await screen.findByText("TestWallet",{},{timeout:10000}));
     await screen.findByRole("heading",{name:"You Selected HEADS"});
+    fireEvent.click(screen.getByRole("button",{name:"← Back to sides"}));
+    assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-mobile-progress'),'false');
+    fireEvent.click(game().getByRole("button",{name:"TAILS"}));
+    await screen.findByRole("heading",{name:"You Selected TAILS"});
+    fireEvent.click(screen.getByRole("button",{name:"← Back to sides"}));
+    fireEvent.click(game().getByRole("button",{name:"HEADS"}));
     fireEvent.click(nav().getByRole("button",{name:"social"}));const draft=screen.getByRole("textbox",{name:"Chat message"});fireEvent.change(draft,{target:{value:"Local unsent draft"}});
     for(const tab of ["flips","profile"]){fireEvent.click(nav().getByRole("button",{name:tab}));assert(header().getByRole("button",{name:/Open profile/}));}
     fireEvent.click(within(screen.getByRole("region",{name:"Profile"})).getByRole("link",{name:"Terms"}));
@@ -548,9 +570,26 @@ describe("video scenario: selection survives background refresh", () => {
     queuedPlayer=true;
     await waitFor(()=>assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-game-state'),'queued-heads'),{timeout:16000});
     const chooser=screen.getByRole("button",{name:"Choose room, $1 selected"}) as HTMLButtonElement;assert.equal(chooser.disabled,true);
+    assert.equal(screen.queryByRole("button",{name:"← Back to sides"}),null);
     for(const tab of ["social","flips","profile"]){fireEvent.click(nav().getByRole("button",{name:tab}));assert(screen.getByRole("button",{name:"Queued · View game"}));}
     fireEvent.click(nav().getByRole("button",{name:"social"}));assert.equal((screen.getByRole("textbox",{name:"Chat message"}) as HTMLTextAreaElement).value,"Local unsent draft");
     fireEvent.click(nav().getByRole("button",{name:"play"}));assert(screen.getByRole("heading",{name:"You Selected HEADS"}));
+    queuedPlayer=false;inMatchPlayer=true;matchReads=0;
+    await screen.findByRole("heading",{name:"You won"},{timeout:20000});
+    assert(screen.getByRole("timer",{name:"Result countdown"}));
+    assert.equal((screen.getByRole("button",{name:"Choose room, $1 selected"}) as HTMLButtonElement).disabled,true);
+    await waitFor(()=>assert.equal((screen.getByRole("button",{name:"Play Again"}) as HTMLButtonElement).disabled,false),{timeout:20000});
+    assert(screen.getByRole("heading",{name:"You won"}),"idle settlement polls cannot dismiss the result");
+    assert(matchReads>=1);
+    fireEvent.click(screen.getByRole("button",{name:"Play Again"}));
+    assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-mobile-progress'),'false');
+    assert.equal((game().getByRole("button",{name:"TAILS"}) as HTMLButtonElement).disabled,false);
+    fireEvent.click(game().getByRole("button",{name:"TAILS"}));
+    await screen.findByRole("heading",{name:"You Selected TAILS"});
+    inMatchPlayer=true; // A stale RPC response repeats the already-dismissed Match #42.
+    await new Promise(r=>setTimeout(r,11_000));
+    assert(screen.getByRole("heading",{name:"You Selected TAILS"}));
+    assert(screen.getByRole("button",{name:"← Back to sides"}));
     assert.equal(signingRequests,0);assert.equal(submittedTransactions,0);view.unmount();
   });
 });

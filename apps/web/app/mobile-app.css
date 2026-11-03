@@ -48,6 +48,8 @@
   .heads-app .desktop-site-footer,
   .heads-app .legacy-social-buttons { display: none; }
   .heads-app .mobile-room-selector { display: inline-flex; flex: none; }
+  .heads-app .header-account { padding-inline: 8px; }
+  .heads-app .header-token-balance { min-width: 0; flex-shrink: 1; white-space: normal; overflow-wrap: anywhere; }
   .heads-app .mobile-game-progress,
   .heads-app .mobile-game-queue { display: none; }
   .heads-app[data-mobile-progress="true"] .mobile-game-progress { display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 560px; gap: 14px; }

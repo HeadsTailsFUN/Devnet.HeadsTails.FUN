@@ -205,6 +205,12 @@ export function XIcon({ className = "" }: { className?: string }) {
   );
 }
 
+export function CommunityIcon({ className = "" }: { className?: string }) {
+  return <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <circle cx="9" cy="7" r="3"/><path d="M3 21v-3a6 6 0 0 1 12 0v3M16 4a3 3 0 0 1 0 6M21 21v-3a6 6 0 0 0-4-5.65"/>
+  </svg>;
+}
+
 export function DiscordIcon({ className = "" }: { className?: string }) {
   return (
     <svg
