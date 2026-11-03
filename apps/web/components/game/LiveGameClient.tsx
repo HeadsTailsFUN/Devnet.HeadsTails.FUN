@@ -6,7 +6,7 @@ import { configPda, matchPda, playerPda } from "@/lib/solana/activeGame";
 import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import dynamic from "next/dynamic";
 import { useMobileNavigation } from "@/lib/mobile/useMobileNavigation";
-import { canChangeMobileRoom, mobileGameFeedback, type InformationPage } from "@/lib/mobile/navigation";
+import { canChangeMobileRoom, canReturnToSidePicker, mobilePlayShowsProgress, mobileGameFeedback, type InformationPage } from "@/lib/mobile/navigation";
 import { MobileNavigation, MobileSocialSwitch } from "@/components/mobile/MobileNavigation";
 import { MobileRoomSelector } from "@/components/mobile/MobileRoomSelector";
 import { MobileFlips } from "@/components/mobile/MobileFlips";
@@ -92,6 +92,7 @@ import {
   queuePositionText,
   shouldCommitSelectionRefresh,
   networkFeePreparationMessage,
+  anchoredResultState,
 } from "@/lib/game/uiGuards";
 import { decideIdleRefresh } from "@/lib/game/matchLabel";
 import { useVisibleFlipAnchor } from "@/components/game/useVisibleFlipAnchor";
@@ -374,6 +375,11 @@ export function LiveGameClient() {
   activeMatchIdRef.current = activeMatchId;
   const lastCompletedRef = useRef<CompletedRound | null>(null);
   lastCompletedRef.current = lastCompleted;
+  // A revealed ORAO result is presentation evidence, not proof of payout.
+  const [revealedRound,setRevealedRound]=useState<(CompletedRound & {wallet:string})|null>(null);
+  const revealedRoundRef=useRef(revealedRound);
+  revealedRoundRef.current=revealedRound;
+  const dismissedResultRef=useRef<{wallet:string;matchId:string}|null>(null);
   // A settled result stays anchored until the player explicitly continues.
   const [settlePending, setSettlePending] = useState(false);
   const settlePendingRef = useRef(settlePending);
@@ -460,11 +466,19 @@ export function LiveGameClient() {
   // hold): identical clean ready state from either path. Presentation-only;
   // chain/settlement/payout/profile/history are untouched and never wait.
   const resetRoundState = useCallback(() => {
+    if(revealedRoundRef.current) dismissedResultRef.current=revealedRoundRef.current;
     bumpEpoch();
     intentRef.current = null;
     resetFlipReveal();
     setLastCompleted(null);
+    lastCompletedRef.current=null;
+    setRevealedRound(null);
+    revealedRoundRef.current=null;
     setSelectedSide(null);
+    selRef.current=null;
+    setLiveState(addressRef.current ? "ready" : "disconnected");
+    setHasPosition(false);
+    hasPositionRef.current=false;
     setMatchResult(null);
     setSettlePending(false);
     setSettleLine(null);
@@ -481,6 +495,7 @@ export function LiveGameClient() {
       if (flipTimerRef.current) clearTimeout(flipTimerRef.current);
       flipTimerRef.current = null;
       setMatchResult(resultSide);
+      setRevealedRound({matchId,result:resultSide,iWon,wallet:addressRef.current ?? ""});
       setLiveState(iWon ? "win" : "loss");
       if (settled) {
         setSettlePending(false);
@@ -649,6 +664,42 @@ export function LiveGameClient() {
     [loadHistory],
   );
 
+  // Settlement resets PlayerState to idle. Confirm the previously revealed
+  // match itself before enabling replay; idle alone never proves payout.
+  const reconcileIdleResult=useCallback(async(walletAddress:string)=>{
+    const shown=revealedRoundRef.current;
+    const matchId=pendingFlipRef.current?.matchId ?? (shown?.wallet===walletAddress ? shown.matchId : null);
+    if(!matchId || intentRef.current!==null)return false;
+    if(lastCompletedRef.current?.matchId===matchId)return true;
+    const epoch=selectionEpochRef.current;
+    try{
+      const [pk]=matchPda(program.programId,BigInt(matchId));
+      const m=await program.account.match.fetch(pk);
+      if(addressRef.current!==walletAddress || selectionEpochRef.current!==epoch ||
+        (activeMatchIdRef.current!==null && activeMatchIdRef.current!==matchId))return false;
+      if(Object.keys(m.state as object)[0]!=="settled")return shown?.matchId===matchId;
+      const me=new PublicKey(walletAddress);
+      if(!(m.headsPlayer as PublicKey).equals(me) && !(m.tailsPlayer as PublicKey).equals(me))return false;
+      const resultSide:Side=Object.keys(m.result as object)[0]==="heads" ? "HEADS" : "TAILS";
+      const mySide:Side=(m.headsPlayer as PublicKey).equals(me) ? "HEADS" : "TAILS";
+      const completed={matchId,result:resultSide,iWon:resultSide===mySide};
+      setHasPosition(false);hasPositionRef.current=false;
+      if(pendingFlipRef.current?.matchId===matchId){
+        pendingFlipRef.current={...pendingFlipRef.current,settled:true,resultSide,iWon:completed.iWon};
+      }else{
+        setLastCompleted(completed);lastCompletedRef.current=completed;
+        setRevealedRound({...completed,wallet:walletAddress});
+        setMatchResult(resultSide);setLiveState(completed.iWon ? "win" : "loss");
+        setSettlePending(false);setSettleLine(completed.iWon ? "Payout sent ✓" : null);setDetail(resultSide);
+      }
+      if(!settledSeenRef.current.has(matchId)){settledSeenRef.current.add(matchId);reloadProfile();void loadHistory();}
+      return true;
+    }catch{
+      // Keep the known result and pending payout during transient read failures.
+      return shown?.wallet===walletAddress && shown.matchId===matchId;
+    }
+  },[program,reloadProfile,loadHistory]);
+
   const refresh = useCallback(async () => {
     if (RPC_MISSING) {
       setLiveState(
@@ -706,6 +757,9 @@ export function LiveGameClient() {
       intentRef.current = null;
       resetFlipReveal();
       setSelectedSide(null);
+      setRevealedRound(null);
+      setLastCompleted(null);
+      dismissedResultRef.current=null;
       setMatchResult(null);
       setDetail(undefined);
     }
@@ -713,7 +767,9 @@ export function LiveGameClient() {
     // Public queue state loads WITHOUT a wallet (no mock counts), per room.
     await refreshQueueSnapshot(tier0);
     if (!meAddr) {
-      setLiveState("disconnected");
+      // Keep an unsubmitted pick (and its Back control) during connection;
+      // a disconnected poll must not replace the owner's explicit intent.
+      setLiveState(intentRef.current ? (intentRef.current.side==="HEADS" ? "heads-selected" : "tails-selected") : "disconnected");
       setHasPosition(false);
       setQueuePos(null);
       setTokenBalanceLabel(null);
@@ -824,6 +880,7 @@ export function LiveGameClient() {
       const [playerStatePk] = playerPda(program.programId, me);
       const pinfo = await connection.getAccountInfo(playerStatePk);
       if (!pinfo) {
+        if(await reconcileIdleResult(address))return;
         // RACE HOLD (match #50 flash): settlement landed mid-presentation
         // and the account is already gone while this round's 5s result
         // reveal is still pending. The round is not over presentationally —
@@ -1062,6 +1119,7 @@ export function LiveGameClient() {
       // Compat read: legacy V1 accounts (60 bytes) throw under the V2 IDL
       // coder. Normalize either layout before branching.
       const st = await fetchPlayerStateCompat(connection, playerStatePk);
+      if((!st || (!st.queued && !st.inMatch)) && await reconcileIdleResult(address))return;
       if (!st) {
         // RACE HOLD (match #50 flash): same as the missing-account branch —
         // an undecodable/absent state with a pending reveal means settlement
@@ -1125,8 +1183,8 @@ export function LiveGameClient() {
         setDetail(undefined);
         return;
       }
-      setHasPosition(true);
       if (st.queued) {
+        setHasPosition(true);
         const side = (st.queuedSide as number) === 0 ? "HEADS" : "TAILS";
         // Chain proves queue entry: intent fulfilled, never stale.
         intentRef.current = null;
@@ -1173,6 +1231,9 @@ export function LiveGameClient() {
       }
       if (st.inMatch) {
         const matchId = st.matchId;
+        const dismissed=()=>dismissedResultRef.current?.wallet===address && dismissedResultRef.current.matchId===matchId.toString();
+        if(dismissed())return; // A stale read cannot reopen a manually dismissed settled round.
+        setHasPosition(true);
         setActiveMatchId(matchId.toString());
         // LIVE-ROUND OWNERSHIP (0ms-flip race): authoritative
         // PlayerState.inMatch for THIS Match ID proves it is the current
@@ -1198,6 +1259,7 @@ export function LiveGameClient() {
         const [mpda] = matchPda(program.programId, matchId);
         const m = await program.account.match.fetch(mpda);
         const mState = Object.keys(m.state as object)[0];
+        if(dismissed())return;
         const mySide = (m.headsPlayer as PublicKey).equals(me)
           ? "HEADS"
           : "TAILS";
@@ -1284,6 +1346,7 @@ export function LiveGameClient() {
           flipTimerRef.current = null;
           pendingFlipRef.current = null;
           setMatchResult(resultSide);
+          setRevealedRound({matchId:matchId.toString(),result:resultSide,iWon,wallet:address});
           setLiveState(iWon ? "win" : "loss");
           setSettlePending(false);
           setSettleLine(iWon ? "Payout sent ✓" : null);
@@ -1464,6 +1527,7 @@ export function LiveGameClient() {
     refreshBalances,
     refreshQueueSnapshot,
     updateRoomLiveness,
+    reconcileIdleResult,
     sdk,
     usdCents,
     ensureAutoSettlement,
@@ -1613,6 +1677,9 @@ export function LiveGameClient() {
     intentRef.current = null;
     resetFlipReveal();
     setSelectedSide(null);
+    setRevealedRound(null);
+    setLastCompleted(null);
+    dismissedResultRef.current=null;
     setMatchResult(null);
     setDetail(undefined);
     setProfileOpen(false);
@@ -1659,6 +1726,7 @@ export function LiveGameClient() {
       setQueuePos(null);
       setQueue(null);
       setLastCompleted(null);
+      setRevealedRound(null);
       lockedStakeRef.current = null;
       matchedAtRef.current = null;
       setActiveMatchId(null);
@@ -1953,25 +2021,28 @@ export function LiveGameClient() {
   }, [bumpEpoch, refresh, resetFlipReveal]);
 
   const handlePlayAgain = useCallback(() => {
+    if(settlePendingRef.current || !lastCompletedRef.current)return;
     traceGameEvent("play-again");
     // Play Again resets the 5s timer; next match gets a fresh timer.
     resetRoundState();
     void refresh();
   }, [resetRoundState, refresh]);
 
+  const handleBackToSides=useCallback(()=>{
+    if(!canReturnToSidePicker(stateRef.current,busyRef.current,hasPositionRef.current,settlePendingRef.current,getPendingSignature()!==null))return;
+    resetRoundState();
+    void refresh();
+  },[resetRoundState,refresh]);
+
   const baseVisual: GameStateId =
     override ?? (busyKind === "join" ? "joining" : liveState);
   // Preserve a completed result until explicit Play Again; polling never dismisses it.
-  const visualState: GameStateId =
-    lastCompleted && !settlePending && baseVisual === "ready"
-      ? lastCompleted.iWon
-        ? "win"
-        : "loss"
-      : baseVisual;
+  const visualState: GameStateId = override ?? anchoredResultState({state:baseVisual,result:revealedRound,
+    wallet:address,activeMatchId,hasNewIntent:intentRef.current!==null});
   const displayResult =
     matchResult ??
     (visualState === "win" || visualState === "loss"
-      ? (lastCompleted?.result ?? null)
+      ? (revealedRound?.result ?? lastCompleted?.result ?? null)
       : null);
   // Coin flip target (presentation-only): the authoritative pending result
   // face while Flipping, plus its absolute reveal timestamp, so the coin
@@ -2015,9 +2086,10 @@ export function LiveGameClient() {
     claimPending: settlePending,
     settledObserved: lastCompleted !== null && !settlePending,
   });
-  const roomLocked = !canChangeMobileRoom(liveState,busyKind!==null,hasPosition,settlePending);
+  const roomLocked = isFinalState(visualState) || !canChangeMobileRoom(liveState,busyKind!==null,hasPosition,settlePending);
   const mobileFeedback=mobileGameFeedback(visualState,settlePending);
-  const mobileProgress = selectedSide!==null || !["disconnected","connected","ready"].includes(visualState);
+  const mobileProgress = mobilePlayShowsProgress(visualState);
+  const canGoBack=canReturnToSidePicker(visualState,busyKind!==null,hasPosition,settlePending,getPendingSignature()!==null);
   const mobileFooterClick = (event:MouseEvent<HTMLElement>) => {
     if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
     const href=(event.target as Element).closest("a")?.getAttribute("href");
@@ -2219,7 +2291,7 @@ export function LiveGameClient() {
             flipRevealAtMs={flipRevealAtMs}
             allowDisconnectedPick={mobileNav.mobile}
             roomSelector={<MobileRoomSelector tier={selectedTier} locked={roomLocked} liveTiers={liveTiers} onSelect={tier=>{
-              if(canChangeMobileRoom(stateRef.current,busyRef.current,hasPositionRef.current,settlePendingRef.current))handleSelectTier(tier);
+              if(!revealedRoundRef.current && canChangeMobileRoom(stateRef.current,busyRef.current,hasPositionRef.current,settlePendingRef.current))handleSelectTier(tier);
             }}/>}
           />
           {site.announcementText && (
@@ -2251,6 +2323,8 @@ export function LiveGameClient() {
             )}
           </div>
           <div className="mobile-game-progress">
+          {mobileNav.mobile && canGoBack && <button type="button" onClick={handleBackToSides}
+            className="inline-flex min-h-[44px] items-center self-start rounded-xl border border-white/15 px-4 text-sm font-semibold text-white transition hover:bg-white/10">← Back to sides</button>}
           <TransactionStatus
             state={visualState}
             needsVerification={Boolean(address && sessionWallet !== address)}
@@ -2260,7 +2334,8 @@ export function LiveGameClient() {
             selectedSide={selectedSide}
             result={displayResult}
             walletAddress={address}
-            completedMatchId={lastCompleted?.matchId ?? null}
+            completedMatchId={revealedRound?.matchId ?? lastCompleted?.matchId ?? null}
+            resultVisible={!mobileNav.mobile || mobileNav.tab==="play"}
             needsConnection={mobileNav.mobile && !address}
             needsVerification={Boolean(address && sessionWallet !== address)}
             onVerify={() => {

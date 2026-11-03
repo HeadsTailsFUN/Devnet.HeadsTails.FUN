@@ -17,6 +17,14 @@ export function mobileLocation(search: string, tab: MobileTab, info: Information
 export function canChangeMobileRoom(state: string, busy: boolean, hasPosition: boolean, settlementPending: boolean): boolean {
   return !busy && !hasPosition && !settlementPending && !["joining","queued-heads","queued-tails","match-found","flipping"].includes(state);
 }
+/** An old round's selectedSide must never hide the buttons in Ready. */
+export function mobilePlayShowsProgress(state: string): boolean {
+  return !["disconnected", "connected", "ready"].includes(state);
+}
+export function canReturnToSidePicker(state: string, busy: boolean, hasPosition: boolean, settlementPending: boolean, pendingSignature: boolean): boolean {
+  return !pendingSignature && canChangeMobileRoom(state,busy,hasPosition,settlementPending) &&
+    ["heads-selected","tails-selected","error","insufficient-balance","price-unavailable"].includes(state);
+}
 /** Copy for the existing controller state; never reports a queue before join confirmation. */
 export function mobileGameFeedback(state:string,settlementPending:boolean):string|null {
   if(settlementPending&&(state==="win"||state==="loss"))return "Settlement pending";

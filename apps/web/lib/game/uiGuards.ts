@@ -1,4 +1,19 @@
-import type { Side } from "@/lib/mockGameData";
+import type { GameStateId, Side } from "@/lib/mockGameData";
+
+/** A revealed result survives passive polls; a different wallet/round or explicit intent supersedes it. */
+export function anchoredResultState(args: {
+  state: GameStateId;
+  result: { wallet: string; matchId: string; iWon: boolean } | null;
+  wallet: string | null;
+  activeMatchId: string | null;
+  hasNewIntent: boolean;
+}): GameStateId {
+  const r=args.result;
+  if (!r || r.wallet!==args.wallet || args.hasNewIntent ||
+      (args.activeMatchId!==null && args.activeMatchId!==r.matchId) ||
+      ["joining","queued-heads","queued-tails"].includes(args.state)) return args.state;
+  return r.iWon ? "win" : "loss";
+}
 
 /** Explain known access denials without reflecting arbitrary backend errors. */
 export function networkFeePreparationMessage(reason?: string): string {

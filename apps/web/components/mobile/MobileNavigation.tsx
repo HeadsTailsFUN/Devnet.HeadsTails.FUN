@@ -1,7 +1,7 @@
 "use client";
-import { DiscordIcon, SolanaIcon, QueueIcon, WalletIcon } from "@/components/ui/icons";
+import { CommunityIcon, SolanaIcon, QueueIcon, WalletIcon } from "@/components/ui/icons";
 import { MOBILE_TABS, type MobileTab } from "@/lib/mobile/navigation";
-const ICONS={social:DiscordIcon,play:SolanaIcon,flips:QueueIcon,profile:WalletIcon};
+const ICONS={social:CommunityIcon,play:SolanaIcon,flips:QueueIcon,profile:WalletIcon};
 export function MobileNavigation({tab,onSelect,enabled=true}:{tab:MobileTab;onSelect:(tab:MobileTab)=>void;enabled?:boolean}) {
   return <nav hidden={!enabled} aria-label="Mobile navigation" className="mobile-bottom-navigation glass">
     {MOBILE_TABS.map(item=>{const Icon=ICONS[item];return <button type="button" key={item}
