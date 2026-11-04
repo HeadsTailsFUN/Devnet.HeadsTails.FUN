@@ -29,6 +29,7 @@ import {
 } from "@heads-or-tails/game-sdk";
 import { AppHeader } from "@/components/brand/AppHeader";
 import { AppFooter } from "@/components/brand/AppFooter";
+import {HowToOverlay} from "@/components/fairness/HowToOverlay";
 import { GameHero } from "@/components/game/GameHero";
 import { LegacyPositionNotice } from "@/components/game/LegacyPositionNotice";
 import { StakeTierSelector } from "@/components/game/StakeTierSelector";
@@ -503,9 +504,9 @@ export function LiveGameClient() {
         setLastCompleted({ matchId, result: resultSide, iWon });
         setDetail(resultSide);
       } else {
-        // ORAO fulfilled, settlement in flight: keep Flipping line until chain settles.
+        // The result is known; payout confirmation is a separate state.
         setSettlePending(true);
-        setSettleLine("Flipping...");
+        setSettleLine("Finalizing payout…");
         setDetail(resultSide);
       }
       setFlipTick((t) => t + 1);
@@ -655,6 +656,9 @@ export function LiveGameClient() {
         if (res.ok) {
           // Indexing/profile refresh happens when the chain shows Settled.
           await loadHistory();
+        } else {
+          ensureSentRef.current.delete(matchId);
+          setSettleLine("Payout pending — recovery will retry. You can retry safely.");
         }
       } catch {
         // Reconciler + next refresh cycle retry; never surface infra errors.
@@ -2093,7 +2097,7 @@ export function LiveGameClient() {
   const mobileFooterClick = (event:MouseEvent<HTMLElement>) => {
     if(event.metaKey||event.ctrlKey||event.shiftKey||event.altKey)return;
     const href=(event.target as Element).closest("a")?.getAttribute("href");
-    const match=href?.match(/^\/(tokenomics|roadmap|terms|privacy)$/);
+    const match=href?.match(/^\/(tokenomics|roadmap|terms|privacy|how-to)$/);
     if(match){event.preventDefault();mobileNav.navigate("profile",match[1] as InformationPage);}
   };
   const mobileFooter = <div className="mobile-profile-footer" onClickCapture={mobileFooterClick}><AppFooter/></div>;
@@ -2126,6 +2130,7 @@ export function LiveGameClient() {
         onProfileClick={() => mobileNav.mobile ? mobileNav.navigate("profile") : setProfileOpen(true)}
         faucet={undefined}
       />
+      {!mobileNav.mobile&&mobileNav.info==="how-to"&&<HowToOverlay onClose={()=>mobileNav.navigate(mobileNav.tab,null)}/>}
       <WalletModal open={walletOpen} onClose={() => setWalletOpen(false)} />
       {(profileOpen || mobileNav.mobile) && address && (
         <ProfileModal
@@ -2417,7 +2422,7 @@ export function LiveGameClient() {
       {address && sessionWallet === address && (
         <TeamWelcome key={address} wallet={address} onSaved={reloadProfile} />
       )}
-      <div className="desktop-site-footer"><AppFooter /></div>
+      <div className="desktop-site-footer" onClickCapture={event=>{if((event.target as Element).closest("a")?.getAttribute("href")==="/how-to")mobileFooterClick(event);}}><AppFooter /></div>
       <MobileNavigation enabled={mobileNav.mobile} tab={mobileNav.tab} onSelect={tab=>mobileNav.navigate(tab)}/>
       <DevStateSwitcher
         enabled={isDev}

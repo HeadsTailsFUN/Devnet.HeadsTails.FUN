@@ -1,0 +1,5 @@
+import {writeFileSync,mkdirSync} from "node:fs";
+import {fileURLToPath} from "node:url";
+import {createRpc,verifyMatch,DEFAULT_RPC} from "../../apps/web/lib/fairness/verifier";
+async function main(){const rpc=createRpc(DEFAULT_RPC),records:Record<string,unknown>={};const report=await verifyMatch({async call(method,params){const value=await rpc.call(method,params);records[JSON.stringify([method,params])]=value;return value;}},"74");if(report.status!=="VERIFIED")throw new Error(report.reason);const directory=new URL('./fixtures/',import.meta.url);mkdirSync(directory,{recursive:true});writeFileSync(new URL('round74.json',directory),JSON.stringify({provenance:{endpoint:DEFAULT_RPC,capturedAt:new Date().toISOString(),readOnly:true},records,report},null,2));console.log(JSON.stringify({status:report.status,firstByte:report.firstByte,calculated:report.calculated,payout:report.payout,fixture:fileURLToPath(new URL('round74.json',directory))}));}
+void main().catch(e=>{console.error(e.message);process.exitCode=1;});

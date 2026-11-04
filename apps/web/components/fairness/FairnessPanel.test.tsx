@@ -1,0 +1,12 @@
+import {test,afterEach} from "node:test";
+import assert from "node:assert/strict";
+import {readFileSync} from "node:fs";
+import {render,screen,fireEvent,cleanup} from "@testing-library/react";
+import {FairnessPanel} from "./FairnessPanel";
+import {AppFooter} from "@/components/brand/AppFooter";
+import MobileInformation from "@/components/mobile/MobileInformation";
+const fixture=JSON.parse(readFileSync(new URL('../../../../tools/fairness/fixtures/round74.json',import.meta.url),'utf8')),originalFetch=globalThis.fetch;
+afterEach(()=>{cleanup();globalThis.fetch=originalFetch;});
+test('panel performs only direct RPC reads and shows the independently verified payout',async()=>{const urls:string[]=[];globalThis.fetch=async(input,init)=>{urls.push(String(input));assert.equal(init?.credentials,"omit");const body=JSON.parse(String(init?.body));const value=fixture.records[JSON.stringify([body.method,body.params])];assert.notEqual(value,undefined);return new Response(JSON.stringify({jsonrpc:'2.0',id:1,result:value}),{status:200,headers:{'content-type':'application/json'}});};render(<FairnessPanel matchId="74"/>);fireEvent.click(screen.getByRole('button',{name:'Verify Fairness'}));await screen.findByText('VERIFIED');assert(screen.getByRole('button',{name:'Recalculate Result'}));assert(screen.getAllByText('200 HTS').length>=1);const firstReads=urls.length;fireEvent.click(screen.getByRole('button',{name:'Recalculate Result'}));assert.equal(screen.queryByText('VERIFIED'),null);await screen.findByText('VERIFIED');assert(urls.length>firstReads);assert(urls.length>5);assert(urls.every(u=>u==='https://api.devnet.solana.com/'));assert(screen.getByRole('link',{name:/View Settlement on Solana/}).getAttribute('href')?.includes('cluster=devnet'));});
+test('footer preserves its links and exposes the direct How To route',()=>{render(<AppFooter/>);for(const name of ['How To','Tokenomics','Roadmap','Terms','Privacy','GitHub','Discord'])assert(screen.getByRole('link',{name}));assert.equal(screen.getByRole('link',{name:'How To'}).getAttribute('href'),'/how-to');});
+test('mobile How To uses the information view and Back returns to Profile without a wallet action',()=>{let back=0;render(<MobileInformation page="how-to" onBack={()=>back++} onNavigate={()=>{}}/>);assert(screen.getByRole('heading',{name:"Don't Trust the Result. Verify It."}));fireEvent.click(screen.getByRole('button',{name:'← Back to Profile'}));assert.equal(back,1);assert.equal(screen.queryByRole('button',{name:'Connect Wallet'}),null);});

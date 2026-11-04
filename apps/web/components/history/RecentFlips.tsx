@@ -1,4 +1,6 @@
 "use client";
+import {FairnessPanel} from "@/components/fairness/FairnessPanel";
+import {explorerAccount,explorerTransaction,formatHts,MINT} from "@/lib/fairness/verifier";
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
@@ -27,12 +29,13 @@ export function RecentFlipDetailsModal({
   onClose: () => void;
   presentation?: "modal" | "page";
 }) {
-  const settlementUrl = solscanTxUrl(flip.settlementSignature, SOLANA_CLUSTER);
+  const secondarySettlementUrl = solscanTxUrl(flip.settlementSignature, SOLANA_CLUSTER);
+  const settlementUrl = secondarySettlementUrl && SOLANA_CLUSTER === "devnet" ? explorerTransaction(flip.settlementSignature) : secondarySettlementUrl;
   const matchUrl = flip.matchPda
-    ? solscanAccountUrl(flip.matchPda, SOLANA_CLUSTER)
+    ? (SOLANA_CLUSTER === "devnet" ? explorerAccount(flip.matchPda) : solscanAccountUrl(flip.matchPda, SOLANA_CLUSTER))
     : null;
   const randomnessUrl = flip.randomnessAccount
-    ? solscanAccountUrl(flip.randomnessAccount, SOLANA_CLUSTER)
+    ? (SOLANA_CLUSTER === "devnet" ? explorerAccount(flip.randomnessAccount) : solscanAccountUrl(flip.randomnessAccount, SOLANA_CLUSTER))
     : null;
 
   useEffect(() => {
@@ -72,8 +75,8 @@ export function RecentFlipDetailsModal({
             <div className="flex justify-between gap-2"><dt>Status</dt><dd>Settled</dd></div>
             <div className="flex justify-between gap-2"><dt>Timestamp</dt><dd className="text-right">{flip.settledAt ? new Date(flip.settledAt).toLocaleString() : "Not recorded"}</dd></div>
             {flip.settledSlot!==null && <div className="flex justify-between gap-2"><dt>Settled slot</dt><dd>{flip.settledSlot}</dd></div>}
-            {flip.headsStakeBaseUnits && <div className="flex justify-between gap-2"><dt>HEADS stake</dt><dd>{flip.headsStakeBaseUnits} base units</dd></div>}
-            {flip.tailsStakeBaseUnits && <div className="flex justify-between gap-2"><dt>TAILS stake</dt><dd>{flip.tailsStakeBaseUnits} base units</dd></div>}
+            {flip.headsStakeBaseUnits && <div className="flex justify-between gap-2"><dt>HEADS stake</dt><dd>{flip.tokenMint===MINT ? formatHts(flip.headsStakeBaseUnits) : `${flip.headsStakeBaseUnits} base units`}</dd></div>}
+            {flip.tailsStakeBaseUnits && <div className="flex justify-between gap-2"><dt>TAILS stake</dt><dd>{flip.tokenMint===MINT ? formatHts(flip.tailsStakeBaseUnits) : `${flip.tailsStakeBaseUnits} base units`}</dd></div>}
             <div className="flex justify-between gap-2"><dt>Mint</dt><dd className="break-all text-right">{flip.tokenMint}</dd></div>
             <div className="flex justify-between gap-2"><dt>Payout evidence</dt><dd>Settlement transaction below</dd></div>
           </>}
@@ -102,7 +105,7 @@ export function RecentFlipDetailsModal({
           <div className="flex justify-between gap-2">
             <dt>POT</dt>
             <dd className="font-semibold text-white">
-              {BigInt(flip.potBaseUnits).toLocaleString("en-US")} base units
+              {flip.tokenMint===MINT ? formatHts(flip.potBaseUnits) : `${BigInt(flip.potBaseUnits).toLocaleString("en-US")} base units`}
             </dd>
           </div>
           {flip.matchPda && (
@@ -129,7 +132,7 @@ export function RecentFlipDetailsModal({
           </div>
         </dl>
         <div className="mt-3 flex flex-col gap-1.5">
-          {presentation === "page" && [ ["Match transaction",flip.matchSignature], ["ORAO fulfillment",flip.oraoFulfillmentSignature] ].map(([label,signature])=>{const url=signature?solscanTxUrl(signature,SOLANA_CLUSTER):null;return url?<a key={label} href={url} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-center font-semibold text-white hover:bg-white/15">{label} ↗</a>:null;})}
+          {presentation === "page" && [ ["Match transaction",flip.matchSignature], ["ORAO fulfillment",flip.oraoFulfillmentSignature] ].map(([label,signature])=>{const valid=signature?solscanTxUrl(signature,SOLANA_CLUSTER):null;const url=valid&&SOLANA_CLUSTER==="devnet"?explorerTransaction(signature!):valid;return url?<a key={label} href={url} target="_blank" rel="noopener noreferrer" className="flex min-h-[44px] items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-center font-semibold text-white hover:bg-white/15">{label} ↗</a>:null;})}
           {settlementUrl && (
             <a
               href={settlementUrl}
@@ -137,7 +140,7 @@ export function RecentFlipDetailsModal({
               rel="noopener noreferrer"
               className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-center font-semibold text-white hover:bg-white/15"
             >
-              View Settlement on Solscan ↗
+              View Settlement on Solana Explorer ↗
             </a>
           )}
           {matchUrl && (
@@ -157,10 +160,12 @@ export function RecentFlipDetailsModal({
               rel="noopener noreferrer"
               className="flex min-h-[44px] w-full items-center justify-center rounded-lg bg-white/10 px-3 py-2 text-center font-semibold text-white hover:bg-white/15"
             >
-              Verify Randomness ↗
+              View ORAO Account on Solana ↗
             </a>
           )}
         </div>
+        {secondarySettlementUrl&&<a href={secondarySettlementUrl} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex min-h-[44px] items-center text-[var(--text-secondary)] underline">View Settlement on Solscan (secondary) ↗</a>}
+        <FairnessPanel matchId={flip.matchId}/>
         <button
           type="button"
           onClick={onClose}

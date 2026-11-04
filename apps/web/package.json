@@ -16,6 +16,7 @@
     "test:ui-components": "node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit --test-timeout=180000 components/game/UiRefinement.test.tsx components/game/LiveGameClient.selection.test.tsx components/game/VisibleFlipAnchor.test.tsx components/history/RecentFlips.test.tsx components/status/QueueStatusBar.test.tsx components/profile/TeamPreference.test.tsx",
     "test:mobile": "node --import tsx --test lib/mobile/navigation.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --import ./lib/test/mobile-history-env.ts --test --test-force-exit components/mobile/MobileExperience.test.tsx",
     "test:mobile-controller": "node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit --test-name-pattern=real.controller components/game/LiveGameClient.selection.test.tsx",
+    "test:fairness": "node --import tsx --test lib/fairness/verifier.test.ts lib/solana/settlementReservation.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/fairness/FairnessPanel.test.tsx components/history/RecentFlips.test.tsx",
     "test:walletconnect": "node --import tsx --test lib/solana/walletConnectBridge.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/wallet/WalletConnectProvider.test.tsx"
   },
   "dependencies": {
