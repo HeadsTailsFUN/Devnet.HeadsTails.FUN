@@ -1,0 +1,43 @@
+{
+  "sourceRepository": "https://github.com/HeadsTailsFUN/Devnet.HeadsTails.FUN",
+  "sourceCommit": "2f065669e19cfb8f002c2739dcd8e6c9be69b55e",
+  "readOnly": true,
+  "network": "solana-devnet",
+  "files": [
+    {
+      "path": ".nojekyll",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "brand/favicon-32.png",
+      "bytes": 3143,
+      "sha256": "4bb64684990803555da4edb94ec0cf641fed4eb0f4af1b1a9a4d83ebcc8b5fc7"
+    },
+    {
+      "path": "fonts/bca7023bf625e650-s.p.woff2",
+      "bytes": 29704,
+      "sha256": "27d49d7c8362279bf81267c615481f4be9548d7568d58889aeb1a6395dd6c070"
+    },
+    {
+      "path": "fonts/e4af272ccee01ff0-s.p.woff2",
+      "bytes": 48432,
+      "sha256": "c940764593d0fe5d596be327ca7558855e018039fb78509aa21921fd3644c3e4"
+    },
+    {
+      "path": "index.html",
+      "bytes": 1182,
+      "sha256": "afad06c8d23b2a778376be322f7248d9ecd183c66210a6cfbc8d7deb3d88782b"
+    },
+    {
+      "path": "style.css",
+      "bytes": 1666,
+      "sha256": "469d06ac390e0d9f9e58cdd1db0c7a93391ef3fbbecd50b793282834805cc6cd"
+    },
+    {
+      "path": "verifier.js",
+      "bytes": 498557,
+      "sha256": "b7e221d2dab3acf3bc96633be0933d18451a1889d4103555813649ff20f45549"
+    }
+  ]
+}
