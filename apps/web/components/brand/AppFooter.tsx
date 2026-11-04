@@ -34,6 +34,7 @@ export function AppFooter() {
           className="flex flex-col items-center justify-center gap-1 sm:flex-row sm:flex-wrap sm:gap-x-2"
         >
           <div className="flex flex-wrap items-center justify-center gap-x-2">
+            <Link href="/how-to" className="inline-flex min-h-[44px] items-center px-2 hover:text-white">How To</Link>
             <Link
               href="/tokenomics"
               className="inline-flex min-h-[44px] items-center px-2 hover:text-white"

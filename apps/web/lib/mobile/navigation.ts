@@ -1,7 +1,7 @@
 export const MOBILE_APP_QUERY = "(max-width: 767px), (max-width: 1023px) and (max-height: 600px)";
 export const MOBILE_TABS = ["social", "play", "flips", "profile"] as const;
 export type MobileTab = typeof MOBILE_TABS[number];
-export const INFORMATION_PAGES = ["tokenomics", "roadmap", "terms", "privacy"] as const;
+export const INFORMATION_PAGES = ["tokenomics", "roadmap", "terms", "privacy", "how-to"] as const;
 export type InformationPage = typeof INFORMATION_PAGES[number];
 export function readMobileLocation(search: string): { tab: MobileTab; info: InformationPage | null } {
   const query = new URLSearchParams(search), tab = query.get("tab"), info = query.get("info");

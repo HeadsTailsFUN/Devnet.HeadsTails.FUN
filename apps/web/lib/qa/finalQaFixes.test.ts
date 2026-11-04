@@ -81,11 +81,18 @@ describe("final QA fixes (HT-QA-001..009)", () => {
   });
 
   it("HT-QA-008: privacy/terms describe current Devnet Beta (no stale preview copy)", () => {
-    const privacy = readFileSync(
+    const privacyRoute = readFileSync(
       join(root, "app", "privacy", "page.tsx"),
       "utf8",
     );
-    const terms = readFileSync(join(root, "app", "terms", "page.tsx"), "utf8");
+    const termsRoute = readFileSync(join(root, "app", "terms", "page.tsx"), "utf8");
+    // The mobile shell reuses these route contents. Follow the actual exports
+    // instead of assuming the page text is still duplicated in page.tsx.
+    assert.ok(privacyRoute.includes("PrivacyPageContent"));
+    assert.ok(termsRoute.includes("TermsPageContent"));
+    const contents = readFileSync(join(root,"components","brand","InformationContent.tsx"),"utf8");
+    const privacy = contents.slice(contents.indexOf("export function PrivacyPageContent"));
+    const terms = contents.slice(contents.indexOf("export function TermsPageContent"),contents.indexOf("export function PrivacyPageContent"));
     for (const [name, src] of [
       ["privacy", privacy],
       ["terms", terms],

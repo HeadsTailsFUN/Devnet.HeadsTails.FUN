@@ -77,7 +77,8 @@ describe("RecentFlips details modal", () => {
       assert.ok((settle as HTMLAnchorElement).href.includes("solscan.io/tx/"));
       assert.ok((settle as HTMLAnchorElement).href.includes("cluster=devnet"));
       assert.ok(screen.getByRole("link", { name: /View Match Account/ }));
-      assert.ok(screen.getByRole("link", { name: /Verify Randomness/ }));
+      assert.ok(screen.getByRole("link", { name: /View ORAO Account on Solana/ }));
+      assert.match(screen.getByRole("link",{name:/View Settlement on Solana Explorer/}).getAttribute("href")!,/explorer.solana.com\/tx\/.+cluster=devnet/);
       assert.ok(screen.getAllByText("HEADS").length >= 1);
     } finally {
       cleanup();

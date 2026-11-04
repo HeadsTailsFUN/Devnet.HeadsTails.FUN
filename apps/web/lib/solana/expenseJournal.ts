@@ -70,6 +70,8 @@ export async function sendJournaledTransaction(args: {
   kind: ExpenseKind;
   /** Fixed SOL transfer amount; fee is added from the compiled message. */
   transferLamports?: number;
+  /** Server-derived ATA rent for settlement only. Other senders keep their existing limits. */
+  settlementRentLamports?: number;
   /** New attempts only; a persisted retry must not depend on treasury balance. */
   prepare?: () => Promise<void>;
   db?: SupabaseClient;
@@ -99,7 +101,15 @@ export async function sendJournaledTransaction(args: {
     throw new Error("Operation fee unavailable");
   }
   const globalCap = globalDailyCapLamports();
-  const reserve = args.transferLamports === undefined
+  const settlementRent = args.settlementRentLamports ?? 0;
+  if (!Number.isSafeInteger(settlementRent) || settlementRent < 0 ||
+      settlementRent > OPERATION_RESERVATION_LAMPORTS ||
+      (args.settlementRentLamports !== undefined && kind !== "settle")) throw new Error("Invalid settlement rent");
+  // Settlement only transfers an existing HTS pot and optionally creates the
+  // winner ATA. A blanket 0.05 SOL hold could exhaust the service wallet's
+  // daily allowance even when the actual 0.000005 SOL fee fits comfortably.
+  // The signed simulation below still rejects any debit exceeding this hold.
+  const reserve = kind === "settle" ? quoted.value + settlementRent : args.transferLamports === undefined
     ? Math.min(OPERATION_RESERVATION_LAMPORTS, globalCap, SPONSOR_DAILY_CAP_LAMPORTS)
     : args.transferLamports + quoted.value;
   if (!Number.isSafeInteger(reserve) || reserve < quoted.value) throw new Error("Invalid operation amount");

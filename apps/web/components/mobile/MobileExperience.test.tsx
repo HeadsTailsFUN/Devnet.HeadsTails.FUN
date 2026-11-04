@@ -89,7 +89,7 @@ test("Flips requests only 50 completed rows; Back restores list scroll and expos
   fireEvent.click(row);const detail=screen.getByRole("region",{name:"ROUND #701 details"});
   assert.match(detail.textContent??"",/HEADS stake100000000 base units/);assert.match(detail.textContent??"",/Payout evidenceSettlement transaction below/);
   assert.equal(within(detail).queryByRole("link",{name:/ORAO fulfillment/}),null,"Missing metadata must never fabricate a signature");
-  assert.match(within(detail).getByRole("link",{name:/View Settlement/}).getAttribute('href')??'',/cluster=devnet/);
+  assert.match(within(detail).getByRole("link",{name:/View Settlement on Solana Explorer/}).getAttribute('href')??'',/cluster=devnet/);
   fireEvent.click(within(detail).getByRole("button",{name:"Back to Flips"}));await waitFor(()=>assert.equal(list.scrollTop,240));
 });
 

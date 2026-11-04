@@ -1,4 +1,4 @@
-import { parseMatchId } from "./jobPolicy";
+import { parseMatchId, settlementScanHighWater } from "./jobPolicy";
 import { assertDevnetConnection } from "@/lib/solana/devnetSafety";
 import { sendJournaledTransaction } from "@/lib/solana/expenseJournal";
 import { AnchorProvider, Program, type Wallet } from "@coral-xyz/anchor";
@@ -62,9 +62,9 @@ function u64le(n: bigint): Buffer {
 }
 
 async function sendSponsorTx(connection: Connection, sponsorKp: Keypair,
-  tx: Transaction | VersionedTransaction, matchId: bigint): Promise<string> {
+  tx: Transaction | VersionedTransaction, matchId: bigint, settlementRentLamports: number): Promise<string> {
   const result = await sendJournaledTransaction({ connection, signer: sponsorKp, transaction: tx,
-    operationKey: `settle:${matchId}`, kind: "settle", wallet: sponsorKp.publicKey.toBase58() });
+    operationKey: `settle:${matchId}`, kind: "settle", wallet: sponsorKp.publicKey.toBase58(), settlementRentLamports });
   if (!result.signature) throw new Error("Operation receipt unavailable");
   return result.signature;
 }
@@ -259,8 +259,13 @@ export async function ensureSettlement(matchIdRaw: unknown): Promise<EnsureResul
   const tailsState = sdkPlayerPda(programId, m.tailsPlayer as PublicKey, m.generation)[0];
 
   const preIxs = [];
-  const ataInfo = await connection.getAccountInfo(winnerAta).catch(() => null);
-  if (!ataInfo) {
+  // An RPC outage is not evidence that the account is absent.
+  const ataInfo = await connection.getAccountInfo(winnerAta);
+  // A prefunded system account at the ATA address is not an initialized token
+  // account. Idempotent ATA creation safely handles that case as well.
+  const needsAta = !ataInfo || !ataInfo.owner.equals(TOKEN_PROGRAM_ID) || ataInfo.data.length !== 165;
+  const settlementRentLamports = needsAta ? await connection.getMinimumBalanceForRentExemption(165) : 0;
+  if (needsAta) {
     preIxs.push(
       createAssociatedTokenAccountIdempotentInstruction(
         sponsorKp.publicKey,
@@ -309,7 +314,7 @@ export async function ensureSettlement(matchIdRaw: unknown): Promise<EnsureResul
       })
       .preInstructions(preIxs)
       .transaction();
-    sig = await sendSponsorTx(connection, sponsorKp, tx, matchId);
+    sig = await sendSponsorTx(connection, sponsorKp, tx, matchId, settlementRentLamports);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("AlreadySettled")) {
@@ -476,14 +481,14 @@ export async function reconcileUnresolved(args?: {
     { commitment: "confirmed" }
   );
   const program = new Program<HeadsOrTails>(gameIdlJson as HeadsOrTails, provider);
-  const cfg = await program.account.gameConfig
-    .fetch(PublicKey.findProgramAddressSync([Buffer.from("config")], programId)[0])
-    .catch(() => null);
-  if (!cfg) {
-    out.errors.push("config unreadable");
-    return out;
-  }
-  const total = BigInt((cfg.totalMatches as { toString(): string }).toString());
+  // Both namespaces share the global Match ID space, but their counters may
+  // diverge after HTS cutover. The frozen legacy counter must not hide HTS.
+  // A missing namespace must also never prevent the durable queue drain.
+  const configs = await Promise.all(["config", "hts-config"].map(async namespace =>
+    program.account.gameConfig.fetch(PublicKey.findProgramAddressSync([Buffer.from(namespace)], programId)[0])
+      .catch(() => null)));
+  const total = settlementScanHighWater(configs);
+  if (configs.every(cfg => !cfg)) out.errors.push("config counters unavailable; draining durable jobs only");
   const start = total > BigInt(lookback) ? total - BigInt(lookback) : BigInt(0);
   let processed = 0;
   for (let id = total - BigInt(1); id >= start && processed < limit; id--) {
