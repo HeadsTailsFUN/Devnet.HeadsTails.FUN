@@ -8,7 +8,6 @@
 .mobile-bottom-navigation,
 .mobile-social-switch,
 .mobile-room-selector,
-.mobile-game-headline,
 .mobile-flips-screen,
 .mobile-profile-page,
 .mobile-profile-guest,
@@ -39,8 +38,7 @@
   .mobile-play-panel > * { flex-shrink: 0; }
   .heads-app .game-hero { flex: 1 0 auto; max-width: 560px; gap: clamp(10px, 1.6dvh, 18px); justify-content: space-evenly; padding-inline: 14px; }
   .heads-app .game-hero .coin-scene { height: 210px; width: 210px; flex: none; }
-  .heads-app .mobile-game-headline { display: block; }
-  .heads-app .desktop-game-headline,
+  .heads-app .game-headline { max-width: 22ch; font-size: 26px; white-space: normal; }
   .heads-app .desktop-room-pill,
   .heads-app .desktop-rate-disclosure,
   .heads-app .desktop-room-cards,
