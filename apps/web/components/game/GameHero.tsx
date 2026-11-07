@@ -58,10 +58,9 @@ export function GameHero({
         flipRoundId={flipRoundId ?? null}
         flipRevealAtMs={flipRevealAtMs ?? null}
       />
-      <h1 className="desktop-game-headline font-display max-w-full whitespace-nowrap text-[clamp(18px,5.4vw,26px)] font-bold leading-tight text-white sm:text-[32px]">
+      <h1 className="game-headline font-display max-w-full whitespace-nowrap text-[clamp(18px,5.4vw,26px)] font-bold leading-tight text-white sm:text-[32px]">
         Pick your side to play
       </h1>
-      <h1 className="mobile-game-headline font-display max-w-[22ch] text-[26px] font-bold leading-tight text-white">Pick your side and wait for a match</h1>
       {subtitle ? (
         <p className="max-w-[52ch] text-[14px] text-[var(--text-secondary)]">{subtitle}</p>
       ) : null}
