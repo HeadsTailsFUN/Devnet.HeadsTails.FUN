@@ -55,6 +55,22 @@ async function receipt(connection: Connection, db: SupabaseClient, row: Expense)
   return row.signature;
 }
 
+/** Resolve only retained, landed receipts before admitting another service operation. */
+export async function reconcileServiceReceipts(
+  connection: Connection, db: SupabaseClient, wallet: string,
+): Promise<void> {
+  const { data, error } = await db.from("devnet_expenses")
+    .select("*").eq("wallet", wallet).eq("status", "submitted")
+    .in("kind", ["advance", "match", "settle"])
+    .order("updated_at", { ascending: false }).limit(8);
+  if (error) throw new Error("Operation journal unavailable");
+  for (const row of (data ?? []) as Expense[]) {
+    // Unknown outcomes retain their hold. A recorded successful or failed
+    // transaction can be finalized idempotently from its original receipt.
+    try { await receipt(connection, db, row); } catch { /* retain unresolved holds */ }
+  }
+}
+
 /**
  * All shared-treasury senders reserve before broadcasting. Signed public
  * transaction bytes are persisted before network I/O; concurrent/restarted
@@ -109,7 +125,7 @@ export async function sendJournaledTransaction(args: {
   // winner ATA. A blanket 0.05 SOL hold could exhaust the service wallet's
   // daily allowance even when the actual 0.000005 SOL fee fits comfortably.
   // The signed simulation below still rejects any debit exceeding this hold.
-  const reserve = kind === "settle" ? quoted.value + settlementRent : args.transferLamports === undefined
+  const reserve = kind === "advance" ? quoted.value : kind === "settle" ? quoted.value + settlementRent : args.transferLamports === undefined
     ? Math.min(OPERATION_RESERVATION_LAMPORTS, globalCap, SPONSOR_DAILY_CAP_LAMPORTS)
     : args.transferLamports + quoted.value;
   if (!Number.isSafeInteger(reserve) || reserve < quoted.value) throw new Error("Invalid operation amount");

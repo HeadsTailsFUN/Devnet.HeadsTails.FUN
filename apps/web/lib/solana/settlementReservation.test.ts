@@ -17,3 +17,12 @@ test('missing winner ATA reserves measured rent plus the fee',async()=>{const re
 test('unexpected simulation debit is rejected before submission and releases only unsigned hold',async()=>{const h=harness(1000000);await assert.rejects(sendJournaledTransaction({...h,transaction:h.transaction(),operationKey:'settle:77',wallet:h.signer.publicKey.toBase58(),kind:'settle',settlementRentLamports:0}),/preflight or cost/);assert(!h.sent());assert(h.calls.some(c=>c.method==='cancel_unsubmitted_devnet_expense'));assert(!h.calls.some(c=>c.method==='submit_devnet_expense'));});
 test('other sponsorship operations retain their existing reservation and budget guard',async()=>{const h=harness();await assert.rejects(sendJournaledTransaction({...h,transaction:h.transaction(),operationKey:'match:test',wallet:h.signer.publicKey.toBase58(),kind:'match'}),ExpenseBudgetError);assert(!h.sent());});
 test('HTS counter is not hidden by the frozen legacy namespace',()=>{assert.equal(settlementScanHighWater([{totalMatches:44},{totalMatches:76}]),BigInt(76));assert.equal(settlementScanHighWater([null,{totalMatches:76}]),BigInt(76));assert.equal(settlementScanHighWater([null,null]),BigInt(0));});
+
+test('inactive-head advancement reserves only its fee and still rejects extra debit', async () => {
+  const h = harness();
+  await sendJournaledTransaction({...h, transaction:h.transaction(), operationKey:'advance:test', wallet:h.signer.publicKey.toBase58(), kind:'advance'});
+  assert.equal(h.calls.find(call=>call.method==='reserve_devnet_expense')!.args.p_lamports,5000);
+  const expensive = harness(1000000);
+  await assert.rejects(sendJournaledTransaction({...expensive, transaction:expensive.transaction(), operationKey:'advance:bad', wallet:expensive.signer.publicKey.toBase58(), kind:'advance'}), /preflight or cost/);
+  assert(!expensive.sent());
+});

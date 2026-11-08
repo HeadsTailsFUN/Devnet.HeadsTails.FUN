@@ -1,6 +1,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 
 export const QUEUE_ENTRY_LEN = 67;
+export const ROOM_QUEUE_ENTRY_LEN = 68;
 const STATUS_OFFSET = 8 + 32 + 1 + 8 + 8 + 8; // discriminator|player|side|seq|amount|slot
 export const MAX_SCAN_PER_SIDE = 100;
 
@@ -26,6 +27,10 @@ export interface ConfigRange {
 export function isActiveEntryData(data: Uint8Array | null | undefined): boolean {
   if (!data || data.length < QUEUE_ENTRY_LEN) return false;
   return data[STATUS_OFFSET] === 0;
+}
+
+export function isActiveRoomEntryData(data: Uint8Array | null | undefined): boolean {
+  return !!data && data.length === ROOM_QUEUE_ENTRY_LEN && data[STATUS_OFFSET + 1] === 0;
 }
 
 export function countActive(datas: Array<Uint8Array | null>): number {
@@ -102,8 +107,8 @@ export async function fetchRoomQueueSnapshot(
     }
   }
   return {
-    headsActive: countActive(datas.slice(0, h.addrs.length)),
-    tailsActive: countActive(datas.slice(h.addrs.length)),
+    headsActive: datas.slice(0, h.addrs.length).filter(isActiveRoomEntryData).length,
+    tailsActive: datas.slice(h.addrs.length).filter(isActiveRoomEntryData).length,
     truncated: h.truncated || t.truncated,
     headsHead: cfg.headsHead,
     headsNext: cfg.headsNext,
@@ -191,7 +196,7 @@ export async function fetchUserRoomQueuePosition(
   for (let i = 0; i < infos.length - 1; i++) {
     const d = infos[i]?.data;
     const bytes = !d ? null : d instanceof Uint8Array ? d : Uint8Array.from(d as Uint8Array);
-    if (isActiveEntryData(bytes ?? undefined)) ahead += 1;
+    if (isActiveRoomEntryData(bytes ?? undefined)) ahead += 1;
   }
   for (let i = 0; i < infos.length - 1; i++) {
     if (!infos[i]?.data) return { unknown: true };

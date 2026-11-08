@@ -1,5 +1,5 @@
 import { configPda, matchPda, playerPda, roomQueuePda } from "@/lib/solana/activeGame";
-import { sendJournaledTransaction } from "@/lib/solana/expenseJournal";
+import { reconcileServiceReceipts, sendJournaledTransaction } from "@/lib/solana/expenseJournal";
 import { Connection, Keypair, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import type { Wallet } from "@coral-xyz/anchor";
@@ -25,7 +25,7 @@ import {
   tryAcquireCrankLock,
 } from "@/lib/solana/matchCrank";
 import { EXPECTED_SPONSOR_PUBKEY } from "@/lib/solana/sponsorGate";
-import { getServerConnection, loadSponsorKeypair, sponsorGateCheck } from "@/lib/solana/sponsorServer";
+import { getServerConnection, getSupabaseAdmin, loadSponsorKeypair, sponsorGateCheck } from "@/lib/solana/sponsorServer";
 
 export const runtime = "nodejs";
 
@@ -91,6 +91,9 @@ export async function maintainRoom(tierUsd: number): Promise<MaintainResult> {
       out.notes.push("paused");
       return out;
     }
+    const db = getSupabaseAdmin();
+    if (!db) throw new Error("Operation journal unavailable");
+    await reconcileServiceReceipts(connection, db, sponsor.publicKey.toBase58());
     let room;
     try {
       room = await withTransientRetry(() => sdk.fetchRoom(tierUsd), { attempts: 4, baseMs: 500 });
