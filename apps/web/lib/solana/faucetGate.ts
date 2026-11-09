@@ -5,7 +5,8 @@
 
 import { HTS_TOKEN_MINT, validHtsMint } from "./releaseToken";
 export const DEVNET_TEST_MINT = HTS_TOKEN_MINT;
-export const FAUCET_CLAIM_BASE_UNITS = BigInt(200_000_000);
+export const FAUCET_CLAIM_HTS = 10_000;
+export const FAUCET_CLAIM_BASE_UNITS = BigInt(FAUCET_CLAIM_HTS) * BigInt(1_000_000);
 export const FAUCET_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 /** Faucet signer must hold at least this much SOL to serve claims. */
 export const FAUCET_MIN_SOL_LAMPORTS = BigInt(5_000_000);

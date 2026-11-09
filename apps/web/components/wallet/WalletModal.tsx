@@ -11,6 +11,7 @@ import {
   platformFromUserAgent,
 } from "@/lib/solana/mobileWallets";
 import { IS_DEVNET } from "@/lib/solana/cluster";
+import { FAUCET_CLAIM_HTS } from "@/lib/solana/faucetGate";
 import { LinkIcon } from "@/components/ui/icons";
 
 const EXPECTED_CHAIN = IS_DEVNET ? "solana:devnet" : "solana:mainnet";
@@ -139,7 +140,7 @@ export function WalletModal({
         {IS_DEVNET && (
           <div className="mt-3 space-y-1 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] leading-relaxed text-[var(--text-secondary)]">
             <p>Set your wallet network to <strong className="text-white">Devnet</strong></p>
-            <p>You&apos;ll receive <strong className="text-white">200 test HTS</strong> by connecting new wallet.</p>
+            <p>You&apos;ll receive <strong className="text-white">{FAUCET_CLAIM_HTS.toLocaleString("en-US")} test HTS</strong> by connecting new wallet.</p>
           </div>
         )}
         {IS_DEVNET && (showCurated || (!mobile && wallets.length===0)) && <div className="mt-4">
