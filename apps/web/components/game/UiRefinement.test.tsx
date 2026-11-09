@@ -30,7 +30,7 @@ test("mobile wallet list explains Devnet and the ownership-verified welcome gran
   render(createElement(WalletStandardProvider,null,createElement(WalletModal,{open:true,onClose(){}})));
   const dialog = screen.getByRole("dialog",{name:"Connect a Solana wallet"});
   assert.match(dialog.textContent ?? "",/Set your wallet network to Devnet/);
-  assert.match(dialog.textContent ?? "",/200 test HTS by connecting new wallet/);
+  assert.match(dialog.textContent ?? "",/10,000 test HTS by connecting new wallet/);
   assert(screen.getByRole("button",{name:"WalletConnect"}));
   const trust = screen.getByRole("button",{name:/^Trust Wallet\s*Mainnet Only$/});
   const icon = trust.querySelector("img");

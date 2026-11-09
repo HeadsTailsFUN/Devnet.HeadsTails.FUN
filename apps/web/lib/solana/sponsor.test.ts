@@ -520,8 +520,8 @@ describe("hardened reimbursement verification", () => {
 });
 
 describe("game semantics unchanged", () => {
-  it("HTS welcome grant claims exactly 200 tokens (6 decimals)", () => {
-    assert.equal(FAUCET_CLAIM_BASE_UNITS, BigInt(200000000));
+  it("HTS welcome grant claims exactly 10,000 tokens (6 decimals)", () => {
+    assert.equal(FAUCET_CLAIM_BASE_UNITS, BigInt(10_000_000_000));
     assert.equal(
       evaluateFaucetGate({
         cluster: "devnet",

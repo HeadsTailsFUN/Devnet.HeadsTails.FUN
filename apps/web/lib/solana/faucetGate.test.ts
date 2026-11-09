@@ -60,7 +60,7 @@ describe("faucet gates", () => {
   });
 
   it("pins the exact claim amount", () => {
-    assert.equal(FAUCET_CLAIM_BASE_UNITS, BigInt(200000000));
+    assert.equal(FAUCET_CLAIM_BASE_UNITS, BigInt(10_000_000_000));
   });
 
   it("never accepts the historical mint as the new HTS release", () => {
