@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Wallet } from "@wallet-standard/base";
+import { filterRecentWalletConnectChoices, MOBILE_DEVNET_WALLETCONNECT_IDS } from "./walletConnectClient";
 import {
   CAPABILITY_LABEL,
   compatibleInjectedWallets,
@@ -39,6 +40,25 @@ function fakeWallet(
 }
 
 describe("mobile wallets", () => {
+  it("removes stale AppKit choices outside the mobile Devnet allowlist", () => {
+    const approved = MOBILE_DEVNET_WALLETCONNECT_IDS.map((id) => ({ id }));
+    const cached = [...approved, { id: "old-mainnet-wallet" }, null];
+    let raw = JSON.stringify(cached);
+    const storage = {
+      getItem: () => raw,
+      setItem: (key: string, value: string) => {
+        assert.equal(key, "@appkit/recent_wallets");
+        raw = value;
+      },
+    };
+    filterRecentWalletConnectChoices(storage);
+    assert.deepEqual(JSON.parse(raw), approved);
+    assert.doesNotThrow(() => filterRecentWalletConnectChoices({
+      getItem: () => { throw new Error("Storage blocked"); },
+      setItem: storage.setItem,
+    }));
+  });
+
   it("desktop UA is not mobile", () => {
     assert.equal(
       isMobileUserAgent(

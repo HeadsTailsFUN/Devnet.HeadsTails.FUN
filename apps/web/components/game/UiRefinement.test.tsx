@@ -32,12 +32,11 @@ test("mobile wallet list explains Devnet and the ownership-verified welcome gran
   assert.match(dialog.textContent ?? "",/Set your wallet network to Devnet/);
   assert.match(dialog.textContent ?? "",/10,000 test HTS by connecting new wallet/);
   assert(screen.getByRole("button",{name:"WalletConnect"}));
-  const trust = screen.getByRole("button",{name:/^Trust Wallet\s*Mainnet Only$/});
-  const icon = trust.querySelector("img");
-  assert.equal(icon?.getAttribute("width"),"28");
-  assert.equal(icon?.getAttribute("height"),"28");
-  assert.equal(icon?.getAttribute("src"),"/assets/wallets/trust.svg");
-  assert.equal(trust.getAttribute("aria-disabled"),"true");
+  assert.deepEqual(
+    screen.getAllByRole("link").map((link) => link.textContent),
+    ["Phantom", "Solflare", "Backpack"],
+  );
+  assert.doesNotMatch(dialog.textContent ?? "", /Trust Wallet|MetaMask|Coinbase Wallet|Bitget/);
 });
 test("desktop without an extension offers the optional WalletConnect QR fallback",()=>{
   render(createElement(WalletStandardProvider,null,createElement(WalletModal,{open:true,onClose(){}})));

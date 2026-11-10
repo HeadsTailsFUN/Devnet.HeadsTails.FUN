@@ -33,11 +33,12 @@ export function WalletModal({
   );
   const mobileActions = useMemo(() => {
     if (!mobile || typeof window === "undefined") return [];
-    return mobileWalletActions(
+    const actions = mobileWalletActions(
       window.location.href,
       window.location.origin,
       platformFromUserAgent(navigator.userAgent)
     );
+    return IS_DEVNET ? actions.filter((action) => action.capability === "available") : actions;
   }, [mobile]);
 
   // In-app detection: inspect the live Wallet Standard registry for
@@ -149,7 +150,7 @@ export function WalletModal({
             <LinkIcon className="h-7 w-7 shrink-0"/>
             <span>{connecting ? "Connecting…" : "WalletConnect"}</span>
           </button>
-          <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-secondary)]">{mobile ? "Stay in this browser. Approve in a wallet that supports Solana Devnet." : "Scan with a mobile wallet that supports Solana Devnet."}</p>
+          <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-secondary)]">{mobile ? "Connect with Backpack or Nightly and stay in this browser." : "Scan with a mobile wallet that supports Solana Devnet."}</p>
           {mobile && <p className="mt-3 px-1 text-xs font-semibold text-white/60">Or open your wallet browser:</p>}
         </div>}
         {wallets.length === 0 && !mobile && (
