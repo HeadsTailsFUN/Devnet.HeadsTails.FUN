@@ -6,11 +6,13 @@ import { isValidWallet } from "@/lib/solana/sponsorGate";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/** Issue a wallet-ownership challenge (public; rate-limited by table TTL). */
+/** Issue a short-lived wallet-ownership challenge. */
 export async function POST(req: Request): Promise<NextResponse> {
   let body: unknown = null;
   try {
-    body = await req.json();
+    const raw = await req.text();
+    if (raw.length > 1024) return NextResponse.json({ error: "request too large" }, { status: 413 });
+    body = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: "malformed request" }, { status: 400 });
   }

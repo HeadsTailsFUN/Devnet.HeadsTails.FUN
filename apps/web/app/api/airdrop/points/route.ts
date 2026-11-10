@@ -12,15 +12,24 @@ export async function GET(req: Request): Promise<NextResponse> {
   const db = getSupabaseAdmin();
   if (!db) return NextResponse.json({ error: "unavailable" }, { status: 503 });
 
-  const { data: season } = await db.from("airdrop_seasons").select("id,key").eq("active", true).limit(1).maybeSingle();
-  const seasonRow = season as { id?: string; key?: string } | null;
+  const { data: season } = await db.from("airdrop_seasons").select("id,key,team_points_start_at").eq("active", true).limit(1).maybeSingle();
+  const seasonRow = season as { id?: string; key?: string; team_points_start_at?: string | null } | null;
   if (!seasonRow?.id) return NextResponse.json({ error: "no active season" }, { status: 503 });
 
-  const { data } = await db
+  const { data, error: ledgerError } = await db
     .from("airdrop_points_ledger")
     .select("category,points,status")
     .eq("season_id", seasonRow.id)
     .eq("wallet", wallet);
+  if (ledgerError) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  let teamPoints = 0;
+  if (seasonRow.team_points_start_at) {
+    const { data: points, error } = await db.rpc("devnet_community_team_points", {
+      p_season: seasonRow.id, p_wallets: [wallet],
+    });
+    if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+    teamPoints = Number(points?.[wallet] ?? 0);
+  }
   const rows = ((data ?? []) as Array<{ category: string; points: number; status: string }>);
   const verified = rows.filter((r) => r.status === "verified");
   const pending = rows.filter((r) => r.status === "pending");
@@ -72,9 +81,9 @@ export async function GET(req: Request): Promise<NextResponse> {
   }
   return NextResponse.json({
     season: seasonRow.key,
-    verifiedTotal: verified.reduce((s, r) => s + Number(r.points ?? 0), 0),
+    verifiedTotal: verified.reduce((s, r) => s + Number(r.points ?? 0), teamPoints),
     pendingTotal: pending.reduce((s, r) => s + Number(r.points ?? 0), 0),
-    verified: byCategory(verified),
+    verified: { ...byCategory(verified), community_team: teamPoints },
     pending: byCategory(pending),
     social,
   });

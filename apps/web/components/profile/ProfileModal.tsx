@@ -711,6 +711,7 @@ function AirdropTab({
         {[
           ["Gameplay", String(data?.verified?.gameplay ?? 0)],
           ["Win bonus", String(data?.verified?.win_bonus ?? 0)],
+          ["Community team", String(data?.verified?.community_team ?? 0)],
           ["Referral", String(data?.verified?.referral ?? 0)],
           ["Social", String(data?.verified?.social ?? 0)],
         ].map(([k, v]) => (

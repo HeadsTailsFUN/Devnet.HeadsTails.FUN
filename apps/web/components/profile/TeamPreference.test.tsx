@@ -33,6 +33,7 @@ test("Choose Later is saved once and stays dismissed after reopening", async () 
     createElement(TeamWelcome, { wallet: "SYNTHETIC", onSaved() {} }),
   );
   await screen.findByRole("dialog", { name: "Choose your team" });
+  assert(screen.getByText(/Earn 1 airdrop point whenever your team wins an eligible flip/));
   fireEvent.click(screen.getByRole("button", { name: "Choose Later" }));
   await waitFor(() => assert(!screen.queryByRole("dialog")));
   assert.equal(writes, 1);
