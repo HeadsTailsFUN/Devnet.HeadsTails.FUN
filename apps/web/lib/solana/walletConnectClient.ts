@@ -2,7 +2,7 @@
 import type { Wallet } from "@wallet-standard/base";
 import { IS_DEVNET } from "./cluster";
 import { isMobileUserAgent } from "./mobileWallets";
-import { createWalletConnectWallet, WC_DEVNET_CHAIN, WC_METHODS, type WalletConnectSession } from "./walletConnectBridge";
+import { createWalletConnectWallet, WalletConnectConnectionError, WC_DEVNET_CHAINS, WC_METHODS, type WalletConnectSession } from "./walletConnectBridge";
 
 // Public Reown project identifier supplied by the owner; never a signing key.
 export const WALLETCONNECT_PROJECT_ID="aa863806da500d92667fb8955ef1395b";
@@ -63,14 +63,14 @@ async function initialize():Promise<Wallet>{
       if (mobile) filterRecentWalletConnectChoices();
       await modal.open();
       const off=modal.subscribeState(state=>{if(!state.open&&!finished){aborted=true;provider.abortPairingAttempt();rejectCancelled(new Error("WalletConnect connection cancelled."));}});
-      const timeout=setTimeout(()=>{aborted=true;provider.abortPairingAttempt();rejectCancelled(new Error("WalletConnect connection timed out. Please try again."));},120_000);
+      const timeout=setTimeout(()=>{aborted=true;provider.abortPairingAttempt();rejectCancelled(new WalletConnectConnectionError("WALLETCONNECT_TIMEOUT"));},120_000);
       try{
-        const proposal=provider.connect({namespaces:{solana:{chains:[WC_DEVNET_CHAIN],methods:[...WC_METHODS],events:[]}}}).then(async session=>{
+        const proposal=provider.connect({optionalNamespaces:{solana:{chains:[...WC_DEVNET_CHAINS],methods:[...WC_METHODS],events:[]}}}).then(async session=>{
           if(aborted){if(session && provider.session?.topic===session.topic)await provider.disconnect();throw new Error("WalletConnect connection cancelled.");}
           return session;
         });
         const session=await Promise.race([proposal,cancelled]);
-        if(!session)throw new Error("WalletConnect returned no approved session.");
+        if(!session)throw new WalletConnectConnectionError("WALLETCONNECT_SESSION_MISSING");
         return session as WalletConnectSession;
       }finally{finished=true;clearTimeout(timeout);off();await modal.close();}
     },
