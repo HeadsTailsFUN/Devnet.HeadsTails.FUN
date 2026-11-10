@@ -19,11 +19,12 @@ export interface ReconcileStats {
  */
 export async function reconcileSettledMatchRewards(
   db: any,
-  opts?: { limit?: number; sinceDays?: number }
+  opts?: { limit?: number; sinceDays?: number; offset?: number }
 ): Promise<ReconcileStats> {
   const stats: ReconcileStats = { season: null, scanned: 0, ok: 0, failed: 0, errors: [] };
   try {
     const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 200);
+    const offset = Math.min(Math.max(Math.trunc(opts?.offset ?? 0), 0), 195);
     const sinceDays = Math.min(Math.max(opts?.sinceDays ?? 7, 1), 30);
     const since = new Date(Date.now() - sinceDays * 24 * 60 * 60 * 1000).toISOString();
 
@@ -45,7 +46,8 @@ export async function reconcileSettledMatchRewards(
       .select("onchain_match_id,heads_wallet,tails_wallet,winner_wallet,settled_at")
       .gte("settled_at", since)
       .order("settled_at", { ascending: false })
-      .limit(limit);
+      .order("onchain_match_id", { ascending: false })
+      .range(offset, offset + limit - 1);
     if (matchErr) {
       stats.errors.push(`matches read: ${String((matchErr as { message?: unknown })?.message ?? matchErr).slice(0, 160)}`);
       return stats;
