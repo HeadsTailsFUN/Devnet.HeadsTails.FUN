@@ -59,7 +59,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     tierUsd: 10,
     error: e instanceof Error ? e.message.slice(0, 160) : String(e).slice(0, 160),
   }));
-  const settle = await reconcileUnresolved({ lookback: 50, limit: 10 }).catch((e) => ({
+  const settle = await reconcileUnresolved({ lookback: 50, limit: 3, budgetMs: 15_000 }).catch((e) => ({
     error: e instanceof Error ? e.message.slice(0, 160) : String(e).slice(0, 160),
   }));
   // Bounded reward backfill: idempotent reprocessing of indexed settled
@@ -69,7 +69,10 @@ export async function GET(req: Request): Promise<NextResponse> {
   try {
     const db = getSupabaseAdmin();
     if (db) {
-      rewards = await reconcileSettledMatchRewards(db, { limit: 50, sinceDays: 7 });
+      // Visit the same recent 50 matches in ten bounded batches. A large
+      // all-at-once reward pass must not time out the recovery transport.
+      const rewardOffset = (Math.floor(Date.now() / 60_000) % 10) * 5;
+      rewards = await reconcileSettledMatchRewards(db, { limit: 5, sinceDays: 7, offset: rewardOffset });
     } else {
       rewards = { error: "supabase unavailable" };
     }

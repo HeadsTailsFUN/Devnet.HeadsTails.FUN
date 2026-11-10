@@ -15,6 +15,7 @@ import {
   type HeadsOrTails,
 } from "@heads-or-tails/game-sdk";
 import { indexSettlementSignature } from "@/lib/history/indexSettlement";
+import { recoverSettledMatchHistory } from "@/lib/history/recoverSettled";
 import {
   getServerConnection,
   getSupabaseAdmin,
@@ -40,7 +41,7 @@ export const SETTLEMENT_MAX_ATTEMPTS = 60;
 
 export type EnsureResult =
   | { status: "settled"; signature: string; already?: boolean }
-  | { status: "already-settled"; transitioned?: boolean }
+  | { status: "already-settled"; transitioned?: boolean; historyPending?: boolean }
   | { status: "pending"; reason: "waiting-for-orao" | "randomness-missing" | "retry-scheduled" }
   | { status: "failed"; error: string };
 
@@ -170,6 +171,19 @@ export async function updateExistingJob(
   }
 }
 
+async function recoverHistory(connection: Connection, programId: PublicKey, matchId: bigint, address: PublicKey): Promise<boolean> {
+  const db = getSupabaseAdmin();
+  if (!db) return false;
+  try {
+    await recoverSettledMatchHistory({ connection, db, programId, cluster: CLUSTER, matchId: matchId.toString(), matchAddress: address });
+    return true;
+  } catch {
+    await updateExistingJob(matchId, { status: "pending", last_error: "settled on chain; history retry pending",
+      next_attempt_at: new Date(Date.now() + 15_000).toISOString() });
+    return false;
+  }
+}
+
 /** Idempotent server settlement for exactly one Match ID. */
 export async function ensureSettlement(matchIdRaw: unknown): Promise<EnsureResult> {
   const matchId = parseMatchId(matchIdRaw);
@@ -201,6 +215,9 @@ export async function ensureSettlement(matchIdRaw: unknown): Promise<EnsureResul
   const mpda = m.address;
   const state = String(Object.keys(m.state as object)[0] ?? "").toLowerCase();
   if (state === "settled") {
+    if (!await recoverHistory(connection, programId, matchId, mpda)) {
+      return { status: "already-settled", historyPending: true };
+    }
     const transitioned = await updateExistingJob(matchId, { status: "settled" });
     return { status: "already-settled", transitioned };
   }
@@ -318,6 +335,9 @@ export async function ensureSettlement(matchIdRaw: unknown): Promise<EnsureResul
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (msg.includes("AlreadySettled")) {
+      if (!await recoverHistory(connection, programId, matchId, mpda)) {
+        return { status: "already-settled", historyPending: true };
+      }
       // HT-FINAL-005: another settler won the race — bookkeep only if a
       // durable row already exists, never manufacture history.
       const transitioned = await updateExistingJob(matchId, { status: "settled" });
@@ -353,15 +373,20 @@ export async function ensureSettlement(matchIdRaw: unknown): Promise<EnsureResul
     });
     return { status: "pending", reason: "waiting-for-orao" };
   }
+  let indexed = false;
   try {
     const db = getSupabaseAdmin();
     if (db) {
-      await indexSettlementSignature(connection, db, programId, CLUSTER, sig);
+      const result = await indexSettlementSignature(connection, db, programId, CLUSTER, sig);
+      indexed = result.ok && result.matches.includes(matchId.toString());
     }
   } catch {
-    // Indexing retries via reconcile; settlement itself succeeded.
+    // A confirmed payout remains successful while history is retried.
   }
-  await markJob(matchId, { status: "settled" });
+  await markJob(matchId, indexed ? { status: "settled" } : {
+    status: "pending", last_error: "settled on chain; history retry pending",
+    next_attempt_at: new Date(Date.now() + 15_000).toISOString(),
+  });
   return { status: "settled", signature: sig };
 }
 
@@ -436,6 +461,8 @@ export interface ReconcileResult {
   settlementsSubmitted: number;
   /** Scanned matches already settled with no job row (no row created). */
   alreadySettled: number;
+  /** Work remains for the next scheduled invocation. */
+  deferred?: boolean;
 }
 
 /**
@@ -455,7 +482,9 @@ export interface ReconcileResult {
 export async function reconcileUnresolved(args?: {
   lookback?: number;
   limit?: number;
+  budgetMs?: number;
 }): Promise<ReconcileResult> {
+  const deadline = Date.now() + Math.min(Math.max(args?.budgetMs ?? 20_000, 1_000), 40_000);
   const lookback = Math.min(Math.max(args?.lookback ?? 50, 1), 200);
   const limit = Math.min(Math.max(args?.limit ?? 10, 1), 25);
   const out: ReconcileResult = {
@@ -490,8 +519,26 @@ export async function reconcileUnresolved(args?: {
   const total = settlementScanHighWater(configs);
   if (configs.every(cfg => !cfg)) out.errors.push("config counters unavailable; draining durable jobs only");
   const start = total > BigInt(lookback) ? total - BigInt(lookback) : BigInt(0);
+  const db = getSupabaseAdmin();
+  const ids: string[] = [];
+  for (let id = total - BigInt(1); id >= start; id--) ids.push(id.toString());
+  const indexed = new Set<string>();
+  if (db && ids.length) {
+    const snapshot = await db.from("matches").select("onchain_match_id")
+      .eq("cluster", CLUSTER).eq("program_id", programId.toBase58())
+      .in("onchain_match_id", ids).limit(lookback);
+    if (snapshot.error) out.errors.push("History scan lookup unavailable");
+    else for (const row of snapshot.data ?? []) indexed.add(row.onchain_match_id);
+  }
   let processed = 0;
-  for (let id = total - BigInt(1); id >= start && processed < limit; id--) {
+  const examined = new Set<string>();
+  for (let id = total - BigInt(1); id >= start; id--) {
+    // Previously verified history does not need another account RPC scan.
+    // Durable jobs are reconciled independently below.
+    if (indexed.has(id.toString())) continue;
+    if (processed >= limit || Date.now() >= deadline) { out.deferred = true; break; }
+    processed++;
+    examined.add(id.toString());
     out.checked += 1;
     try {
       const m = await validatedMatch(connection, program, id);
@@ -503,30 +550,9 @@ export async function reconcileUnresolved(args?: {
         // an EXISTING durable row only. A settled match with no job row
         // must NOT manufacture history — count it as alreadySettled and
         // continue without resettling (chain is authoritative).
-        try {
-          const db = getSupabaseAdmin();
-          if (db) {
-            const { data } = await db
-              .from("matches")
-              .select("onchain_match_id")
-              .eq("cluster", CLUSTER)
-              .eq("program_id", programId.toBase58())
-              .eq("onchain_match_id", id.toString())
-              .limit(1);
-            if (!data || data.length === 0) {
-              const sigs = await connection
-                .getSignaturesForAddress(mpda, { limit: 5 })
-                .catch(() => null);
-              const { indexSettlementSignature } = await import("@/lib/history/indexSettlement");
-              for (const s of sigs ?? []) {
-                if (s.err) continue;
-                const r = await indexSettlementSignature(connection, db, programId, CLUSTER, s.signature);
-                if (r.ok) break;
-              }
-            }
-          }
-        } catch {
-          // ignore
+        if (!await recoverHistory(connection, programId, id, mpda)) {
+          out.errors.push(`match ${id}: history retry pending`);
+          continue;
         }
         const moved = await updateExistingJob(id, { status: "settled" });
         if (moved) {
@@ -545,6 +571,7 @@ export async function reconcileUnresolved(args?: {
       } else if (r.status === "already-settled") {
         // Race: settled between our fetch and ensure's re-read. ensure
         // already updated an existing row (or found none — never created).
+        if (r.historyPending) out.errors.push(`match ${id}: history retry pending`);
         if (r.transitioned) {
           out.jobsTransitionedToSettled += 1;
           out.jobsTransitioned.push(id.toString());
@@ -554,7 +581,6 @@ export async function reconcileUnresolved(args?: {
       } else if (r.status === "pending") {
         out.pending.push(id.toString());
       }
-      processed += 1;
     } catch (e) {
       out.errors.push(`match ${id}: ${(e instanceof Error ? e.message : String(e)).slice(0, 80)}`);
     }
@@ -577,9 +603,7 @@ export async function reconcileUnresolved(args?: {
         .lte("next_attempt_at", new Date().toISOString())
         .order("next_attempt_at", { ascending: true })
         .limit(limit);
-      const seen = new Set(
-        out.settled.concat(out.pending).concat(out.jobsTransitioned)
-      );
+      const seen = examined;
       for (const j of (jobs ?? []) as Array<{ match_id: string }>) {
         const mid = String(j.match_id);
         if (parseMatchId(mid) === null) {
@@ -587,6 +611,7 @@ export async function reconcileUnresolved(args?: {
           continue;
         }
         if (seen.has(mid)) continue;
+        if (Date.now() >= deadline) { out.deferred = true; break; }
         seen.add(mid);
         out.checked += 1;
         try {
@@ -595,6 +620,7 @@ export async function reconcileUnresolved(args?: {
             if (!out.settled.includes(mid)) out.settled.push(mid);
             out.settlementsSubmitted += 1;
           } else if (r.status === "already-settled") {
+            if (r.historyPending) out.errors.push(`job ${mid}: history retry pending`);
             if (r.transitioned) {
               out.jobsTransitionedToSettled += 1;
               out.jobsTransitioned.push(mid);
