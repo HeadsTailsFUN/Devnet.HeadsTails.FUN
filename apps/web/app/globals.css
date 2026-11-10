@@ -28,7 +28,7 @@
   --radius-md: 16px;
   /* Desktop side rails: Leaderboard and Global Chat share one width token
      so the two panels stay visually symmetrical around the center game. */
-  --desktop-side-panel-width: 340px;
+  --desktop-side-panel-width: 356px;
 }
 
 @media (min-width: 1280px) {
@@ -49,6 +49,11 @@
 
   .app-main > .mobile-social-panel :is(.leaderboard-panel, .chat-panel) {
     overflow: hidden;
+  }
+
+  .app-main > .mobile-social-panel :is(.leaderboard-panel > .overflow-y-auto, .chat-message-list) {
+    scrollbar-color: rgb(255 255 255 / 18%) transparent;
+    scrollbar-width: thin;
   }
 }
 
