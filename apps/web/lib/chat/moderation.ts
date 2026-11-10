@@ -1,3 +1,5 @@
+import { CHAT_HISTORY_LIMIT } from "./types";
+
 /** Exact Unicode words only: ordinary substrings (class, Scunthorpe) survive. */
 export const PROFANITY_WORDS = new Set([
   "fuck",
@@ -55,5 +57,5 @@ export function recentMessages<T extends { id: string; createdAt: string }>(
       (a, b) =>
         a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
     )
-    .slice(-100);
+    .slice(-CHAT_HISTORY_LIMIT);
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb, audit, checkStaff, sanitizeMetadata } from "@/lib/admin/auth";
+import { CHAT_HISTORY_LIMIT } from "@/lib/chat/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +17,8 @@ export async function GET(req: Request): Promise<NextResponse> {
     .from("chat_messages")
     .select("id,wallet,body,created_at,deleted_at,deleted_by")
     .order("created_at", { ascending: false })
-    .limit(100);
+    .order("id", { ascending: false })
+    .limit(CHAT_HISTORY_LIMIT);
   if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   return NextResponse.json({ messages: (data ?? []).reverse() });
 }
