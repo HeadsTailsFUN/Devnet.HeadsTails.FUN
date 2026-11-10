@@ -19,10 +19,36 @@ const connectionErrors = {
   WALLETCONNECT_TIMEOUT: "WalletConnect did not receive your approval in time. Please reconnect and return to this tab after approving.",
 } as const;
 
+type PairingStage = "START" | "RESET" | "OPEN" | "APPROVAL";
+type ConnectionCode = keyof typeof connectionErrors | `WC-${PairingStage}` | `WC-${PairingStage}-${number}`;
+
 export class WalletConnectConnectionError extends Error {
-  constructor(readonly code: keyof typeof connectionErrors) {
-    super(connectionErrors[code]);
+  constructor(readonly code: ConnectionCode, message?: string) {
+    super(message ?? connectionErrors[code as keyof typeof connectionErrors]);
   }
+}
+
+/** WalletConnect errors can be JSON-RPC objects or Errors with only a message. */
+export function walletConnectPairingFailure(stage: PairingStage, error: unknown): WalletConnectConnectionError {
+  const raw = error && typeof error === "object" ? error as { code?: unknown; message?: unknown } : {};
+  const detail = typeof raw.message === "string" ? raw.message : "";
+  const reported = typeof raw.code === "string" && /^-?\d{1,5}$/.test(raw.code) ? Number(raw.code) : raw.code;
+  const known = /unsupported chains/i.test(detail) ? 5100 :
+    /unsupported methods/i.test(detail) ? 5101 :
+    /non conforming namespaces/i.test(detail) ? 9 :
+    /session settlement failed/i.test(detail) ? 7000 : undefined;
+  const number = typeof reported === "number" && Number.isInteger(reported) && Math.abs(reported) <= 99_999 ? reported : known;
+  const code = number === undefined ? `WC-${stage}` as const : `WC-${stage}-${number}` as const;
+  const message = number === 5100 || number === 5001
+    ? "Your wallet rejected the requested Solana Devnet network."
+    : number === 5101 || number === 5002
+      ? "Your wallet rejected one of the required signing methods for Solana Devnet."
+      : /origin|allowlist|not allowed/i.test(detail)
+        ? "WalletConnect could not authorize this website address. Open headstails.fun in your browser."
+        : stage === "APPROVAL"
+          ? "WalletConnect could not complete the approval. Return to the original browser tab and try again."
+          : "WalletConnect could not start a fresh connection. Reload this tab and try again.";
+  return new WalletConnectConnectionError(code, `${message} [${code}]`);
 }
 
 export interface WalletConnectSession {
