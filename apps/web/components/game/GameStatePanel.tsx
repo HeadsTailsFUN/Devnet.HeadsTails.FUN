@@ -331,7 +331,7 @@ export function GameStatePanel({
             disabled={!canReplay}
             className="inline-flex min-h-[44px] items-center rounded-2xl border border-white/15 px-6 text-sm font-semibold text-white transition hover:bg-white/10"
           >
-            {canReplay ? "Play Again" : `Play Again (${secondsLeft}s)`}
+            Play Again
           </button>
         )}
       </div>

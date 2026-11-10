@@ -51,7 +51,7 @@ export async function getSessionWallet(req: Request): Promise<string | null> {
   try {
     const header = req.headers.get("cookie") ?? "";
     const token = parseCookie(header, SESSION_COOKIE);
-    if (!token) return null;
+    if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
     const db = admin();
     if (!db) return null;
     const { data } = await db
@@ -61,7 +61,7 @@ export async function getSessionWallet(req: Request): Promise<string | null> {
       .maybeSingle();
     if (!data) return null;
     const row = data as { wallet: string; expires_at: string };
-    if (Date.parse(row.expires_at) <= Date.now()) return null;
+    if (!(Date.parse(row.expires_at) > Date.now())) return null;
     return row.wallet;
   } catch {
     return null;

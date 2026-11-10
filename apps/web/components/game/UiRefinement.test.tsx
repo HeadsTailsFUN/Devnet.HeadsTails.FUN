@@ -31,7 +31,7 @@ test("mobile wallet list explains Devnet and the ownership-verified welcome gran
   const dialog = screen.getByRole("dialog",{name:"Connect a Solana wallet"});
   assert.match(dialog.textContent ?? "",/Set your wallet network to Devnet/);
   assert.match(dialog.textContent ?? "",/10,000 test HTS by connecting new wallet/);
-  assert(screen.getByText("Open in your wallet browser to play"));
+  assert(screen.getByText("Continue in your wallet to play"));
   assert.doesNotMatch(dialog.textContent ?? "", /WalletConnect|Or open your wallet browser/);
   assert.deepEqual(
     screen.getAllByRole("link").map((link) => link.textContent),
@@ -81,11 +81,11 @@ test("GG has a real 10-second countdown, pauses off-screen and never auto-dismis
       },
     };
   const view=render(createElement(GameStatePanel,props));
-  assert.equal(screen.queryByText(/^Play again in /),null,"the visible countdown is only inside the replay button");
+  assert.equal(screen.queryByText(/^Play again in /),null,"there is no visible countdown");
   assert.equal(
     (
       screen.getByRole("button", {
-        name: "Play Again (10s)",
+        name: "Play Again",
       }) as HTMLButtonElement
     ).disabled,
     true,
@@ -100,7 +100,7 @@ test("GG has a real 10-second countdown, pauses off-screen and never auto-dismis
   view.rerender(createElement(GameStatePanel,{...props,resultVisible:true}));
   await act(async()=>{t.mock.timers.tick(8999);});
   assert.equal(replay, 0);
-  assert.equal((screen.getByRole("button", { name: "Play Again (1s)" }) as HTMLButtonElement).disabled,true);
+  assert.equal((screen.getByRole("button", { name: "Play Again" }) as HTMLButtonElement).disabled,true);
   await act(async () => {
     t.mock.timers.tick(1);
   });

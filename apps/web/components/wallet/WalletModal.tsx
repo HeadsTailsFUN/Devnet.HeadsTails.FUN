@@ -153,7 +153,7 @@ export function WalletModal({
           </button>
           <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-secondary)]">{mobile ? "Connect with Backpack or Nightly and stay in this browser." : "Scan with a mobile wallet that supports Solana Devnet."}</p>
         </div>}
-        {showCurated && <p className="mt-4 px-1 text-xs font-semibold text-white/60">Open in your wallet browser to play</p>}
+        {showCurated && <p className="mt-4 px-1 text-xs font-semibold text-white/60">Continue in your wallet to play</p>}
         {wallets.length === 0 && !mobile && (
           <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] text-[var(--text-secondary)]">
             No wallet extension detected. Install a Solana wallet extension to connect.
