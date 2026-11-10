@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 const PATH = "/api/cron/maintain-rooms";
+export const CANONICAL_RECOVERY_ORIGIN = "https://headstails.fun";
 export function recoveryMessage(origin: string, mint: string, timestamp: string, nonce: string): string {
   return ["headstails-recovery-v1", "GET", PATH, origin, mint, timestamp, nonce].join("\n");
 }
@@ -36,11 +37,14 @@ export async function authorizeRecovery(
   const timestamp = req.headers.get("x-ht-recovery-time") ?? "";
   const nonce = req.headers.get("x-ht-recovery-nonce") ?? "";
   const mac = req.headers.get("x-ht-recovery-mac") ?? "";
+  const url = new URL(req.url);
+  const allowedOrigin = cfg.origin === CANONICAL_RECOVERY_ORIGIN ||
+    /^https:\/\/headstails-devnet-beta[a-z0-9-]*\.vercel\.app$/.test(cfg.origin);
   if (!/^[a-f0-9]{64}$/.test(cfg.secret) ||
-      !/^https:\/\/headstails-devnet-beta[a-z0-9-]*\.vercel\.app$/.test(cfg.origin) ||
+      !allowedOrigin || url.origin !== cfg.origin ||
       !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(cfg.mint) ||
       cfg.mint === "BH7CMEsAEe74yXSyNNM6L5LXJhsRhVDs1hgEMveJmGYh" ||
-      req.method !== "GET" || new URL(req.url).pathname !== PATH ||
+      req.method !== "GET" || url.pathname !== PATH ||
       !/^\d{10}$/.test(timestamp) ||
       !/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(nonce) ||
       !/^[a-f0-9]{64}$/.test(mac)) return false;

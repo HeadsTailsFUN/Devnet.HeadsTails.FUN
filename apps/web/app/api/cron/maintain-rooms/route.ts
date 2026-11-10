@@ -3,7 +3,7 @@ import { maintainRoom } from "@/lib/server/maintainRoom";
 import { reconcileUnresolved } from "@/lib/settlement/settle";
 import { getSupabaseAdmin } from "@/lib/solana/sponsorServer";
 import { reconcileSettledMatchRewards } from "@/lib/airdrop/reconcile";
-import { authorizeRecovery, recoveryHealth } from "@/lib/server/recoveryAuth";
+import { authorizeRecovery, CANONICAL_RECOVERY_ORIGIN, recoveryHealth } from "@/lib/server/recoveryAuth";
 import { devnetEnvironmentAllowed } from "@/lib/solana/devnetSafety";
 
 export const runtime = "nodejs";
@@ -29,7 +29,9 @@ async function cronAuthorized(req: Request): Promise<boolean> {
     if (!db) return false;
     return authorizeRecovery(req, {
       secret: process.env.RECOVERY_HMAC_SECRET ?? "",
-      origin: process.env.NEXT_PUBLIC_SITE_URL ?? "",
+      origin: new URL(req.url).origin === CANONICAL_RECOVERY_ORIGIN
+        ? CANONICAL_RECOVERY_ORIGIN
+        : process.env.NEXT_PUBLIC_SITE_URL ?? "",
       mint: process.env.NEXT_PUBLIC_HTS_TOKEN_MINT ?? "",
       nowSeconds: Math.floor(Date.now() / 1000),
     }, async (nonce, timestamp) => {
