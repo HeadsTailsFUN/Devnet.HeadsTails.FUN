@@ -5,6 +5,7 @@ import type { Wallet, WalletAccount } from "@wallet-standard/base";
 import { shortAddr } from "@/components/wallet/WalletProvider";
 import { currentSessionWallet, ensureSession } from "@/lib/auth/client";
 import type { PublicProfile } from "@/lib/profiles/types";
+import { USERNAME_COOLDOWN_ENABLED } from "@/lib/profiles/username";
 import { BUG_SEVERITIES } from "@/lib/bugs/validate";
 import { campaignPostUrl } from "@/lib/airdrop/campaign";
 import { TeamPreference, type Team } from "./TeamPreference";
@@ -313,8 +314,8 @@ export function ProfileModal({
                   </button>
                 </div>
                 <p className="mt-1 text-[11px] text-[var(--text-secondary)]">
-                  3–18 chars, letters/numbers/underscore. Changeable once per
-                  24h.
+                  3–18 chars, letters/numbers/underscore.
+                  {USERNAME_COOLDOWN_ENABLED && " Changeable once per 24h."}
                 </p>
               </div>
 

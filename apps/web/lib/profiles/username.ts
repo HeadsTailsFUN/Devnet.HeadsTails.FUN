@@ -1,5 +1,7 @@
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 18;
+// Temporarily disabled for the Devnet username test.
+export const USERNAME_COOLDOWN_ENABLED = false;
 export const USERNAME_RE = /^[A-Za-z0-9_]+$/;
 
 const RESERVED = new Set([
