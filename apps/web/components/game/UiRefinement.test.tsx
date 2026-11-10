@@ -66,53 +66,31 @@ test("verification stays in game panel and never triggers an HTS transfer", () =
   assert.equal(verify, 1);
   assert.equal(stakes, 0);
 });
-test("GG has a real 10-second countdown, pauses off-screen and never auto-dismisses", async (t) => {
-  t.mock.timers.enable({ apis: ["setInterval","Date"] });
-  t.mock.method(performance,"now",()=>Date.now());
-  let replay = 0;
-  const props={
-      ...base,
-      state: "win" as const,
-      result: "HEADS" as const,
-      completedMatchId: "42",
-      playAgainReady: true,
-      onPlayAgain() {
-        replay++;
-      },
-    };
-  const view=render(createElement(GameStatePanel,props));
-  assert.equal(screen.queryByText(/^Play again in /),null,"there is no visible countdown");
-  assert.equal(
-    (
-      screen.getByRole("button", {
-        name: "Play Again",
-      }) as HTMLButtonElement
-    ).disabled,
-    true,
-  );
-  await act(async () => {
-    t.mock.timers.tick(1000);
-  });
-  assert.equal(screen.getByRole("timer").textContent,"9 seconds remaining");
-  view.rerender(createElement(GameStatePanel,{...props,resultVisible:false}));
-  await act(async()=>{t.mock.timers.tick(30_000);});
-  assert.equal(screen.getByRole("timer").textContent,"9 seconds remaining");
-  view.rerender(createElement(GameStatePanel,{...props,resultVisible:true}));
-  await act(async()=>{t.mock.timers.tick(8999);});
-  assert.equal(replay, 0);
-  assert.equal((screen.getByRole("button", { name: "Play Again" }) as HTMLButtonElement).disabled,true);
-  await act(async () => {
-    t.mock.timers.tick(1);
-  });
-  assert(screen.getByRole("heading", { name: "You won" }));
-  assert.equal(replay, 0);
+test("settled win and loss can replay immediately, and the result stays until the player acts", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "setInterval", "Date"] });
+  let replays = 0;
+  const props = { ...base, onPlayAgain: () => { replays++; } };
+  const view = render(createElement(GameStatePanel, {
+    ...props, state: "win", result: "HEADS", playAgainReady: false,
+  }));
+  assert.equal(screen.queryByRole("button", { name: "Play Again" }), null);
+  view.rerender(createElement(GameStatePanel, {
+    ...props, state: "win", result: "HEADS", playAgainReady: true,
+  }));
+  const replay = () => screen.getByRole<HTMLButtonElement>("button", { name: "Play Again" });
+  assert.equal(replay().disabled, false);
+  fireEvent.click(replay());
+  assert.equal(replays, 1);
+
+  view.rerender(createElement(GameStatePanel, {
+    ...props, state: "loss", result: "TAILS", playAgainReady: true,
+  }));
+  assert.equal(replay().disabled, false);
   await act(async () => { t.mock.timers.tick(60_000); });
-  assert(screen.getByRole("heading", { name: "You won" }));
-  fireEvent.click(screen.getByRole("button", { name: "Play Again" }));
-  assert.equal(replay, 1);
-  view.rerender(createElement(GameStatePanel,{...props,state:"loss",result:"TAILS",completedMatchId:"43"}));
-  assert(screen.getByRole("heading",{name:"You lost"}));
-  assert.equal(screen.getByRole("timer").textContent,"10 seconds remaining");
+  assert(screen.getByRole("heading", { name: "You lost" }));
+  assert.equal(replays, 1);
+  fireEvent.click(replay());
+  assert.equal(replays, 2);
 });
 test("connected header exposes the actual token balance and Devnet label",()=>{
   render(createElement(AppHeader,{state:"ready",onConnect(){},onDisconnect(){},addressLabel:"EWM…U1qt",profileName:"Player A",balanceLabel:"1,400 HTS"}));

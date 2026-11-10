@@ -94,22 +94,6 @@ export function planVisibleReveal(args: {
   return { revealAtMs, delayMs: Math.max(0, revealAtMs - args.nowMs) };
 }
 
-/**
- * Result-screen hold (presentation-only): YOU WIN / YOU LOSE stays on
- * screen for 10 visible seconds before manual Play Again is enabled. Chain
- * settlement/payout/profile/history work is never delayed — only the UI
- * replay affordance waits; results never automatically disappear.
- */
-export const MIN_RESULT_HOLD_MS = 10_000;
-
-/** Milliseconds of result hold remaining from `nowMs` (0 = may go Ready). */
-export function resultHoldRemainingMs(args: {
-  resultShownAtMs: number;
-  nowMs: number;
-}): number {
-  return Math.max(0, args.resultShownAtMs + MIN_RESULT_HOLD_MS - args.nowMs);
-}
-
 /** Opening spin speed for the coin (deg/sec): very fast, then decaying. */
 export const FLIP_FAST_DEG_PER_SEC = 720;
 

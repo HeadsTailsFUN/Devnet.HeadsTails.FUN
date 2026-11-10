@@ -1,9 +1,7 @@
 "use client";
 import Image from "next/image";
 
-import { useEffect, useRef, useState } from "react";
 import { ResultReaction } from "./ResultReaction";
-import { MIN_RESULT_HOLD_MS } from "@/lib/game/flipReveal";
 import type { GameStateId, Side } from "@/lib/mockGameData";
 
 const COPY: Record<
@@ -110,7 +108,6 @@ export function GameStatePanel({
   needsConnection,
   onVerify,
   onConnect,
-  resultVisible = true,
 }: {
   walletAddress?: string | null;
   completedMatchId?: string | null;
@@ -118,7 +115,6 @@ export function GameStatePanel({
   needsConnection?: boolean;
   onVerify?: () => void;
   onConnect?: () => void;
-  resultVisible?: boolean;
   state: GameStateId;
   selectedSide: Side | null;
   result: Side | null;
@@ -138,28 +134,6 @@ export function GameStatePanel({
   retryPayoutBusy?: boolean;
 }) {
   const final = state === "win" || state === "loss";
-  const [secondsLeft, setSecondsLeft] = useState(MIN_RESULT_HOLD_MS/1000);
-  const remainingRef = useRef(MIN_RESULT_HOLD_MS);
-  useEffect(() => {
-    remainingRef.current = MIN_RESULT_HOLD_MS;
-    setSecondsLeft(MIN_RESULT_HOLD_MS/1000);
-  }, [final, completedMatchId]);
-  useEffect(() => {
-    if (!final || !resultVisible) return;
-    let previous = performance.now(), visible = !document.hidden;
-    const tick = () => {
-      const now=performance.now();
-      if(visible) remainingRef.current=Math.max(0,remainingRef.current-Math.max(0,now-previous));
-      previous=now;
-      setSecondsLeft(Math.ceil(remainingRef.current/1000));
-      if(remainingRef.current===0)clearInterval(timer);
-    };
-    const visibility=()=>{tick();visible=!document.hidden;};
-    const timer=setInterval(tick,100);
-    document.addEventListener("visibilitychange",visibility);
-    return()=>{tick();clearInterval(timer);document.removeEventListener("visibilitychange",visibility);};
-  },[final,completedMatchId,resultVisible]);
-  const canReplay=secondsLeft===0;
   const c = needsConnection ? COPY.disconnected : needsVerification
     ? {
         ...COPY.connected,
@@ -229,7 +203,6 @@ export function GameStatePanel({
       <h2 className="font-display text-[19px] font-bold text-white">
         {final ? (state === "win" ? "You won" : "You lost") : c.title}
       </h2>
-      {final && secondsLeft>0 && <span role="timer" aria-label="Result countdown" className="sr-only">{secondsLeft} seconds remaining</span>}
       {matchLabel && (
         <p className="mt-1 text-[12px] font-bold tracking-widest text-white/70">
           {matchLabel}
@@ -328,7 +301,6 @@ export function GameStatePanel({
           <button
             type="button"
             onClick={onPlayAgain}
-            disabled={!canReplay}
             className="inline-flex min-h-[44px] items-center rounded-2xl border border-white/15 px-6 text-sm font-semibold text-white transition hover:bg-white/10"
           >
             Play Again

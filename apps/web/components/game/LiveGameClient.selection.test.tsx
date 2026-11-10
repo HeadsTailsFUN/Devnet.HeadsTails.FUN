@@ -576,12 +576,12 @@ describe("video scenario: selection survives background refresh", () => {
     fireEvent.click(nav().getByRole("button",{name:"play"}));assert(screen.getByRole("heading",{name:"You Selected HEADS"}));
     queuedPlayer=false;inMatchPlayer=true;matchReads=0;
     await screen.findByRole("heading",{name:"You won"},{timeout:20000});
-    assert(screen.getByRole("timer",{name:"Result countdown"}));
     assert.equal((screen.getByRole("button",{name:"Choose room, $1 selected"}) as HTMLButtonElement).disabled,true);
-    await waitFor(()=>assert.equal((screen.getByRole("button",{name:"Play Again"}) as HTMLButtonElement).disabled,false),{timeout:20000});
+    const playAgain = await screen.findByRole<HTMLButtonElement>("button", { name: "Play Again" }, { timeout: 20_000 });
+    assert.equal(playAgain.disabled, false, "no extra countdown after settlement");
     assert(screen.getByRole("heading",{name:"You won"}),"idle settlement polls cannot dismiss the result");
     assert(matchReads>=1);
-    fireEvent.click(screen.getByRole("button",{name:"Play Again"}));
+    fireEvent.click(playAgain);
     assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-mobile-progress'),'false');
     assert.equal((game().getByRole("button",{name:"TAILS"}) as HTMLButtonElement).disabled,false);
     fireEvent.click(game().getByRole("button",{name:"TAILS"}));
