@@ -20,6 +20,19 @@ test("queue-visible health strips raw exception strings and preserves failure si
   const body = recoveryHealth({rooms:[{tierUsd:1,invariants:[],notes:[secret]},{tierUsd:10,error:secret}],settle:{errors:[secret]},rewards:{failed:1,errors:[secret]}});
   const json=JSON.stringify(body);assert(!json.includes(secret));assert(json.includes('ROOM_MAINTENANCE_FAILED'));assert(json.includes('SETTLEMENT_RECOVERY_FAILED'));assert(json.includes('REWARD_RECOVERY_FAILED'));
 });
+test("a budget deferral is reported without turning it into a recovery failure", () => {
+  const body = recoveryHealth({
+    rooms: [{tierUsd: 1, deferred: "BUDGET_LIMIT", invariants: []}, {tierUsd: 10, invariants: []}],
+    settle: {errors: []},
+    rewards: {failed: 0, errors: []},
+  });
+  assert.deepEqual(body, {
+    status: "cron-maintained",
+    rooms: [{tierUsd: 1, deferred: "BUDGET_LIMIT", invariants: []}, {tierUsd: 10, invariants: []}],
+    settle: {errors: []},
+    rewards: {failed: 0, errors: []},
+  });
+});
 test("tampered, expired, future, wrong-purpose and wrong-key requests never reach claim",async()=>{
   let calls=0;const consume=async()=>{calls++;return true;};
   for(const req of [request({"x-ht-recovery-mac":"0".repeat(64)}),request({"x-ht-recovery-mac":"invalid"}),request({"x-ht-recovery-nonce":"bad"}),request({},"/api/admin/game")])assert.equal(await authorizeRecovery(req,cfg,consume),false);

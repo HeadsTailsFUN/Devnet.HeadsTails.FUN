@@ -49,6 +49,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (out.notes.includes("in-progress") || out.notes.includes("match in-progress elsewhere")) {
       return NextResponse.json({ status: "in-progress" });
     }
+    if (out.deferred === "BUDGET_LIMIT") {
+      return NextResponse.json({ status: "retry", reason: "budget-limit" });
+    }
     if (out.pending || out.notes.some((n) => /retry later|unreadable/i.test(n))) {
       return NextResponse.json({ status: "retry", reason: out.notes.join("; ").slice(0, 160) || "retry later" });
     }
