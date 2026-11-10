@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getSessionWallet } from "@/lib/auth/session";
-import { normalizeUsername, validateUsername } from "@/lib/profiles/username";
+import { USERNAME_COOLDOWN_ENABLED, validateUsername } from "@/lib/profiles/username";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,17 +40,19 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "username is taken" }, { status: 409 });
   }
 
-  const { data: existing } = await db
-    .from("profiles")
-    .select("username_updated_at")
-    .eq("wallet", wallet)
-    .maybeSingle();
-  const prev = existing as { username_updated_at?: string | null } | null;
-  // Once-per-24h change limit (first set always allowed).
-  if (prev?.username_updated_at) {
-    const last = Date.parse(prev.username_updated_at);
-    if (Number.isFinite(last) && Date.now() - last < CHANGE_COOLDOWN_MS) {
-      return NextResponse.json({ error: "username can change once per 24h" }, { status: 429 });
+  if (USERNAME_COOLDOWN_ENABLED) {
+    const { data: existing } = await db
+      .from("profiles")
+      .select("username_updated_at")
+      .eq("wallet", wallet)
+      .maybeSingle();
+    const prev = existing as { username_updated_at?: string | null } | null;
+    // Once-per-24h change limit (first set always allowed).
+    if (prev?.username_updated_at) {
+      const last = Date.parse(prev.username_updated_at);
+      if (Number.isFinite(last) && Date.now() - last < CHANGE_COOLDOWN_MS) {
+        return NextResponse.json({ error: "username can change once per 24h" }, { status: 429 });
+      }
     }
   }
 

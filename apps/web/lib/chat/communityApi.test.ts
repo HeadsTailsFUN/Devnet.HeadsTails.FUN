@@ -10,6 +10,9 @@ const getTeam = async (req: Request) =>
 const reaction = async (req: Request) =>
   (await import("@/app/api/profile/reaction/route")).GET(req);
 import { SESSION_COOKIE } from "@/lib/auth/message";
+import { USERNAME_COOLDOWN_ENABLED } from "@/lib/profiles/username";
+const setUsername = async (req: Request) =>
+  (await import("@/app/api/profile/username/route")).POST(req);
 const originalFetch = globalThis.fetch;
 after(() => {
   globalThis.fetch = originalFetch;
@@ -21,6 +24,7 @@ let rpcResult: unknown = {
   status: "sent",
   message: { id: "fixture", body: "hi" },
 };
+const namesSaved: Array<Record<string, unknown>> = [];
 let profileResult: unknown = {
   team_preference: null,
   team_prompt_completed: false,
@@ -42,7 +46,20 @@ globalThis.fetch = async (input, init) => {
     return Response.json({ jsonrpc: "2.0", id: body.id, result: 12345 });
   if (path.endsWith("auth_sessions"))
     return Response.json({ wallet, expires_at: "2099-01-01T00:00:00Z" });
-  if (path.endsWith("profiles")) return Response.json(profileResult);
+  if (path.endsWith("profiles")) {
+    const params = new URL(req.url).searchParams;
+    if (req.method === "POST") {
+      namesSaved.push(body);
+      return new Response(null, { status: 201 });
+    }
+    if (params.get("select") === "wallet") {
+      return Response.json(params.get("username_normalized") === "eq.taken_name" ? [{ wallet: "OTHER" }] : []);
+    }
+    if (params.get("select") === "username_updated_at") {
+      return Response.json({ username_updated_at: namesSaved.at(-1)?.username_updated_at ?? null });
+    }
+    return Response.json(profileResult);
+  }
   if (path.includes("/rpc/")) return Response.json(rpcResult);
   throw Error("Unexpected synthetic API request: " + path);
 };
@@ -154,4 +171,26 @@ test("reaction lookup requires ownership and binds current HTS generation", asyn
     call.body.p_program,
     "AFVnPWFoYMG1tdmRFUttmf8kf6gpi24LVkYzNmUSni7k",
   );
+});
+
+test("username changes respect the configured cooldown while retaining identity and name rules", async () => {
+  const path = "/api/profile/username";
+  assert.equal((await setUsername(request(path, { username: "New_Name" }, false))).status, 401);
+  assert.equal((await setUsername(request(path, { username: "admin" }))).status, 400);
+  assert.equal((await setUsername(request(path, { username: "Taken_Name" }))).status, 409);
+
+  for (const [i, username] of ["First_Name", "Second_Name"].entries()) {
+    const response = await setUsername(request(path, { username, wallet: "IMPERSONATED" }));
+    if (i > 0 && USERNAME_COOLDOWN_ENABLED) {
+      assert.equal(response.status, 429);
+      continue;
+    }
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { status: "ok", username });
+    const saved = namesSaved.at(-1)!;
+    assert.equal(saved.wallet, wallet);
+    assert.equal(saved.username_normalized, username.toLowerCase());
+    assert.ok(Number.isFinite(Date.parse(String(saved.username_updated_at))));
+  }
+  assert.equal(namesSaved.length, USERNAME_COOLDOWN_ENABLED ? 1 : 2);
 });
