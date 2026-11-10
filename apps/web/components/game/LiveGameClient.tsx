@@ -349,6 +349,7 @@ export function LiveGameClient() {
   const [detail, setDetail] = useState<string | undefined>(undefined);
   const [busyKind, setBusyKind] = useState<"join" | "leave" | null>(null);
   const busyRef = useRef(false);
+  const lastMatchRequestAt = useRef(0);
   const [hasPosition, setHasPosition] = useState(false);
   const [queue, setQueue] = useState<{ heads: number; tails: number } | null>(
     null,
@@ -1224,6 +1225,20 @@ export function LiveGameClient() {
                 head,
               );
               setQueuePos("position" in pos ? pos.position : null);
+              // A confirmed join can outlive the original browser request.
+              // Give an already-queued player a bounded retry without a new join.
+              if (sessionWallet === address && !document.hidden && !busyRef.current &&
+                  (queuedTier === 1 || queuedTier === 10) && roomState.active &&
+                  roomState.headsHead < roomState.headsNext &&
+                  roomState.tailsHead < roomState.tailsNext &&
+                  Date.now() - lastMatchRequestAt.current >= 60_000) {
+                lastMatchRequestAt.current = Date.now();
+                void fetch("/api/devnet/match-crank-room", {
+                  method: "POST",
+                  headers: { "content-type": "application/json" },
+                  body: JSON.stringify({ tierUsd: queuedTier }),
+                }).catch(() => null);
+              }
             }
           }
         } catch {
@@ -1532,6 +1547,7 @@ export function LiveGameClient() {
     refreshQueueSnapshot,
     updateRoomLiveness,
     reconcileIdleResult,
+    sessionWallet,
     sdk,
     usdCents,
     ensureAutoSettlement,
@@ -1903,6 +1919,7 @@ export function LiveGameClient() {
       intentRef.current = null;
       shouldClearIntentOn("join-success");
       await runSponsored("join", joinSig);
+      lastMatchRequestAt.current = Date.now();
       try {
         await fetch("/api/devnet/match-crank-room", {
           method: "POST",

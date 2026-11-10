@@ -15,7 +15,22 @@ function harness(extraDebit=5000){const signer=Keypair.fromSeed(new Uint8Array(3
 test('5000-lamport settlement fits remaining 34m budget instead of a false 50m hold',async()=>{const h=harness();const r=await sendJournaledTransaction({...h,transaction:h.transaction(),operationKey:'settle:75',wallet:h.signer.publicKey.toBase58(),kind:'settle',settlementRentLamports:0});assert(r.signature);assert.equal(h.calls.find(c=>c.method==='reserve_devnet_expense')!.args.p_lamports,5000);assert(h.sent());assert.equal(h.calls.filter(c=>c.method==='submit_devnet_expense').length,1);});
 test('missing winner ATA reserves measured rent plus the fee',async()=>{const rent=2039280,h=harness(rent+5000);await sendJournaledTransaction({...h,transaction:h.transaction(),operationKey:'settle:76',wallet:h.signer.publicKey.toBase58(),kind:'settle',settlementRentLamports:rent});assert.equal(h.calls.find(c=>c.method==='reserve_devnet_expense')!.args.p_lamports,rent+5000);});
 test('unexpected simulation debit is rejected before submission and releases only unsigned hold',async()=>{const h=harness(1000000);await assert.rejects(sendJournaledTransaction({...h,transaction:h.transaction(),operationKey:'settle:77',wallet:h.signer.publicKey.toBase58(),kind:'settle',settlementRentLamports:0}),/preflight or cost/);assert(!h.sent());assert(h.calls.some(c=>c.method==='cancel_unsubmitted_devnet_expense'));assert(!h.calls.some(c=>c.method==='submit_devnet_expense'));});
-test('other sponsorship operations retain their existing reservation and budget guard',async()=>{const h=harness();await assert.rejects(sendJournaledTransaction({...h,transaction:h.transaction(),operationKey:'match:test',wallet:h.signer.publicKey.toBase58(),kind:'match'}),ExpenseBudgetError);assert(!h.sent());});
+test('a match can use its simulated cost when the larger hold is rejected', async () => {
+  const actualDebit = 6_380_680;
+  const h = harness(actualDebit);
+  await sendJournaledTransaction({...h, transaction: h.transaction(), operationKey: 'match:85', wallet: h.signer.publicKey.toBase58(), kind: 'match'});
+  const reservations = h.calls.filter(call => call.method === 'reserve_devnet_expense');
+  assert.deepEqual(reservations.map(call => call.args.p_lamports), [50_000_000, actualDebit]);
+  assert(reservations.every(call => call.args.p_operation_key === 'match:85'));
+  assert.equal(h.calls.filter(call => call.method === 'submit_devnet_expense').length, 1);
+  assert(h.sent());
+});
+test('match remains queued when even the measured debit exceeds the remaining budget', async () => {
+  const h = harness(40_000_000);
+  await assert.rejects(sendJournaledTransaction({...h, transaction: h.transaction(), operationKey: 'match:85', wallet: h.signer.publicKey.toBase58(), kind: 'match'}), ExpenseBudgetError);
+  assert(!h.sent());
+  assert(!h.calls.some(call => call.method === 'submit_devnet_expense'));
+});
 test('HTS counter is not hidden by the frozen legacy namespace',()=>{assert.equal(settlementScanHighWater([{totalMatches:44},{totalMatches:76}]),BigInt(76));assert.equal(settlementScanHighWater([null,{totalMatches:76}]),BigInt(76));assert.equal(settlementScanHighWater([null,null]),BigInt(0));});
 
 test('inactive-head advancement reserves only its fee and still rejects extra debit', async () => {
