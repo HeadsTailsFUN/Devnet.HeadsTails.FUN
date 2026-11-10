@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import type { Wallet } from "@wallet-standard/base";
-import { useWalletState, walletKey } from "./WalletProvider";
+import { useWalletState, walletKey, WALLETCONNECT_ENABLED } from "./WalletProvider";
 import {
   CAPABILITY_LABEL,
   compatibleInjectedWallets,
@@ -36,7 +36,8 @@ export function WalletModal({
     const actions = mobileWalletActions(
       window.location.href,
       window.location.origin,
-      platformFromUserAgent(navigator.userAgent)
+      platformFromUserAgent(navigator.userAgent),
+      IS_DEVNET,
     );
     return IS_DEVNET ? actions.filter((action) => action.capability === "available") : actions;
   }, [mobile]);
@@ -144,18 +145,18 @@ export function WalletModal({
             <p>You&apos;ll receive <strong className="text-white">{FAUCET_CLAIM_HTS.toLocaleString("en-US")} test HTS</strong> by connecting new wallet.</p>
           </div>
         )}
-        {IS_DEVNET && (showCurated || (!mobile && wallets.length===0)) && <div className="mt-4">
+        {WALLETCONNECT_ENABLED && IS_DEVNET && (showCurated || (!mobile && wallets.length===0)) && <div className="mt-4">
           <button type="button" disabled={connecting} onClick={async()=>{if(await connectWalletConnect())onClose();}}
             className="flex min-h-[52px] w-full items-center gap-3 rounded-2xl border border-white/15 bg-white/5 px-4 text-left font-bold text-white transition hover:bg-white/10 disabled:opacity-60">
             <LinkIcon className="h-7 w-7 shrink-0"/>
             <span>{connecting ? "Connecting…" : "WalletConnect"}</span>
           </button>
           <p className="mt-2 px-1 text-xs leading-relaxed text-[var(--text-secondary)]">{mobile ? "Connect with Backpack or Nightly and stay in this browser." : "Scan with a mobile wallet that supports Solana Devnet."}</p>
-          {mobile && <p className="mt-3 px-1 text-xs font-semibold text-white/60">Or open your wallet browser:</p>}
         </div>}
+        {showCurated && <p className="mt-4 px-1 text-xs font-semibold text-white/60">Open in your wallet browser to play</p>}
         {wallets.length === 0 && !mobile && (
           <p className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-3 text-[13px] text-[var(--text-secondary)]">
-            No wallet extension detected. Use WalletConnect above or install a Solana wallet extension.
+            No wallet extension detected. Install a Solana wallet extension to connect.
           </p>
         )}
         {mobile && (inAppSingle || inAppMultiple) && (

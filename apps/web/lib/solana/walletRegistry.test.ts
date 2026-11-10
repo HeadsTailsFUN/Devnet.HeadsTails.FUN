@@ -39,6 +39,20 @@ describe("mobile wallet registry (7 curated wallets)", () => {
     assert.ok(!/\"ronin\"|'ronin'/.test(JSON.stringify(ids)));
   });
 
+  it("Nightly opens the current page in its in-app Solana Devnet browser", () => {
+    for (const platform of ["ios", "android"] as const) {
+      const nightly = mobileWalletActions(PAGE, REF, platform, true).find((a) => a.id === "nightly");
+      assert.ok(nightly?.href);
+      const link = new URL(nightly.href);
+      assert.equal(link.origin + link.pathname, "https://nightly.app/v1");
+      assert.equal(link.searchParams.get("network"), "solana");
+      assert.equal(link.searchParams.get("cluster"), "devnet");
+      assert.equal(link.searchParams.get("url"), PAGE);
+      assert.equal(nightly.capability, "available");
+      assert.ok(existsSync(join(root, "public", nightly.logo)));
+    }
+  });
+
   it("labels never claim installation; official routes only", () => {
     for (const a of mobileWalletActions(PAGE, REF, "ios")) {
       assert.ok(!/installed|detected|available|copy link/i.test(a.label), a.label);
