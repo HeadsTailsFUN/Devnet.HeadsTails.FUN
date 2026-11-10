@@ -22,6 +22,9 @@ export const metadata: Metadata = {
       { url: "/brand/favicon-32.png?v=2", type: "image/png", sizes: "32x32" },
     ],
     shortcut: "/favicon.ico?v=2",
+    apple: [
+      { url: "/apple-icon.png?v=3", sizes: "512x512", type: "image/png" },
+    ],
   },
   openGraph: {
     title: "Heads or Tails",
