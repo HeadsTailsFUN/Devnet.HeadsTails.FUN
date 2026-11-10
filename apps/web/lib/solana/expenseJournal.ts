@@ -1,4 +1,4 @@
-import { Transaction, VersionedTransaction, type Connection, type Keypair } from "@solana/web3.js";
+import { Transaction, VersionedTransaction, type Connection, type Keypair, type PublicKey } from "@solana/web3.js";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import bs58 from "bs58";
 import { assertDevnetConnection } from "./devnetSafety";
@@ -33,6 +33,29 @@ async function rpc(db: SupabaseClient, name: string, args: Record<string, unknow
   const { data, error } = await db.rpc(name, args);
   if (error) throw new Error("Operation journal unavailable");
   return data;
+}
+
+function budgetDenied(status: unknown): boolean {
+  return status === "wallet-cap" || status === "global-cap";
+}
+
+async function simulatedDebit(
+  connection: Connection, transaction: Transaction | VersionedTransaction,
+  payer: PublicKey, fee: number,
+): Promise<number> {
+  const pre = await connection.getBalance(payer, "confirmed");
+  const versioned = transaction instanceof VersionedTransaction
+    ? transaction
+    : VersionedTransaction.deserialize(transaction.serialize());
+  const simulation = await connection.simulateTransaction(versioned, {
+    sigVerify: true, commitment: "confirmed",
+    accounts: { addresses: [payer.toBase58()], encoding: "base64" },
+  });
+  const post = simulation.value.accounts?.[0]?.lamports;
+  if (simulation.value.err || !Number.isSafeInteger(pre) || post === undefined || !Number.isSafeInteger(post)) {
+    throw new Error("Operation preflight or cost check failed");
+  }
+  return Math.max(fee, pre - post);
 }
 
 /** Confirm from the trusted receipt, including failed-transaction fees. */
@@ -125,22 +148,32 @@ export async function sendJournaledTransaction(args: {
   // winner ATA. A blanket 0.05 SOL hold could exhaust the service wallet's
   // daily allowance even when the actual 0.000005 SOL fee fits comfortably.
   // The signed simulation below still rejects any debit exceeding this hold.
-  const reserve = kind === "advance" ? quoted.value : kind === "settle" ? quoted.value + settlementRent : args.transferLamports === undefined
+  let reserve = kind === "advance" ? quoted.value : kind === "settle" ? quoted.value + settlementRent : args.transferLamports === undefined
     ? Math.min(OPERATION_RESERVATION_LAMPORTS, globalCap, SPONSOR_DAILY_CAP_LAMPORTS)
     : args.transferLamports + quoted.value;
   if (!Number.isSafeInteger(reserve) || reserve < quoted.value) throw new Error("Invalid operation amount");
-  const admitted = kind === "faucet" ? await rpc(db, "reserve_hts_welcome", {
+  const reserveExpense = (lamports: number) => kind === "faucet" ? rpc(db, "reserve_hts_welcome", {
     p_operation_key: args.operationKey, p_wallet: args.wallet,
-    p_mint: process.env.NEXT_PUBLIC_HTS_TOKEN_MINT, p_lamports: reserve,
-  }) : await rpc(db, "reserve_devnet_expense", {
+    p_mint: process.env.NEXT_PUBLIC_HTS_TOKEN_MINT, p_lamports: lamports,
+  }) : rpc(db, "reserve_devnet_expense", {
     p_operation_key: args.operationKey, p_wallet: args.wallet, p_kind: kind,
-    p_lamports: reserve, p_wallet_cap: SPONSOR_DAILY_CAP_LAMPORTS,
+    p_lamports: lamports, p_wallet_cap: SPONSOR_DAILY_CAP_LAMPORTS,
     p_global_cap: globalCap,
     p_drain_reserve: kind === "settle" ? 0 : Math.min(SETTLEMENT_RESERVE_LAMPORTS, globalCap),
   });
+  let admitted = await reserveExpense(reserve);
+  if (kind === "match" && args.transferLamports === undefined && budgetDenied(admitted?.status)) {
+    // Match account rent and the ORAO request cost can fit even when the
+    // conservative reservation does not. Both attempts use the same journal key.
+    const debit = await simulatedDebit(connection, tx, signer.publicKey, quoted.value);
+    if (debit < reserve) {
+      reserve = debit;
+      admitted = await reserveExpense(reserve);
+    }
+  }
   if (admitted?.status === "legacy-completed") return { signature: null, reused: true };
   if (admitted?.status === "legacy-pending") throw new ExpensePendingError();
-  if (admitted?.status === "wallet-cap" || admitted?.status === "global-cap") throw new ExpenseBudgetError();
+  if (budgetDenied(admitted?.status)) throw new ExpenseBudgetError();
   const row = admitted?.expense as Expense | undefined;
   if (!row?.id) throw new Error("Operation journal unavailable");
   if (row.status === "confirmed") return { signature: row.signature, reused: true };
@@ -148,14 +181,7 @@ export async function sendJournaledTransaction(args: {
     try {
       await args.prepare?.();
       if (args.transferLamports === undefined) {
-        const pre = await connection.getBalance(signer.publicKey, "confirmed");
-        const simulation = tx instanceof VersionedTransaction ? tx : VersionedTransaction.deserialize(tx.serialize());
-        const simulated = await connection.simulateTransaction(simulation, {
-          sigVerify: true, commitment: "confirmed",
-          accounts: { addresses: [signer.publicKey.toBase58()], encoding: "base64" },
-        });
-        const post = simulated.value.accounts?.[0]?.lamports;
-        if (simulated.value.err || !Number.isSafeInteger(post) || post === undefined || Math.max(quoted.value, pre-post) > reserve) {
+        if (await simulatedDebit(connection, tx, signer.publicKey, quoted.value) > reserve) {
           throw new Error("Operation preflight or cost check failed");
         }
       }
