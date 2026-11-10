@@ -1,5 +1,5 @@
 import { configPda, matchPda, playerPda, roomQueuePda } from "@/lib/solana/activeGame";
-import { reconcileServiceReceipts, sendJournaledTransaction } from "@/lib/solana/expenseJournal";
+import { ExpenseBudgetError, reconcileServiceReceipts, sendJournaledTransaction } from "@/lib/solana/expenseJournal";
 import { Connection, Keypair, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import type { Wallet } from "@coral-xyz/anchor";
@@ -44,6 +44,7 @@ export interface MaintainResult {
   advanced: Array<{ side: string; sequence: string; signature: string }>;
   matched: Array<{ matchId: string; signature: string }>;
   pending: boolean;
+  deferred?: "BUDGET_LIMIT";
   invariants: string[];
   notes: string[];
 }
@@ -170,6 +171,10 @@ export async function maintainRoom(tierUsd: number): Promise<MaintainResult> {
             log(tierUsd, `advanced ${action.reason}`, { side: sideName, seq: head.toString(), sig });
             continue;
           } catch (e) {
+            if (e instanceof ExpenseBudgetError) {
+              out.deferred = "BUDGET_LIMIT";
+              return out;
+            }
             const msg = e instanceof Error ? e.message : String(e);
             if (isBenignRaceError(msg)) {
               out.notes.push(`${sideName} advance raced; refetching`);
@@ -305,6 +310,10 @@ export async function maintainRoom(tierUsd: number): Promise<MaintainResult> {
         try {
           sig = await sendSponsorTx(connection, sponsorKp, tx, `match:${freshCfg.totalMatches}`, "match");
         } catch (e) {
+          if (e instanceof ExpenseBudgetError) {
+            out.deferred = "BUDGET_LIMIT";
+            return out;
+          }
           const msg = e instanceof Error ? e.message : String(e);
           if (isBenignRaceError(msg)) {
             out.notes.push("match raced; queue changed, refetching");
