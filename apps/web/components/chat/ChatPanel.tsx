@@ -92,7 +92,7 @@ export function ChatPanel({
     try {
       const ctrl = new AbortController();
       const t = setTimeout(() => ctrl.abort(), 12000);
-      const r = await fetch("/api/chat/messages?limit=100", {
+      const r = await fetch("/api/chat/messages", {
         cache: "no-store",
         signal: ctrl.signal,
       });

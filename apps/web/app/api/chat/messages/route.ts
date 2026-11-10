@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { maskProfanity } from "@/lib/chat/moderation";
 import { displayRank } from "@/lib/ranks";
-import type { ChatMessageView } from "@/lib/chat/types";
+import { CHAT_HISTORY_LIMIT, type ChatMessageView } from "@/lib/chat/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,14 +16,12 @@ function admin() {
   });
 }
 
-/** Public read of recent global chat (latest 100, excludes moderated). */
+/** Public read of the retained global chat window, excluding hidden messages. */
 export async function GET(req: Request): Promise<NextResponse> {
+  const requestedLimit = Number(new URL(req.url).searchParams.get("limit"));
   const limit = Math.min(
-    Math.max(
-      Number(new URL(req.url).searchParams.get("limit") ?? 100) || 100,
-      1,
-    ),
-    100,
+    Math.max(Math.trunc(requestedLimit) || CHAT_HISTORY_LIMIT, 1),
+    CHAT_HISTORY_LIMIT,
   );
   const db = admin();
   if (!db) return NextResponse.json({ error: "unavailable" }, { status: 503 });

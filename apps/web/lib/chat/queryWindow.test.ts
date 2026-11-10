@@ -20,14 +20,14 @@ globalThis.fetch = async (input, init) => {
   queries.push(url);
   return Response.json([]);
 };
-test("chat query caps oversized requests at 100 with deterministic database ordering", async () => {
+test("chat query caps oversized requests at 50 with deterministic database ordering", async () => {
   const { GET } = await import("@/app/api/chat/messages/route");
   const response = await GET(
     new Request("https://local.invalid/api/chat/messages?limit=100000"),
   );
   assert.equal(response.status, 200);
   const query = queries.findLast((q) => q.pathname.endsWith("chat_messages"))!;
-  assert.equal(query.searchParams.get("limit"), "100");
+  assert.equal(query.searchParams.get("limit"), "50");
   assert.equal(query.searchParams.get("order"), "created_at.desc,id.desc");
   assert.equal(query.searchParams.get("deleted_at"), "is.null");
 });

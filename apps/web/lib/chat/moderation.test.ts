@@ -18,13 +18,13 @@ test("ordinary substrings, Persian words and disagreement are not censored", () 
     "class assignment, Scunthorpe, classic, shell, کسی هست؟ I disagree, GG!";
   assert.equal(maskProfanity(text), text);
 });
-test("100-item window deduplicates and deterministically orders equal timestamps", () => {
+test("50-item window deduplicates and deterministically orders equal timestamps", () => {
   const rows = Array.from({ length: 130 }, (_, i) => ({
     id: String(i).padStart(3, "0"),
     createdAt: "2026-11-01T00:00:00Z",
   }));
   const result = recentMessages([...rows.reverse(), rows[0]]);
-  assert.equal(result.length, 100);
-  assert.equal(result[0].id, "030");
-  assert.equal(result[99].id, "129");
+  assert.equal(result.length, 50);
+  assert.equal(result[0].id, "080");
+  assert.equal(result[49].id, "129");
 });
