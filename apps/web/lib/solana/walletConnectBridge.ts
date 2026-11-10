@@ -4,8 +4,27 @@ import bs58 from "bs58";
 import nacl from "tweetnacl";
 
 export const WC_DEVNET_CHAIN = "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1";
+// Both CAIP identifiers refer to Solana Devnet. Some wallets still use the
+// older identifier recognized by the official WalletConnect Solana adapter.
+export const WC_DEVNET_CHAINS = [WC_DEVNET_CHAIN, "solana:8E9rvCKLFQia2Y35HXjjpWzj8weVo44K"] as const;
 export const WC_METHODS = ["solana_signTransaction", "solana_signMessage"] as const;
 const STANDARD_CHAIN = "solana:devnet" as const;
+type DevnetChain = typeof WC_DEVNET_CHAINS[number];
+const connectionErrors = {
+  WALLETCONNECT_SESSION_MISSING: "WalletConnect did not return an active session. Please reconnect.",
+  WALLETCONNECT_DEVNET_REQUIRED: "Your wallet did not approve a Solana Devnet account for WalletConnect. Check Devnet in your wallet and reconnect.",
+  WALLETCONNECT_SIGNING_REQUIRED: "Your WalletConnect session did not approve both message and transaction signing on Solana Devnet.",
+  WALLETCONNECT_ACCOUNT_AMBIGUOUS: "WalletConnect returned more than one Solana Devnet account. Reconnect with one account selected.",
+  WALLETCONNECT_ACCOUNT_INVALID: "WalletConnect returned an invalid Solana Devnet account. Please reconnect.",
+  WALLETCONNECT_TIMEOUT: "WalletConnect did not receive your approval in time. Please reconnect and return to this tab after approving.",
+} as const;
+
+export class WalletConnectConnectionError extends Error {
+  constructor(readonly code: keyof typeof connectionErrors) {
+    super(connectionErrors[code]);
+  }
+}
+
 export interface WalletConnectSession {
   topic: string;
   expiry: number;
@@ -19,30 +38,55 @@ export interface WalletConnectTransport {
   onChange(listener: () => void): () => void;
 }
 
+function approvedDevnetBinding(session: WalletConnectSession | undefined): {account: WalletAccount; chain: DevnetChain} {
+  if (typeof session?.topic !== "string" || !session.topic || !Number.isFinite(session.expiry) || session.expiry <= Date.now()/1000) {
+    throw new WalletConnectConnectionError("WALLETCONNECT_SESSION_MISSING");
+  }
+  const approved = new Map<string, DevnetChain>();
+  let hasDevnetAccount = false;
+  for (const chain of WC_DEVNET_CHAINS) {
+    const prefix = `${chain}:`;
+    // WalletConnect allows the namespace to be keyed by Solana or by the
+    // specific CAIP chain. Methods must be approved in the account's scope.
+    for (const scope of [session.namespaces?.[chain], session.namespaces?.solana]) {
+      if (!Array.isArray(scope?.accounts)) continue;
+      for (const entry of scope.accounts) {
+        if (typeof entry !== "string" || !entry.startsWith(prefix)) continue;
+        hasDevnetAccount = true;
+        if (!Array.isArray(scope.methods) || !WC_METHODS.every((method) => scope.methods.includes(method))) continue;
+        const address = entry.slice(prefix.length);
+        if (!approved.has(address)) approved.set(address, chain);
+      }
+    }
+  }
+  if (!hasDevnetAccount) throw new WalletConnectConnectionError("WALLETCONNECT_DEVNET_REQUIRED");
+  if (!approved.size) throw new WalletConnectConnectionError("WALLETCONNECT_SIGNING_REQUIRED");
+  if (approved.size !== 1) throw new WalletConnectConnectionError("WALLETCONNECT_ACCOUNT_AMBIGUOUS");
+  const [[address, chain]] = approved;
+  let publicKey: PublicKey;
+  try { publicKey = new PublicKey(address); }
+  catch { throw new WalletConnectConnectionError("WALLETCONNECT_ACCOUNT_INVALID"); }
+  if (publicKey.toBase58() !== address) throw new WalletConnectConnectionError("WALLETCONNECT_ACCOUNT_INVALID");
+  return {account: {address, publicKey: publicKey.toBytes(), chains: [STANDARD_CHAIN], features: ["solana:signTransaction", "solana:signMessage"]}, chain};
+}
+
 /** Only an explicitly approved Devnet account with both required methods is usable. */
 export function approvedWalletConnectAccount(session: WalletConnectSession | undefined): WalletAccount {
-  const ns = session?.namespaces.solana;
-  if (!session || typeof session.topic!=="string" || !session.topic || !Number.isFinite(session.expiry) || session.expiry <= Date.now()/1000 || !ns || !Array.isArray(ns.methods) || !Array.isArray(ns.accounts) ||
-      !WC_METHODS.every(method=>ns.methods.includes(method)) || ns.accounts.length!==1 ||
-      !ns.accounts[0].startsWith(`${WC_DEVNET_CHAIN}:`)) {
-    throw new Error("WalletConnect requires a Solana Devnet account with transaction and message signing. Use your wallet browser if unsupported.");
-  }
-  const address=ns.accounts[0].slice(WC_DEVNET_CHAIN.length+1);
-  const publicKey=new PublicKey(address);
-  if(publicKey.toBase58()!==address)throw new Error("WalletConnect returned an invalid Solana account.");
-  return {address,publicKey:publicKey.toBytes(),chains:[STANDARD_CHAIN],features:["solana:signTransaction","solana:signMessage"]};
+  return approvedDevnetBinding(session).account;
 }
 const sameBytes=(a:ArrayLike<number>,b:ArrayLike<number>)=>a.length===b.length && Array.from(a).every((v,i)=>v===b[i]);
 
 /** Wallet Standard boundary: no send-transaction feature and no RPC broadcast. */
 export function createWalletConnectWallet(transport:WalletConnectTransport): Wallet {
   let accounts:readonly WalletAccount[]=[],topic:string|null=null,epoch=0,requestPending=false;
+  let approvedChain: DevnetChain | null = null;
   const listeners=new Set<(change:{accounts:readonly WalletAccount[]})=>void>();
   const sync=()=>{
-    let next:WalletAccount|null=null,nextTopic:string|null=null;
-    try{const session=transport.session();next=approvedWalletConnectAccount(session);nextTopic=session!.topic;}catch{/* Fail closed on revoked, expired or incompatible sessions. */}
-    if(next?.address!==accounts[0]?.address || nextTopic!==topic){
-      epoch++;topic=nextTopic;accounts=next?[next]:[];
+    let next: ReturnType<typeof approvedDevnetBinding> | null = null, nextTopic:string|null=null;
+    try{const session=transport.session();next=approvedDevnetBinding(session);nextTopic=session!.topic;}catch{/* Fail closed on revoked, expired or incompatible sessions. */}
+    const nextChain = next?.chain ?? null;
+    if(next?.account.address!==accounts[0]?.address || nextTopic!==topic || nextChain!==approvedChain){
+      epoch++;topic=nextTopic;approvedChain=nextChain;accounts=next?[next.account]:[];
       for(const listener of listeners)listener({accounts});
     }
   };
@@ -57,9 +101,10 @@ export function createWalletConnectWallet(transport:WalletConnectTransport): Wal
   };
   const request=async(method:string,params:Record<string,unknown>,account:WalletAccount)=>{
     if(requestPending)throw new Error("A wallet approval is already pending. Review it in your wallet first.");
+    if(!approvedChain)throw new Error("WalletConnect is restricted to Solana Devnet.");
     const before=epoch;requestPending=true;
     try{
-      const result=await transport.request(method,params,WC_DEVNET_CHAIN);
+      const result=await transport.request(method,params,approvedChain);
       current(account);
       if(before!==epoch)throw new Error("WalletConnect account changed during approval. Please reconnect.");
       return result as {signature?:string;transaction?:string};
@@ -77,7 +122,7 @@ export function createWalletConnectWallet(transport:WalletConnectTransport): Wal
         approvedWalletConnectAccount(transport.session());sync();return {accounts};
       }},
       "standard:disconnect":{version:"1.0.0" as const,disconnect:async()=>{
-        epoch++;accounts=[];topic=null;for(const listener of listeners)listener({accounts});
+        epoch++;accounts=[];topic=null;approvedChain=null;for(const listener of listeners)listener({accounts});
         await transport.disconnect();
       }},
       "standard:events":{version:"1.0.0" as const,on:(event:string,listener:(change:{accounts:readonly WalletAccount[]})=>void)=>{

@@ -29,6 +29,7 @@ import {
   rememberWallet,
 } from "@/lib/solana/session";
 import { IS_DEVNET } from "@/lib/solana/cluster";
+import { WalletConnectConnectionError } from "@/lib/solana/walletConnectBridge";
 
 // Re-exported for existing callers/tests; implementation lives in walletStandard.
 export { normalizeSigningOutput };
@@ -185,6 +186,9 @@ export function WalletStandardProvider({ children }: { children: ReactNode }) {
       return true;
     }catch(error){
       if(epoch!==manualConnectEpochRef.current)return false;
+      if(error instanceof WalletConnectConnectionError){
+        setError(error.message);setErrorCode(error.code);return false;
+      }
       if(error instanceof Error && /cancelled|canceled|user rejected/i.test(error.message))return false;
       if(error instanceof Error && /origin|allowlist|not allowed/i.test(error.message)){
         setError("WalletConnect is not enabled on this website address. Use the official HeadsTails beta URL.");

@@ -6,7 +6,7 @@ import nacl from "tweetnacl";
 import bs58 from "bs58";
 import {getConnectMethod,getSignMethod} from "./walletStandard";
 import {signMessageBytes} from "./signMessage";
-import {createWalletConnectWallet,approvedWalletConnectAccount,WC_DEVNET_CHAIN,WC_METHODS,type WalletConnectSession,type WalletConnectTransport} from "./walletConnectBridge";
+import {createWalletConnectWallet,approvedWalletConnectAccount,WC_DEVNET_CHAIN,WC_DEVNET_CHAINS,WC_METHODS,type WalletConnectSession,type WalletConnectTransport} from "./walletConnectBridge";
 const a=Keypair.fromSeed(new Uint8Array(32).fill(7)),b=Keypair.fromSeed(new Uint8Array(32).fill(8));
 const session=():WalletConnectSession=>({topic:"synthetic-devnet-session",expiry:Math.floor(Date.now()/1000)+3600,namespaces:{solana:{accounts:[`${WC_DEVNET_CHAIN}:${a.publicKey}`],methods:[...WC_METHODS]}}});
 function fixture(){
@@ -33,6 +33,50 @@ test("Devnet approval requires the exact chain, a valid account, expiry and both
   const missing=session();missing.namespaces.solana.methods=["solana_signTransaction"];assert.throws(()=>approvedWalletConnectAccount(missing));
   assert.throws(()=>approvedWalletConnectAccount({...session(),expiry:0}));
   const multi=session();multi.namespaces.solana.accounts.push(`${WC_DEVNET_CHAIN}:${b.publicKey}`);assert.throws(()=>approvedWalletConnectAccount(multi));
+});
+test("chain-qualified and mixed-chain approvals expose only the single Devnet account", () => {
+  const current = session();
+  const legacyChain = WC_DEVNET_CHAINS[1];
+  current.namespaces = {
+    [legacyChain]: { accounts: [`${legacyChain}:${a.publicKey}`], methods: [...WC_METHODS] },
+    solana: { accounts: [`solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:${b.publicKey}`], methods: [...WC_METHODS] },
+  };
+  assert.equal(approvedWalletConnectAccount(current).address, a.publicKey.toBase58());
+  current.namespaces.solana.accounts.push(`${WC_DEVNET_CHAIN}:${a.publicKey}`);
+  assert.equal(approvedWalletConnectAccount(current).address, a.publicKey.toBase58());
+  current.namespaces.solana.accounts.push(`${WC_DEVNET_CHAIN}:${b.publicKey}`);
+  assert.throws(() => approvedWalletConnectAccount(current), { code: "WALLETCONNECT_ACCOUNT_AMBIGUOUS" });
+});
+test("a method approved on another chain does not authorize Devnet signing", () => {
+  const current = session();
+  const mainnet = "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp";
+  current.namespaces = {
+    [WC_DEVNET_CHAIN]: { accounts: [`${WC_DEVNET_CHAIN}:${a.publicKey}`], methods: ["solana_signTransaction"] },
+    [mainnet]: { accounts: [`${mainnet}:${a.publicKey}`], methods: [...WC_METHODS] },
+  };
+  assert.throws(() => approvedWalletConnectAccount(current), { code: "WALLETCONNECT_SIGNING_REQUIRED" });
+});
+test("requests use the approved Devnet alias and invalidate an alias change during approval", async () => {
+  const legacyChain = WC_DEVNET_CHAINS[1];
+  const current = session();
+  current.namespaces.solana.accounts = [`${legacyChain}:${a.publicKey}`];
+  const requestedChains: string[] = [];
+  const wallet = createWalletConnectWallet({
+    session: () => current,
+    connect: async () => current,
+    disconnect: async () => {},
+    request: async (_method, params, chain) => {
+      requestedChains.push(chain);
+      if (requestedChains.length === 2) current.namespaces.solana.accounts.push(`${WC_DEVNET_CHAIN}:${a.publicKey}`);
+      return { signature: bs58.encode(nacl.sign.detached(bs58.decode(String(params.message)), a.secretKey)) };
+    },
+    onChange: () => () => {},
+  });
+  const { accounts: [account] } = await getConnectMethod(wallet)!();
+  assert.equal((await signMessageBytes(wallet, account, new Uint8Array([1]))).length, 64);
+  await assert.rejects(signMessageBytes(wallet, account, new Uint8Array([2])), /account changed/);
+  assert.equal((await signMessageBytes(wallet, account, new Uint8Array([3]))).length, 64);
+  assert.deepEqual(requestedChains, [legacyChain, legacyChain, WC_DEVNET_CHAIN]);
 });
 test("silent restore never creates a pairing and rejects missing/expired authorization",async()=>{
   const f=fixture();await getConnectMethod(f.wallet)!({silent:true});assert.equal(f.counts().connects,0);
