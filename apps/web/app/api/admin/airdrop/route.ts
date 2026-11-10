@@ -17,8 +17,8 @@ export async function GET(req: Request): Promise<NextResponse> {
   const excludedOnly = params.get("excluded") === "1";
   const eligibleOnly = params.get("eligible") === "1";
 
-  const { data: season } = await db.from("airdrop_seasons").select("id,key").eq("active", true).limit(1).maybeSingle();
-  const seasonRow = season as { id?: string; key?: string } | null;
+  const { data: season } = await db.from("airdrop_seasons").select("id,key,team_points_start_at").eq("active", true).limit(1).maybeSingle();
+  const seasonRow = season as { id?: string; key?: string; team_points_start_at?: string | null } | null;
   if (!seasonRow?.id) return NextResponse.json({ error: "no active season" }, { status: 503 });
 
   const [
@@ -107,6 +107,17 @@ export async function GET(req: Request): Promise<NextResponse> {
     };
   };
 
+  let teamPoints: Record<string, number> = {};
+  if (seasonRow.team_points_start_at) {
+    const wallets = [...new Set([...byWallet.keys(), ...nameByWallet.keys()])];
+    const { data: points, error } = await db.rpc("devnet_community_team_points", {
+      p_season: seasonRow.id, p_wallets: wallets,
+    });
+    if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+    teamPoints = points ?? {};
+    for (const wallet of Object.keys(teamPoints)) touch(wallet, "");
+  }
+
   let users = [...byWallet.keys()].map((w) => {
     const agg = byWallet.get(w)!;
     const st = statsByWallet.get(w);
@@ -119,7 +130,8 @@ export async function GET(req: Request): Promise<NextResponse> {
       username: nameByWallet.get(w) ?? null,
       xHandle: x.handle,
       xProfileUrl: x.profileUrl,
-      verifiedTotal: agg.verified,
+      verifiedTotal: agg.verified + (teamPoints[w] ?? 0),
+      communityTeamPoints: teamPoints[w] ?? 0,
       pendingTotal: agg.pending,
       gameplayPoints: agg.gameplay,
       winBonusPoints: agg.win_bonus,

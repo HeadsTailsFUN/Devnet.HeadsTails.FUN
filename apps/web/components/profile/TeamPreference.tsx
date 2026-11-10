@@ -1,7 +1,9 @@
 "use client";
 import Image from "next/image";
+import { IS_DEVNET } from "@/lib/solana/cluster";
 import { useEffect, useRef, useState } from "react";
 export type Team = "HEADS" | "TAILS" | null;
+const TEAM_POINTS_COPY = "Earn 1 airdrop point whenever your team wins an eligible flip, even when you aren’t playing.";
 export function TeamPreference({
   value,
   onSave,
@@ -15,7 +17,7 @@ export function TeamPreference({
     <fieldset disabled={busy} className="mt-3">
       <legend className="text-sm font-bold">Your community team</legend>
       <p className="mb-2 text-xs text-white/60">
-        A preference, never your game side.
+        {IS_DEVNET ? TEAM_POINTS_COPY : "A preference, never your game side."}
       </p>
       <div className="grid grid-cols-2 gap-2">
         {(["HEADS", "TAILS"] as const).map((team) => (
@@ -110,6 +112,7 @@ export function TeamWelcome({
         <p className="mt-2 text-sm text-white/60">
           Pick a favorite. You can play either side, every round.
         </p>
+        {IS_DEVNET && <p className="mt-2 text-sm text-white/80">{TEAM_POINTS_COPY}</p>}
         <div className="mt-5 grid grid-cols-2 gap-3">
           {(["HEADS", "TAILS"] as const).map((team) => (
             <button

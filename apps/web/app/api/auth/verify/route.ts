@@ -4,6 +4,7 @@ import bs58 from "bs58";
 import nacl from "tweetnacl";
 import { PublicKey } from "@solana/web3.js";
 import {
+  CHALLENGE_TTL_MS,
   SESSION_TTL_MS,
   buildAuthMessage,
   hashToken,
@@ -27,7 +28,9 @@ function clientIp(req: Request): string | null {
 export async function POST(req: Request): Promise<NextResponse> {
   let body: unknown = null;
   try {
-    body = await req.json();
+    const raw = await req.text();
+    if (raw.length > 4096) return NextResponse.json({ error: "request too large" }, { status: 413 });
+    body = JSON.parse(raw);
   } catch {
     return NextResponse.json({ error: "malformed request" }, { status: 400 });
   }
@@ -36,8 +39,13 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "invalid request" }, { status: 400 });
   }
   const wallet = b!.wallet as string;
+  const signature = b!.signature as string;
+  if (!/^[1-9A-HJ-NP-Za-km-z]{64,88}$/.test(signature)) {
+    return NextResponse.json({ error: "invalid signature encoding" }, { status: 401 });
+  }
   const c = b!.challenge as Partial<Challenge> | null;
-  if (!c || typeof c.nonce !== "string" || typeof c.expiresAt !== "string" || typeof c.issuedAt !== "string") {
+  if (!c || typeof c.nonce !== "string" || !/^[0-9a-f]{64}$/.test(c.nonce) ||
+      typeof c.expiresAt !== "string" || typeof c.issuedAt !== "string") {
     return NextResponse.json({ error: "invalid challenge" }, { status: 400 });
   }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -59,11 +67,14 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "challenge expired" }, { status: 401 });
   }
 
-  // Rebuild the exact server-issued message from the ECHOED challenge fields
-  // (Postgres reformats timestamptz strings, so the DB row cannot supply
-  // byte-exact display values). Security comes from elsewhere: the nonce
-  // must exist, bind this wallet, be fresh by DB time, and be unused — and
-  // any tampering with echoed fields breaks the signature itself.
+  // Rebuild both timestamps from the stored expiry in the exact ISO format
+  // used by challenge issuance, so neither display field is caller-chosen.
+  const expiry = Date.parse(rec.expires_at);
+  const expiresAt = new Date(expiry).toISOString();
+  const issuedAt = new Date(expiry - CHALLENGE_TTL_MS).toISOString();
+  if (c.expiresAt !== expiresAt || c.issuedAt !== issuedAt) {
+    return NextResponse.json({ error: "invalid challenge" }, { status: 401 });
+  }
   const configured = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "";
   let domain = configured.trim();
   if (!domain) {
@@ -78,14 +89,14 @@ export async function POST(req: Request): Promise<NextResponse> {
     domain,
     wallet,
     cluster: process.env.NEXT_PUBLIC_SOLANA_CLUSTER ?? "devnet",
-    issuedAt: c.issuedAt,
-    expiresAt: c.expiresAt,
+    issuedAt,
+    expiresAt,
   };
   const message = new TextEncoder().encode(buildAuthMessage(full));
 
   let sigBytes: Uint8Array;
   try {
-    sigBytes = bs58.decode((b!.signature as string).trim());
+    sigBytes = bs58.decode(signature);
   } catch {
     return NextResponse.json({ error: "invalid signature encoding" }, { status: 401 });
   }

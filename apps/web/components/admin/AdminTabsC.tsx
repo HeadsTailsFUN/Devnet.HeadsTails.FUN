@@ -88,6 +88,7 @@ type AirdropUser = Record<string, unknown> & {
   pendingTotal?: number;
   gameplayPoints?: number;
   winBonusPoints?: number;
+  communityTeamPoints?: number;
   referralPoints?: number;
   socialPoints?: number;
   eligibleGames?: number;
@@ -210,6 +211,7 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
                 <th className="py-1 pr-2">Win Bonus</th>
                 <th className="py-1 pr-2">Referral</th>
                 <th className="py-1 pr-2">Social</th>
+                <th className="py-1 pr-2">Community team</th>
                 <th className="py-1 pr-2">Games</th>
                 <th className="py-1 pr-2">Wins</th>
                 <th className="py-1 pr-2">Qualified Refs</th>
@@ -237,6 +239,7 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
                   <td className="py-1 pr-2">{String(u.winBonusPoints ?? 0)}</td>
                   <td className="py-1 pr-2">{String(u.referralPoints ?? 0)}</td>
                   <td className="py-1 pr-2">{String(u.socialPoints ?? 0)}</td>
+                  <td className="py-1 pr-2">{String(u.communityTeamPoints ?? 0)}</td>
                   <td className="py-1 pr-2">{String(u.eligibleGames ?? 0)}</td>
                   <td className="py-1 pr-2">{String(u.wins ?? 0)}</td>
                   <td className="py-1 pr-2">{String(u.qualifiedReferrals ?? 0)}</td>

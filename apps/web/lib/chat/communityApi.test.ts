@@ -25,6 +25,7 @@ let profileResult: unknown = {
   team_preference: null,
   team_prompt_completed: false,
 };
+process.env.SOLANA_SERVER_RPC_URL = "https://synthetic-rpc.invalid/";
 process.env.NEXT_PUBLIC_SUPABASE_URL = "https://synthetic.invalid";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "SYNTHETIC_TEST_KEY_NO_SERVICE_ACCESS";
 process.env.HEADS_TAILS_PROGRAM_ID =
@@ -37,6 +38,8 @@ globalThis.fetch = async (input, init) => {
   const path = new URL(req.url).pathname;
   const body = req.method === "POST" ? await req.json() : {};
   calls.push({ path, body });
+  if (new URL(req.url).hostname === "synthetic-rpc.invalid")
+    return Response.json({ jsonrpc: "2.0", id: body.id, result: 12345 });
   if (path.endsWith("auth_sessions"))
     return Response.json({ wallet, expires_at: "2099-01-01T00:00:00Z" });
   if (path.endsWith("profiles")) return Response.json(profileResult);
@@ -49,7 +52,7 @@ function request(path: string, body?: unknown, authed = true) {
     headers: {
       "content-type": "application/json",
       ...(authed
-        ? { cookie: `${SESSION_COOKIE}=SYNTHETIC_OWNER_SESSION` }
+        ? { cookie: `${SESSION_COOKIE}=${"0".repeat(64)}` }
         : {}),
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -118,16 +121,13 @@ test("team writes use authenticated wallet and only preference fields", async ()
     ).status,
     403,
   );
+  rpcResult = true;
   const r = await team(
-    request("/api/profile/team", { team: null, wallet, username: "replace" }),
+    request("/api/profile/team", { team: null, wallet, username: "replace", p_after_slot: 1 }),
   );
   assert.equal(r.status, 200);
-  const body = calls.findLast((x) => x.path.endsWith("profiles"))!.body;
-  assert.deepEqual(body, {
-    wallet,
-    team_preference: null,
-    team_prompt_completed: true,
-  });
+  const body = calls.findLast((x) => x.path.endsWith("save_devnet_community_team"))!.body;
+  assert.deepEqual(body, { p_wallet: wallet, p_team: null, p_after_slot: 12345 });
   profileResult = { team_preference: null, team_prompt_completed: true };
   const response = await getTeam(request("/api/profile/team"));
   assert.deepEqual(await response.json(), { team: null, completed: true });

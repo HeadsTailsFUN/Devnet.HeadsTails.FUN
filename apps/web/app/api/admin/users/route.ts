@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { adminDb, checkStaff } from "@/lib/admin/auth";
 import { displayRank } from "@/lib/ranks";
+import { USERNAME_RE } from "@/lib/profiles/username";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +15,11 @@ export async function GET(req: Request): Promise<NextResponse> {
   const db = adminDb();
   if (!db) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   const q = (new URL(req.url).searchParams.get("query") ?? "").trim().slice(0, 44);
+
+  // PostgREST .or() takes raw filter syntax. Only interpolate username/address characters.
+  if (q && !USERNAME_RE.test(q)) {
+    return NextResponse.json({ error: "invalid search" }, { status: 400 });
+  }
 
   let query = db
     .from("profiles")
