@@ -30,3 +30,16 @@ test("claim outage fails closed and signed headers contain no long-lived secret"
   assert.equal(await authorizeRecovery(request(),cfg,async()=>{throw Error("synthetic");}),false);
   assert.equal(JSON.stringify([...request().headers]).includes(cfg.secret),false);
 });
+test("canonical recovery requires a valid MAC bound to the actual public hostname", async () => {
+  const canonical = "https://headstails.fun";
+  const canonicalCfg = {...cfg, origin: canonical};
+  const mac = createHmac("sha256", cfg.secret)
+    .update(recoveryMessage(canonical, mint, timestamp, nonce)).digest("hex");
+  const headers = request({"x-ht-recovery-mac": mac}).headers;
+  let claims = 0;
+  const consume = async () => { claims++; return true; };
+  assert.equal(await authorizeRecovery(new Request(`${canonical}/api/cron/maintain-rooms`, {headers}), canonicalCfg, consume), true);
+  assert.equal(await authorizeRecovery(new Request(`${origin}/api/cron/maintain-rooms`, {headers}), canonicalCfg, consume), false);
+  assert.equal(await authorizeRecovery(new Request(`${canonical}/api/cron/maintain-rooms`, {headers: request().headers}), canonicalCfg, consume), false);
+  assert.equal(claims, 1);
+});
