@@ -31,6 +31,27 @@
   --desktop-side-panel-width: 340px;
 }
 
+@media (min-width: 1280px) {
+  .heads-app > .app-main {
+    align-content: start;
+  }
+
+  /* The game sets the grid row height. Long lists scroll inside their rails. */
+  .app-main > .mobile-social-panel {
+    contain: size;
+    min-height: 0;
+  }
+
+  .app-main > .mobile-social-panel > div,
+  .app-main > .mobile-social-panel :is(.leaderboard-panel, .chat-panel) {
+    min-height: 0;
+  }
+
+  .app-main > .mobile-social-panel :is(.leaderboard-panel, .chat-panel) {
+    overflow: hidden;
+  }
+}
+
 html {
   background: var(--bg-primary);
   color-scheme: dark;
