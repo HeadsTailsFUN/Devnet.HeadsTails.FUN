@@ -8,6 +8,8 @@ const body = { variable: "ht-font-body" };
 
 export const metadata: Metadata = {
   title: "Heads or Tails — HeadsTails.fun",
+  applicationName: "HeadsTails",
+  appleWebApp: { title: "HeadsTails", capable: false },
   description:
     "Connect wallet, pick HEADS or TAILS, play $1/$10 simulated USD rooms using 100/1,000 test HTS, FIFO match, and an on-chain flip on Solana Devnet.",
   metadataBase: process.env.NEXT_PUBLIC_SITE_URL
@@ -21,7 +23,7 @@ export const metadata: Metadata = {
     ],
     shortcut: "/favicon.ico?v=2",
     apple: [
-      { url: "/apple-icon.png?v=2", sizes: "180x180", type: "image/png" },
+      { url: "/apple-icon.png?v=3", sizes: "512x512", type: "image/png" },
     ],
   },
   openGraph: {
