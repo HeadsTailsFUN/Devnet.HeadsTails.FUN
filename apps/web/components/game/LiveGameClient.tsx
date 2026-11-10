@@ -2359,7 +2359,6 @@ export function LiveGameClient() {
             result={displayResult}
             walletAddress={address}
             completedMatchId={revealedRound?.matchId ?? lastCompleted?.matchId ?? null}
-            resultVisible={!mobileNav.mobile || mobileNav.tab==="play"}
             needsConnection={mobileNav.mobile && !address}
             needsVerification={Boolean(address && sessionWallet !== address)}
             onVerify={() => {

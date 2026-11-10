@@ -6,9 +6,7 @@ import { fileURLToPath } from "node:url";
 import {
   FLIP_FAST_DEG_PER_SEC,
   MIN_FLIP_REVEAL_MS,
-  MIN_RESULT_HOLD_MS,
   planFlipFinish,
-  resultHoldRemainingMs,
 } from "./flipReveal.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
@@ -17,14 +15,10 @@ const client = (): string =>
 const coin = (): string =>
   readFileSync(join(root, "components", "game", "FlipCoin.tsx"), "utf8");
 
-/**
- * Flip feel + minimum read time and explicit replay (presentation-only UX improvement).
- * Chain/settlement/payout/oracle behavior is untouched — only the visible
- * timing (Flipping >=5000ms, then result >=10000ms before manual replay) and the
- * coin's physical deceleration change.
- */
-
 describe("flip feel motion planner (pure)", () => {
+  it("keeps the five-second minimum for revealing the flip", () => {
+    assert.equal(MIN_FLIP_REVEAL_MS, 5_000);
+  });
   it("11. starts very fast then decelerates continuously (no jumps)", () => {
     const plan = planFlipFinish({
       fromAngleDeg: 0,
@@ -101,26 +95,6 @@ describe("flip feel motion planner (pure)", () => {
       "clamped to a graceful minimum, never instant",
     );
     assert.ok(quick.totalDeg >= 180, "still visibly settles onto the face");
-  });
-});
-
-describe("minimum result read time", () => {
-  it("allows manual replay only after 10 seconds; flip timing stays unchanged", () => {
-    assert.equal(MIN_RESULT_HOLD_MS, 10000);
-    assert.equal(MIN_FLIP_REVEAL_MS, 5000);
-    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 0 }), 10000);
-    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 9999 }), 1);
-    assert.equal(resultHoldRemainingMs({ resultShownAtMs: 0, nowMs: 10000 }), 0);
-  });
-  it("measures from display time, independent of the result side and network delay", () => {
-    assert.equal(
-      resultHoldRemainingMs({ resultShownAtMs: 10000, nowMs: 19999 }),
-      1,
-    );
-    assert.equal(
-      resultHoldRemainingMs({ resultShownAtMs: 10000, nowMs: 20000 }),
-      0,
-    );
   });
 });
 
