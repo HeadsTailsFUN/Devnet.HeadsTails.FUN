@@ -31,16 +31,18 @@ test("mobile wallet list explains Devnet and the ownership-verified welcome gran
   const dialog = screen.getByRole("dialog",{name:"Connect a Solana wallet"});
   assert.match(dialog.textContent ?? "",/Set your wallet network to Devnet/);
   assert.match(dialog.textContent ?? "",/10,000 test HTS by connecting new wallet/);
-  assert(screen.getByRole("button",{name:"WalletConnect"}));
+  assert(screen.getByText("Open in your wallet browser to play"));
+  assert.doesNotMatch(dialog.textContent ?? "", /WalletConnect|Or open your wallet browser/);
   assert.deepEqual(
     screen.getAllByRole("link").map((link) => link.textContent),
-    ["Phantom", "Solflare", "Backpack"],
+    ["Phantom", "Solflare", "Backpack", "Nightly"],
   );
   assert.doesNotMatch(dialog.textContent ?? "", /Trust Wallet|MetaMask|Coinbase Wallet|Bitget/);
 });
-test("desktop without an extension offers the optional WalletConnect QR fallback",()=>{
+test("desktop without an extension directs users to Solana wallet extensions",()=>{
   render(createElement(WalletStandardProvider,null,createElement(WalletModal,{open:true,onClose(){}})));
-  assert(screen.getByRole("button",{name:"WalletConnect"}));
+  assert(screen.getByText("No wallet extension detected. Install a Solana wallet extension to connect."));
+  assert.equal(screen.queryByRole("button",{name:"WalletConnect"}),null);
 });
 test("verification stays in game panel and never triggers an HTS transfer", () => {
   let verify = 0,

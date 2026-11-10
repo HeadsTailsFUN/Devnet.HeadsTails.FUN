@@ -69,6 +69,8 @@ export function walletKey(w: Wallet): string {
 }
 
 const EXPECTED_CHAIN = IS_DEVNET ? "solana:devnet" : "solana:mainnet";
+// Pause the browser relay while its physical iOS wallet handoff is unresolved.
+export const WALLETCONNECT_ENABLED = false;
 
 export function WalletStandardProvider({ children }: { children: ReactNode }) {
   const [rawWallets, setRawWallets] = useState<Wallet[]>([]);
@@ -175,7 +177,7 @@ export function WalletStandardProvider({ children }: { children: ReactNode }) {
   );
 
   const connectWalletConnect=useCallback(async()=>{
-    if(!IS_DEVNET)return false;
+    if(!WALLETCONNECT_ENABLED || !IS_DEVNET)return false;
     const epoch=++manualConnectEpochRef.current;restoredRef.current=true;setRestoring(false);
     setConnecting(true);setError(null);setErrorCode(null);
     try{
@@ -204,6 +206,10 @@ export function WalletStandardProvider({ children }: { children: ReactNode }) {
     if (restoredRef.current) return;
     if(IS_DEVNET && getRememberedWallet()==="WalletConnect"){
       restoredRef.current=true;
+      if (!WALLETCONNECT_ENABLED) {
+        setRestoring(false);
+        return;
+      }
       const epoch=manualConnectEpochRef.current;
       void (async()=>{
         try{

@@ -1,10 +1,9 @@
 /**
- * Mobile wallet selector registry (7 curated wallets, no duplicates).
+ * Mobile wallet selector registry for direct wallet-browser connections.
  *
  * Normal mobile browser (Safari/Chrome, no injected provider):
- *   Phantom, Solflare, Backpack, Bitget, MetaMask, Trust, Coinbase
- *   Last three are visual disabled rows for the Devnet preview
- *   (Mainnet Only, inert — no navigation).
+ *   Devnet shows Phantom, Solflare, Backpack and Nightly.
+ *   The registry retains capability labels for the other wallet options.
  *
  * Wallet in-app browser (e.g. Solflare/Phantom/Backpack in-app):
  *   inspect the actual Wallet Standard registry and show ONLY the
@@ -57,6 +56,7 @@ export interface MobileWalletAction {
     | "phantom"
     | "solflare"
     | "backpack"
+    | "nightly"
     | "bitget"
     | "metamask"
     | "trust"
@@ -78,21 +78,22 @@ export interface MobileWalletAction {
 //   anza-xyz/wallet-adapter adapter sources (shipped for wallet UIs).
 // metamask: official MetaMask developer docs fox (docs.metamask.io).
 // backpack: official backpack.app favicon.
+// nightly: official docs.nightly.app/img/logo.png.
 
 function enc(s: string): string {
   return encodeURIComponent(s);
 }
 
 /**
- * Build the 7-wallet curated open-in-app actions for the current page.
+ * Build curated open-in-app actions for the current page.
  * `pageUrl` should be window.location.href; `ref` the origin.
- * Order: Phantom, Solflare, Backpack, Bitget, MetaMask, Trust, Coinbase.
- * Last three are inert (href null, Mainnet Only, no navigation).
+ * Nightly's explicit Devnet link is included only in the Devnet beta.
  */
 export function mobileWalletActions(
   pageUrl: string,
   ref: string,
-  platform: MobilePlatform
+  platform: MobilePlatform,
+  devnet = false,
 ): MobileWalletAction[] {
   const target = enc(pageUrl);
   const r = enc(ref);
@@ -121,6 +122,15 @@ export function mobileWalletActions(
       capability: "available",
       inert: false,
     },
+    ...(devnet ? [{
+      id: "nightly",
+      label: "Nightly",
+      href: `https://nightly.app/v1?network=solana&cluster=devnet&url=${target}`,
+      kind: "deeplink-official",
+      logo: logo("nightly.png"),
+      capability: "available",
+      inert: false,
+    } satisfies MobileWalletAction] : []),
     {
       id: "bitget",
       label: "Bitget Wallet",
