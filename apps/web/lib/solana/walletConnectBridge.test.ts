@@ -6,7 +6,7 @@ import nacl from "tweetnacl";
 import bs58 from "bs58";
 import {getConnectMethod,getSignMethod} from "./walletStandard";
 import {signMessageBytes} from "./signMessage";
-import {createWalletConnectWallet,approvedWalletConnectAccount,WC_DEVNET_CHAIN,WC_DEVNET_CHAINS,WC_METHODS,type WalletConnectSession,type WalletConnectTransport} from "./walletConnectBridge";
+import {createWalletConnectWallet,approvedWalletConnectAccount,walletConnectPairingFailure,WC_DEVNET_CHAIN,WC_DEVNET_CHAINS,WC_METHODS,type WalletConnectSession,type WalletConnectTransport} from "./walletConnectBridge";
 const a=Keypair.fromSeed(new Uint8Array(32).fill(7)),b=Keypair.fromSeed(new Uint8Array(32).fill(8));
 const session=():WalletConnectSession=>({topic:"synthetic-devnet-session",expiry:Math.floor(Date.now()/1000)+3600,namespaces:{solana:{accounts:[`${WC_DEVNET_CHAIN}:${a.publicKey}`],methods:[...WC_METHODS]}}});
 function fixture(){
@@ -55,6 +55,19 @@ test("a method approved on another chain does not authorize Devnet signing", () 
     [mainnet]: { accounts: [`${mainnet}:${a.publicKey}`], methods: [...WC_METHODS] },
   };
   assert.throws(() => approvedWalletConnectAccount(current), { code: "WALLETCONNECT_SIGNING_REQUIRED" });
+});
+test("pairing diagnostics preserve the failure stage and safe code without exposing relay details", () => {
+  const privateDetail = "test-private-pairing-uri";
+  const network = walletConnectPairingFailure("APPROVAL", { code: 5100, message: privateDetail });
+  assert.equal(network.code, "WC-APPROVAL-5100");
+  assert.match(network.message, /rejected the requested Solana Devnet network/);
+  assert.ok(!network.message.includes(privateDetail));
+  const methods = walletConnectPairingFailure("APPROVAL", new Error(`Unsupported methods. ${privateDetail}`));
+  assert.equal(methods.code, "WC-APPROVAL-5101");
+  assert.ok(!methods.message.includes(privateDetail));
+  const unknown = walletConnectPairingFailure("RESET", new Error(privateDetail));
+  assert.equal(unknown.code, "WC-RESET");
+  assert.ok(!unknown.message.includes(privateDetail));
 });
 test("requests use the approved Devnet alias and invalidate an alias change during approval", async () => {
   const legacyChain = WC_DEVNET_CHAINS[1];
