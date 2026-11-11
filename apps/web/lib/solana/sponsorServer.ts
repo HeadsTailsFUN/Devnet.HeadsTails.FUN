@@ -77,7 +77,7 @@ export async function globalDailySpentLamports(db: SupabaseClient | null): Promi
   return (await sponsorExpenseTotals(db, null)).global;
 }
 
-export function globalDailyCapLamports(): number {
+export function globalDailyCapLamports(): null {
   return getGlobalDailyCapLamports();
 }
 

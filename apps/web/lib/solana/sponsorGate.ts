@@ -12,9 +12,9 @@ export const SPONSOR_OPERATIONAL_TARGET_LAMPORTS = 20_000_000; // 0.02 SOL safe 
 export const SPONSOR_MIN_OPERATIONAL_LAMPORTS = SPONSOR_OPERATIONAL_TARGET_LAMPORTS;
 export const SPONSOR_MAX_PREFUND_LAMPORTS = 20_000_000; // 0.02 SOL max per pre-fund (zero -> target in one go)
 export const SPONSOR_MAX_REIMBURSE_PER_ACTION_LAMPORTS = 50_000_000; // 0.05 SOL cap/action
-export const SPONSOR_DAILY_CAP_LAMPORTS = 500_000_000; // 0.5 SOL / wallet / day
-/** Global daily outflow safety cap (all wallets). Configurable server-side. */
-export const SPONSOR_GLOBAL_DAILY_CAP_DEFAULT_LAMPORTS = 2_000_000_000; // 2 SOL/day default
+export const SPONSOR_DAILY_CAP_LAMPORTS = null; // Owner-approved Devnet: no daily wallet cap
+/** Null means unlimited daily usage, not an unlimited individual transfer. */
+export const SPONSOR_GLOBAL_DAILY_CAP_DEFAULT_LAMPORTS = null;
 export const SPONSOR_ALLOWED_ACTIONS = [
   "join",
   "cancel",
@@ -123,13 +123,7 @@ export function estimateActionCostLamports(
   return { fee, rent, buffer, total: fee + rent + buffer };
 }
 
-/** Global daily outflow cap (server-configurable). */
-export function getGlobalDailyCapLamports(): number {
-  const raw = process.env.DEVNET_SOL_SPONSOR_GLOBAL_DAILY_CAP_LAMPORTS;
-  if (raw !== undefined) {
-    const n = Number(raw);
-    if (Number.isSafeInteger(n) && n > 0) return n;
-    throw new Error("Invalid Devnet sponsor daily cap");
-  }
+/** Daily SOL quotas are disabled for the approved Devnet beta. Old cap envs are obsolete. */
+export function getGlobalDailyCapLamports(): null {
   return SPONSOR_GLOBAL_DAILY_CAP_DEFAULT_LAMPORTS;
 }

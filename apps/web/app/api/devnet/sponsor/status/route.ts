@@ -42,7 +42,7 @@ export async function GET(req: Request): Promise<NextResponse> {
   }
   let walletBalance: number | null = null;
   let totals: { wallet: number; global: number };
-  let globalCap: number;
+  let globalCap: null;
   try {
     totals = await sponsorExpenseTotals(getSupabaseAdmin(), walletStr);
     globalCap = globalDailyCapLamports();
@@ -66,6 +66,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     needsPrefund: walletBalance !== null ? walletBalance < SPONSOR_OPERATIONAL_TARGET_LAMPORTS : null,
     operationalTargetLamports: SPONSOR_OPERATIONAL_TARGET_LAMPORTS,
     dailyCapLamports: SPONSOR_DAILY_CAP_LAMPORTS,
+    dailyCapsEnabled: false,
     dailyUsedLamports: totals.wallet,
     globalDailyCapLamports: globalCap,
     globalDailyUsedLamports: totals.global,

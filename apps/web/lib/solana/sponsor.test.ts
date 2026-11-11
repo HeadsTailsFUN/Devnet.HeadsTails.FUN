@@ -144,11 +144,11 @@ describe("devnet SOL sponsor gates", () => {
     assertSponsorSafeOrThrow({ cluster: "devnet", sponsorEnabled: true, mainnetRealValue: false });
   });
 
-  it("caps are bounded (abuse controls)", () => {
+  it("per-operation amounts remain bounded without a daily wallet cap", () => {
     assert.equal(SPONSOR_OPERATIONAL_TARGET_LAMPORTS, 20_000_000);
     assert.ok(SPONSOR_MAX_PREFUND_LAMPORTS <= 20_000_000);
     assert.ok(SPONSOR_MAX_REIMBURSE_PER_ACTION_LAMPORTS <= 50_000_000);
-    assert.ok(SPONSOR_DAILY_CAP_LAMPORTS <= 1_000_000_000);
+    assert.equal(SPONSOR_DAILY_CAP_LAMPORTS, null);
   });
 });
 
@@ -461,13 +461,13 @@ describe("hardened reimbursement verification", () => {
     assert.equal(v.eligibleLamports, 5000);
   });
 
-  it("15. global daily cap works (default + env override)", () => {
+  it("15. no global daily cap, including obsolete cap environment values", () => {
     const def = getGlobalDailyCapLamports();
-    assert.ok(def > 0);
+    assert.equal(def, null);
     const prev = process.env.DEVNET_SOL_SPONSOR_GLOBAL_DAILY_CAP_LAMPORTS;
     try {
       process.env.DEVNET_SOL_SPONSOR_GLOBAL_DAILY_CAP_LAMPORTS = "123456";
-      assert.equal(getGlobalDailyCapLamports(), 123456);
+      assert.equal(getGlobalDailyCapLamports(), null);
     } finally {
       if (prev === undefined) delete process.env.DEVNET_SOL_SPONSOR_GLOBAL_DAILY_CAP_LAMPORTS;
       else process.env.DEVNET_SOL_SPONSOR_GLOBAL_DAILY_CAP_LAMPORTS = prev;

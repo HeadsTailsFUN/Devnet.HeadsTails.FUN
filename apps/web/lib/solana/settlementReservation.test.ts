@@ -41,3 +41,15 @@ test('inactive-head advancement reserves only its fee and still rejects extra de
   await assert.rejects(sendJournaledTransaction({...expensive, transaction:expensive.transaction(), operationKey:'advance:bad', wallet:expensive.signer.publicKey.toBase58(), kind:'advance'}), /preflight or cost/);
   assert(!expensive.sent());
 });
+
+
+test('daily quotas are absent while per-operation reservations remain bounded', async () => {
+  const h = harness();
+  await sendJournaledTransaction({ ...h, transaction: h.transaction(), operationKey: 'advance:uncapped',
+    wallet: h.signer.publicKey.toBase58(), kind: 'advance' });
+  const reservation = h.calls.find(call => call.method === 'reserve_devnet_expense')!.args;
+  assert.equal(reservation.p_wallet_cap, null);
+  assert.equal(reservation.p_global_cap, null);
+  assert.equal(reservation.p_drain_reserve, 0);
+  assert.equal(reservation.p_lamports, 5000);
+});

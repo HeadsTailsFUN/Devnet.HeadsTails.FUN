@@ -149,7 +149,7 @@ export async function sendJournaledTransaction(args: {
   // daily allowance even when the actual 0.000005 SOL fee fits comfortably.
   // The signed simulation below still rejects any debit exceeding this hold.
   let reserve = kind === "advance" ? quoted.value : kind === "settle" ? quoted.value + settlementRent : args.transferLamports === undefined
-    ? Math.min(OPERATION_RESERVATION_LAMPORTS, globalCap, SPONSOR_DAILY_CAP_LAMPORTS)
+    ? OPERATION_RESERVATION_LAMPORTS
     : args.transferLamports + quoted.value;
   if (!Number.isSafeInteger(reserve) || reserve < quoted.value) throw new Error("Invalid operation amount");
   const reserveExpense = (lamports: number) => kind === "faucet" ? rpc(db, "reserve_hts_welcome", {
@@ -159,7 +159,7 @@ export async function sendJournaledTransaction(args: {
     p_operation_key: args.operationKey, p_wallet: args.wallet, p_kind: kind,
     p_lamports: lamports, p_wallet_cap: SPONSOR_DAILY_CAP_LAMPORTS,
     p_global_cap: globalCap,
-    p_drain_reserve: kind === "settle" ? 0 : Math.min(SETTLEMENT_RESERVE_LAMPORTS, globalCap),
+    p_drain_reserve: 0, // No daily quota; signed per-operation cost checks remain.
   });
   let admitted = await reserveExpense(reserve);
   if (kind === "match" && args.transferLamports === undefined && budgetDenied(admitted?.status)) {
