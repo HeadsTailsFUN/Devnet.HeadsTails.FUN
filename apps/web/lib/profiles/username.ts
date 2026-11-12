@@ -1,7 +1,6 @@
 export const USERNAME_MIN = 3;
 export const USERNAME_MAX = 18;
-// Temporarily disabled at the owner's request; retain the 24h rule for reactivation.
-export const USERNAME_COOLDOWN_ENABLED = false;
+export const USERNAME_COOLDOWN_ENABLED = true;
 export const USERNAME_RE = /^[A-Za-z0-9_]+$/;
 
 const RESERVED = new Set([
