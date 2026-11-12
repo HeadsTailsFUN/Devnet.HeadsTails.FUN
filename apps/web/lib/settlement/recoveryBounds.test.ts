@@ -26,7 +26,7 @@ globalThis.fetch = async (input, init) => {
     return Response.json(indexed ? [...byAddress.values()].map(id => ({ onchain_match_id: String(id) })) : []);
   }
   if (url.pathname.endsWith("/devnet_expenses")) return Response.json(null);
-  if (url.pathname.endsWith("/settlement_jobs")) return Response.json(url.searchParams.get("match_id") ? null : oldJob ? [{match_id: "3"}] : []);
+  if (url.pathname.endsWith("/settlement_jobs")) return Response.json(url.searchParams.get("match_id") ? null : oldJob ? [{match_id: String(oldJobId)}] : []);
   throw Error("Unexpected table");
 };
 let program: import("@solana/web3.js").PublicKey;
@@ -75,6 +75,7 @@ function settledMatch(id: number) {
 let indexed = false;
 let matchReads = 0;
 let oldJob = false;
+let oldJobId = 3;
 const readIds: Array<number | undefined> = [];
 
 test("settled and missing-history matches count against the per-run scan limit", async () => {
@@ -111,4 +112,17 @@ test("old durable jobs outside the lookback get a slot before new scans without 
   assert.deepEqual(result.historyPending, ["3", "99", "98"]);
   assert.equal(result.settlementsSubmitted, 0);
   assert.deepEqual(result.errors, []);
+});
+
+
+test("a durable job inside the recent window is not examined twice in one run", async () => {
+  oldJobId = 98;
+  indexed = false;
+  readIds.length = 0;
+  const {reconcileUnresolved} = await import("./settle");
+  const result = await reconcileUnresolved({lookback: 50, limit: 3});
+  assert.equal(result.checked, 3);
+  assert.deepEqual(readIds, [98, 99, 97]);
+  assert.deepEqual(result.historyPending, ["98", "99", "97"]);
+  assert.equal(result.settlementsSubmitted, 0);
 });

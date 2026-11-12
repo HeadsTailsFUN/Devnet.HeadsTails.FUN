@@ -591,7 +591,7 @@ export async function reconcileUnresolved(args?: {
   for (let id = total - BigInt(1); id >= start; id--) {
     // Previously verified history does not need another account RPC scan.
     // Durable jobs are reconciled independently above.
-    if (indexed.has(id.toString())) continue;
+    if (indexed.has(id.toString()) || examined.has(id.toString())) continue;
     if (processed >= limit || Date.now() >= deadline) { out.deferred = true; break; }
     processed++;
     examined.add(id.toString());
