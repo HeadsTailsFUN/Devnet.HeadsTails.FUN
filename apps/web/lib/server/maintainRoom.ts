@@ -1,5 +1,5 @@
 import { configPda, matchPda, playerPda, roomQueuePda } from "@/lib/solana/activeGame";
-import { ExpenseBudgetError, reconcileServiceReceipts, sendJournaledTransaction } from "@/lib/solana/expenseJournal";
+import { reconcileServiceReceipts, sendJournaledTransaction } from "@/lib/solana/expenseJournal";
 import { Connection, Keypair, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import type { Wallet } from "@coral-xyz/anchor";
@@ -24,6 +24,7 @@ import {
   releaseCrankLock,
   tryAcquireCrankLock,
 } from "@/lib/solana/matchCrank";
+import { maintenanceDeferral, type MaintenanceDeferral } from "./maintenanceOutcome";
 import { EXPECTED_SPONSOR_PUBKEY } from "@/lib/solana/sponsorGate";
 import { getServerConnection, getSupabaseAdmin, loadSponsorKeypair, sponsorGateCheck } from "@/lib/solana/sponsorServer";
 
@@ -44,7 +45,7 @@ export interface MaintainResult {
   advanced: Array<{ side: string; sequence: string; signature: string }>;
   matched: Array<{ matchId: string; signature: string }>;
   pending: boolean;
-  deferred?: "BUDGET_LIMIT";
+  deferred?: MaintenanceDeferral;
   invariants: string[];
   notes: string[];
 }
@@ -171,8 +172,10 @@ export async function maintainRoom(tierUsd: number): Promise<MaintainResult> {
             log(tierUsd, `advanced ${action.reason}`, { side: sideName, seq: head.toString(), sig });
             continue;
           } catch (e) {
-            if (e instanceof ExpenseBudgetError) {
-              out.deferred = "BUDGET_LIMIT";
+            const deferred = maintenanceDeferral(e);
+            if (deferred) {
+              out.pending = true;
+              out.deferred = deferred;
               return out;
             }
             const msg = e instanceof Error ? e.message : String(e);
@@ -310,8 +313,10 @@ export async function maintainRoom(tierUsd: number): Promise<MaintainResult> {
         try {
           sig = await sendSponsorTx(connection, sponsorKp, tx, `match:${freshCfg.totalMatches}`, "match");
         } catch (e) {
-          if (e instanceof ExpenseBudgetError) {
-            out.deferred = "BUDGET_LIMIT";
+          const deferred = maintenanceDeferral(e);
+          if (deferred) {
+            out.pending = true;
+            out.deferred = deferred;
             return out;
           }
           const msg = e instanceof Error ? e.message : String(e);
@@ -344,6 +349,12 @@ export async function maintainRoom(tierUsd: number): Promise<MaintainResult> {
         releaseCrankLock(matchLock);
       }
     }
+    return out;
+  } catch (error) {
+    const deferred = maintenanceDeferral(error);
+    if (!deferred) throw error;
+    out.pending = true;
+    out.deferred = deferred;
     return out;
   } finally {
     releaseCrankLock(lockKey);

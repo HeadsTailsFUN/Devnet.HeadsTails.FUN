@@ -13,6 +13,7 @@ globalThis.fetch = async (input, init) => {
     else if (body.method === "getAccountInfo") result = { context: { slot: 1 }, value: account(config) };
     else if (body.method === "getMultipleAccounts") {
       matchReads++;
+      readIds.push(body.params[0].map((address: string) => byAddress.get(address)).find((id: number | undefined) => id !== undefined));
       result = { context: { slot: 1 }, value: body.params[0].map((address: string) =>
         byAddress.has(address) ? settledMatch(byAddress.get(address)!) : null) };
     } else if (body.method === "getSignaturesForAddress") result = [];
@@ -25,14 +26,16 @@ globalThis.fetch = async (input, init) => {
     return Response.json(indexed ? [...byAddress.values()].map(id => ({ onchain_match_id: String(id) })) : []);
   }
   if (url.pathname.endsWith("/devnet_expenses")) return Response.json(null);
-  if (url.pathname.endsWith("/settlement_jobs")) return Response.json(url.searchParams.get("match_id") ? null : []);
+  if (url.pathname.endsWith("/settlement_jobs")) return Response.json(url.searchParams.get("match_id") ? null : oldJob ? [{match_id: "3"}] : []);
   throw Error("Unexpected table");
 };
 let program: import("@solana/web3.js").PublicKey;
 let config: Buffer;
 const byAddress = new Map<string, number>();
 before(async () => {
-  const { PublicKey } = await import("@solana/web3.js");
+  const { PublicKey, Keypair } = await import("@solana/web3.js");
+  const {default: bs58} = await import("bs58");
+  const signer = Keypair.fromSeed(new Uint8Array(32).fill(19));
   const { matchPda } = await import("@heads-or-tails/game-sdk");
   program = new PublicKey("AFVnPWFoYMG1tdmRFUttmf8kf6gpi24LVkYzNmUSni7k");
   const mint = new PublicKey("DZZ2sjGBEvirhDagPL7Nb28gQ3BDCZTjmnRwWxizSvNy");
@@ -44,12 +47,15 @@ before(async () => {
     SUPABASE_SERVICE_ROLE_KEY: "synthetic-test-only",
     SOLANA_SERVER_RPC_URL: "https://recovery-rpc.invalid",
     MAINNET_REAL_VALUE_ENABLED: "false",
+    NEXT_PUBLIC_DEVNET_SERVICE_SIGNER: signer.publicKey.toBase58(),
+    DEVNET_SOL_SPONSOR_SECRET_KEY: bs58.encode(signer.secretKey),
 });
 config = Buffer.alloc(117);
 createHash("sha256").update("account:GameConfig").digest().copy(config, 0, 0, 8);
 mint.toBuffer().copy(config, 40);
 config.writeBigUInt64LE(BigInt(100), 106);
 
+byAddress.set(matchPda(program, BigInt(3), "hts")[0].toBase58(), 3);
 for (let id = 50; id < 100; id++) byAddress.set(matchPda(program, BigInt(id), "hts")[0].toBase58(), id);
 });
 function account(data: Buffer) {
@@ -68,6 +74,8 @@ function settledMatch(id: number) {
 }
 let indexed = false;
 let matchReads = 0;
+let oldJob = false;
+const readIds: Array<number | undefined> = [];
 
 test("settled and missing-history matches count against the per-run scan limit", async () => {
   const { reconcileUnresolved } = await import("./settle");
@@ -75,7 +83,8 @@ test("settled and missing-history matches count against the per-run scan limit",
   assert.equal(result.checked, 2);
   assert.equal(matchReads, 2);
   assert.equal(result.deferred, true);
-  assert.equal(result.errors.length, 2);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.historyPending.length, 2);
   assert.equal(result.settlementsSubmitted, 0);
 });
 test("an indexed 50-match window needs no repeated match-account scans", async () => {
@@ -87,4 +96,19 @@ test("an indexed 50-match window needs no repeated match-account scans", async (
   assert.equal(matchReads, 0);
   assert.deepEqual(result.errors, []);
   assert.equal(result.settlementsSubmitted, 0);
+});
+
+
+test("old durable jobs outside the lookback get a slot before new scans without exceeding the run limit", async () => {
+  oldJob = true;
+  indexed = false;
+  matchReads = 0;
+  readIds.length = 0;
+  const {reconcileUnresolved} = await import("./settle");
+  const result = await reconcileUnresolved({lookback: 50, limit: 3});
+  assert.equal(result.checked, 3);
+  assert.deepEqual(readIds, [3, 99, 98]);
+  assert.deepEqual(result.historyPending, ["3", "99", "98"]);
+  assert.equal(result.settlementsSubmitted, 0);
+  assert.deepEqual(result.errors, []);
 });
