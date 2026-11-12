@@ -51,15 +51,16 @@ export async function GET(req: Request): Promise<NextResponse> {
   if (!await cronAuthorized(req)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
+  // Recover existing obligations before new matchmaking consumes the invocation budget.
+  const settle = await reconcileUnresolved({ lookback: 50, limit: 3, budgetMs: 15_000 }).catch((e) => ({
+    error: e instanceof Error ? e.message.slice(0, 160) : String(e).slice(0, 160),
+  }));
   const r1 = await maintainRoom(1).catch((e) => ({
     tierUsd: 1,
     error: e instanceof Error ? e.message.slice(0, 160) : String(e).slice(0, 160),
   }));
   const r10 = await maintainRoom(10).catch((e) => ({
     tierUsd: 10,
-    error: e instanceof Error ? e.message.slice(0, 160) : String(e).slice(0, 160),
-  }));
-  const settle = await reconcileUnresolved({ lookback: 50, limit: 3, budgetMs: 15_000 }).catch((e) => ({
     error: e instanceof Error ? e.message.slice(0, 160) : String(e).slice(0, 160),
   }));
   // Bounded reward backfill: idempotent reprocessing of indexed settled

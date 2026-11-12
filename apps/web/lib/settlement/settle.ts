@@ -461,6 +461,8 @@ export interface ReconcileResult {
   settlementsSubmitted: number;
   /** Scanned matches already settled with no job row (no row created). */
   alreadySettled: number;
+  /** Verified on-chain settlements whose history metadata needs another attempt. */
+  historyPending: string[];
   /** Work remains for the next scheduled invocation. */
   deferred?: boolean;
 }
@@ -496,6 +498,7 @@ export async function reconcileUnresolved(args?: {
     jobsTransitioned: [],
     settlementsSubmitted: 0,
     alreadySettled: 0,
+    historyPending: [],
   };
   const { connection } = getServerConnection();
   if (!connection) {
@@ -532,9 +535,62 @@ export async function reconcileUnresolved(args?: {
   }
   let processed = 0;
   const examined = new Set<string>();
+  // Give oldest durable work priority while leaving one scan slot for new matches.
+  // HT-QA-003: drain the DURABLE queue independently of the shallow
+  // recent-chain lookback. Old queued jobs outside the signature window
+  // must still be processed from settlement_jobs — the lookback below only
+  // covers the last N matches. Chain stays authoritative; ensureSettlement
+  // is idempotent (already-settled marks settled, never resettles).
+  try {
+    const db = getSupabaseAdmin();
+    if (db) {
+      const { data: jobs } = await db
+        .from("settlement_jobs")
+        .select("match_id")
+        .in("status", ["queued", "pending", "failed", "in-progress"])
+        .lte("next_attempt_at", new Date().toISOString())
+        .order("next_attempt_at", { ascending: true })
+        .limit(Math.max(1, limit - 1));
+      const seen = examined;
+      for (const j of (jobs ?? []) as Array<{ match_id: string }>) {
+        const mid = String(j.match_id);
+        if (parseMatchId(mid) === null) {
+          await updateExistingJob(mid, { status: "failed", last_error: "invalid match id", next_attempt_at: null });
+          continue;
+        }
+        if (seen.has(mid)) continue;
+        if (processed >= limit || Date.now() >= deadline) { out.deferred = true; break; }
+        processed++;
+        seen.add(mid);
+        out.checked += 1;
+        try {
+          const r = await ensureSettlement(mid);
+          if (r.status === "settled") {
+            if (!out.settled.includes(mid)) out.settled.push(mid);
+            out.settlementsSubmitted += 1;
+          } else if (r.status === "already-settled") {
+            if (r.historyPending) out.historyPending.push(mid);
+            if (r.transitioned) {
+              out.jobsTransitionedToSettled += 1;
+              out.jobsTransitioned.push(mid);
+            } else {
+              out.alreadySettled += 1;
+            }
+          } else if (r.status === "pending") {
+            if (!out.pending.includes(mid)) out.pending.push(mid);
+          }
+        } catch (e) {
+          out.errors.push(`job ${mid}: ${(e instanceof Error ? e.message : String(e)).slice(0, 80)}`);
+        }
+        await new Promise((res) => setTimeout(res, 600));
+      }
+    }
+  } catch (e) {
+    out.errors.push(`durable queue drain: ${(e instanceof Error ? e.message : String(e)).slice(0, 80)}`);
+  }
   for (let id = total - BigInt(1); id >= start; id--) {
     // Previously verified history does not need another account RPC scan.
-    // Durable jobs are reconciled independently below.
+    // Durable jobs are reconciled independently above.
     if (indexed.has(id.toString())) continue;
     if (processed >= limit || Date.now() >= deadline) { out.deferred = true; break; }
     processed++;
@@ -551,7 +607,7 @@ export async function reconcileUnresolved(args?: {
         // must NOT manufacture history — count it as alreadySettled and
         // continue without resettling (chain is authoritative).
         if (!await recoverHistory(connection, programId, id, mpda)) {
-          out.errors.push(`match ${id}: history retry pending`);
+          out.historyPending.push(id.toString());
           continue;
         }
         const moved = await updateExistingJob(id, { status: "settled" });
@@ -571,7 +627,7 @@ export async function reconcileUnresolved(args?: {
       } else if (r.status === "already-settled") {
         // Race: settled between our fetch and ensure's re-read. ensure
         // already updated an existing row (or found none — never created).
-        if (r.historyPending) out.errors.push(`match ${id}: history retry pending`);
+        if (r.historyPending) out.historyPending.push(id.toString());
         if (r.transitioned) {
           out.jobsTransitionedToSettled += 1;
           out.jobsTransitioned.push(id.toString());
@@ -587,57 +643,6 @@ export async function reconcileUnresolved(args?: {
     // Pace RPC reads; devnet throttles aggressively.
     await new Promise((res) => setTimeout(res, 600));
     if (id === BigInt(0)) break;
-  }
-  // HT-QA-003: drain the DURABLE queue independently of the shallow
-  // recent-chain lookback. Old queued jobs outside the signature window
-  // must still be processed from settlement_jobs — the lookback above only
-  // covers the last N matches. Chain stays authoritative; ensureSettlement
-  // is idempotent (already-settled marks settled, never resettles).
-  try {
-    const db = getSupabaseAdmin();
-    if (db) {
-      const { data: jobs } = await db
-        .from("settlement_jobs")
-        .select("match_id")
-        .in("status", ["queued", "pending", "failed", "in-progress"])
-        .lte("next_attempt_at", new Date().toISOString())
-        .order("next_attempt_at", { ascending: true })
-        .limit(limit);
-      const seen = examined;
-      for (const j of (jobs ?? []) as Array<{ match_id: string }>) {
-        const mid = String(j.match_id);
-        if (parseMatchId(mid) === null) {
-          await updateExistingJob(mid, { status: "failed", last_error: "invalid match id", next_attempt_at: null });
-          continue;
-        }
-        if (seen.has(mid)) continue;
-        if (Date.now() >= deadline) { out.deferred = true; break; }
-        seen.add(mid);
-        out.checked += 1;
-        try {
-          const r = await ensureSettlement(mid);
-          if (r.status === "settled") {
-            if (!out.settled.includes(mid)) out.settled.push(mid);
-            out.settlementsSubmitted += 1;
-          } else if (r.status === "already-settled") {
-            if (r.historyPending) out.errors.push(`job ${mid}: history retry pending`);
-            if (r.transitioned) {
-              out.jobsTransitionedToSettled += 1;
-              out.jobsTransitioned.push(mid);
-            } else {
-              out.alreadySettled += 1;
-            }
-          } else if (r.status === "pending") {
-            if (!out.pending.includes(mid)) out.pending.push(mid);
-          }
-        } catch (e) {
-          out.errors.push(`job ${mid}: ${(e instanceof Error ? e.message : String(e)).slice(0, 80)}`);
-        }
-        await new Promise((res) => setTimeout(res, 600));
-      }
-    }
-  } catch (e) {
-    out.errors.push(`durable queue drain: ${(e instanceof Error ? e.message : String(e)).slice(0, 80)}`);
   }
   return out;
 }

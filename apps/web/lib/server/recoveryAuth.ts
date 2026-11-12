@@ -18,10 +18,12 @@ export function recoveryHealth(body: { rooms: unknown[]; settle: unknown; reward
       const room = object(value);
       return { tierUsd: room.tierUsd === 1 || room.tierUsd === 10 ? room.tierUsd : 0,
         invariants: errors(room.invariants, "ROOM_INVARIANT"),
-        ...(room.deferred === "BUDGET_LIMIT" ? { deferred: "BUDGET_LIMIT" } : {}),
+        ...(["BUDGET_LIMIT", "CONFIRMATION_PENDING", "RPC_RETRY"].includes(String(room.deferred))
+          ? { deferred: room.deferred } : {}),
         ...("error" in room ? { error: "ROOM_MAINTENANCE_FAILED" } : {}) };
     }),
     settle: { errors: errors(settle.errors, "SETTLEMENT_RECOVERY_FAILED"),
+      ...(Array.isArray(settle.historyPending) ? { historyPending: settle.historyPending.length } : {}),
       ...("error" in settle ? { error: "SETTLEMENT_RECOVERY_FAILED" } : {}) },
     rewards: { failed: typeof rewards.failed === "number" ? rewards.failed : undefined,
       errors: errors(rewards.errors, "REWARD_RECOVERY_FAILED"),
