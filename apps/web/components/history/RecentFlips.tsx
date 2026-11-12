@@ -62,7 +62,7 @@ export function RecentFlipDetailsModal({
         role={presentation === "page" ? "region" : "dialog"}
         aria-modal={presentation === "modal" ? true : undefined}
         aria-label={`ROUND #${flip.matchId} details`}
-        className={presentation === "page" ? "glass relative min-w-0 rounded-3xl p-5 text-left text-xs" : "glass relative max-h-[85svh] w-full max-w-sm min-w-0 overflow-y-auto rounded-t-3xl p-5 text-left text-xs shadow-xl sm:rounded-3xl"}
+        className={presentation === "page" ? "glass relative min-w-0 rounded-3xl p-5 text-left text-xs" : "glass relative max-h-[85svh] w-full max-w-sm min-w-0 overflow-y-auto rounded-t-3xl p-5 text-left text-xs shadow-xl sm:max-w-xl sm:rounded-3xl"}
       >
         <p className="font-display text-[15px] font-bold text-white">
           ROUND #{flip.matchId}

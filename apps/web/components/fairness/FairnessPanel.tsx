@@ -20,8 +20,8 @@ export function FairnessPanel({matchId,standalone=false}:{matchId?:string;standa
     <aside aria-label="How to read the binary result" className="my-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
       <p className="mb-3 font-semibold text-white">Check the last binary digit:</p>
       <div className="grid gap-2 font-display text-xl font-bold sm:grid-cols-2 sm:text-2xl">
-        <p className="text-[var(--tails)]">1 → TAILS wins</p>
-        <p className="text-[var(--heads)]">0 → HEADS wins</p>
+        <p className="text-[var(--tails)] sm:whitespace-nowrap">1 → TAILS wins</p>
+        <p className="text-[var(--heads)] sm:whitespace-nowrap">0 → HEADS wins</p>
       </div>
     </aside>
     {report&&<div aria-live="polite"><p className={`mt-3 font-bold ${report.status==="VERIFIED"?"text-[var(--heads)]":report.status==="NOT VERIFIED"?"text-[var(--tails)]":"text-orange-300"}`}>{report.status}</p><p className="my-2">{report.reason}</p>
