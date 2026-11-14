@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSessionWallet } from "@/lib/auth/session";
 import { getSupabaseAdmin } from "@/lib/solana/sponsorServer";
+import { pointsDetails, readPointsLedger } from "@/lib/airdrop/earn";
+import { campaignPostUrl } from "@/lib/airdrop/campaign";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,12 +18,12 @@ export async function GET(req: Request): Promise<NextResponse> {
   const seasonRow = season as { id?: string; key?: string; team_points_start_at?: string | null } | null;
   if (!seasonRow?.id) return NextResponse.json({ error: "no active season" }, { status: 503 });
 
-  const { data, error: ledgerError } = await db
-    .from("airdrop_points_ledger")
-    .select("category,points,status")
-    .eq("season_id", seasonRow.id)
-    .eq("wallet", wallet);
-  if (ledgerError) return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  let rows;
+  try {
+    rows = await readPointsLedger(db, seasonRow.id, wallet);
+  } catch {
+    return NextResponse.json({ error: "unavailable" }, { status: 503 });
+  }
   let teamPoints = 0;
   if (seasonRow.team_points_start_at) {
     const { data: points, error } = await db.rpc("devnet_community_team_points", {
@@ -30,7 +32,6 @@ export async function GET(req: Request): Promise<NextResponse> {
     if (error) return NextResponse.json({ error: "unavailable" }, { status: 503 });
     teamPoints = Number(points?.[wallet] ?? 0);
   }
-  const rows = ((data ?? []) as Array<{ category: string; points: number; status: string }>);
   const verified = rows.filter((r) => r.status === "verified");
   const pending = rows.filter((r) => r.status === "pending");
   const byCategory = (list: typeof rows) => {
@@ -51,19 +52,21 @@ export async function GET(req: Request): Promise<NextResponse> {
     replyStatus: string | null;
     repostStatus: string | null;
   } = { handle: null, handleStatus: null, connectStatus: null, replyUrl: null, replyStatus: null, repostStatus: null };
+  let socialAvailable = true;
   try {
-    const { data: ident } = await db
+    const { data: ident, error: identityError } = await db
       .from("airdrop_x_identities")
       .select("x_handle,status")
       .eq("season_id", seasonRow.id)
       .eq("wallet", wallet)
       .maybeSingle();
     const idRow = ident as { x_handle?: string; status?: string } | null;
-    const { data: claims } = await db
+    const { data: claims, error: claimsError } = await db
       .from("airdrop_social_claims")
       .select("task_type,status,evidence_url")
       .eq("season_id", seasonRow.id)
       .eq("wallet", wallet);
+    if (identityError || claimsError) throw new Error("Social state unavailable");
     const byTask: Record<string, { status: string; evidence_url: string | null }> = {};
     for (const c of ((claims ?? []) as Array<{ task_type: string; status: string; evidence_url: string | null }>)) {
       byTask[c.task_type] = { status: c.status, evidence_url: c.evidence_url };
@@ -77,14 +80,18 @@ export async function GET(req: Request): Promise<NextResponse> {
       repostStatus: byTask.repost?.status ?? null,
     };
   } catch {
-    // social block is best-effort; point totals above still return
+    socialAvailable = false;
   }
   return NextResponse.json({
+    wallet,
     season: seasonRow.key,
     verifiedTotal: verified.reduce((s, r) => s + Number(r.points ?? 0), teamPoints),
     pendingTotal: pending.reduce((s, r) => s + Number(r.points ?? 0), 0),
     verified: { ...byCategory(verified), community_team: teamPoints },
     pending: byCategory(pending),
     social,
-  });
+    socialAvailable,
+    campaignUrl: campaignPostUrl(),
+    ...pointsDetails(rows),
+  }, { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
 }

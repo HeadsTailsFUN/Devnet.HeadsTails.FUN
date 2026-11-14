@@ -91,6 +91,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     // progress is best-effort; core stats above still return
   }
   return NextResponse.json({
+    wallet,
     code,
     link: origin ? `${origin}/?ref=${code}` : `/?ref=${code}`,
     totalInvites: rows.length,
@@ -99,5 +100,5 @@ export async function GET(req: Request): Promise<NextResponse> {
     referralPoints: points,
     season: seasonRow?.key ?? null,
     myReferral,
-  });
+  }, { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
 }

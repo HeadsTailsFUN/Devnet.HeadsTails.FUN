@@ -10,6 +10,9 @@ import { BUG_SEVERITIES } from "@/lib/bugs/validate";
 import { campaignPostUrl } from "@/lib/airdrop/campaign";
 import { TeamPreference, type Team } from "./TeamPreference";
 import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
+import Link from "next/link";
+import { useRewardResource as useAuthedFetch } from "@/lib/airdrop/useRewardResource";
+import { EarnIcon } from "@/components/earn/EarnPointsLink";
 
 type Tab = "profile" | "referrals" | "airdrop" | "bug";
 
@@ -357,6 +360,7 @@ export function ProfileModal({
                 </p>
               )}
 
+              <Link href="/earn-points" className="earn-profile-link"><EarnIcon />Earn Points<span aria-hidden="true">↗</span></Link>
               <button
                 type="button"
                 onClick={onLogout}
@@ -370,7 +374,10 @@ export function ProfileModal({
             <ReferralsTab wallet={wallet} account={account} />
           )}
           {tab === "airdrop" && (
-            <AirdropTab wallet={wallet} account={account} />
+            <>
+              <Link href="/earn-points" className="earn-profile-link"><EarnIcon />Open Earn Points<span aria-hidden="true">↗</span></Link>
+              <AirdropTab wallet={wallet} account={account} />
+            </>
           )}
           {tab === "bug" && <BugTab wallet={wallet} account={account} />}
         </div>
@@ -388,49 +395,7 @@ export function ProfileModal({
   );
 }
 
-function useAuthedFetch<T>(
-  url: string | null,
-  wallet: Wallet | null,
-  account: WalletAccount | null,
-) {
-  const [data, setData] = useState<T | null>(null);
-  const [needsAuth, setNeedsAuth] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const load = async (withVerify = false) => {
-    if (!url) return;
-    setLoading(true);
-    setError(null);
-    try {
-      if (withVerify && wallet && account) {
-        await ensureSession(wallet, account);
-      }
-      const r = await fetch(url, { cache: "no-store" });
-      if (r.status === 401) {
-        setNeedsAuth(true);
-        return;
-      }
-      const b = (await r.json().catch(() => null)) as T | null;
-      if (!r.ok) {
-        setError("Could not load.");
-        return;
-      }
-      setData(b);
-      setNeedsAuth(false);
-    } catch {
-      setError("Could not load.");
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => {
-    void load(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url]);
-  return { data, needsAuth, loading, error, reload: load };
-}
-
-function ReferralsTab({
+export function ReferralsTab({
   wallet,
   account,
 }: {
@@ -472,6 +437,7 @@ function ReferralsTab({
     return (
       <p role="alert" className="text-[13px] text-[#ff9db1]">
         {error}
+        <button type="button" className="ml-3 underline" onClick={() => void reload()}>Try again</button>
       </p>
     );
   const link = data?.link ?? "";
@@ -487,22 +453,23 @@ function ReferralsTab({
           onClick={() => {
             if (!link) return;
             try {
-              void navigator.clipboard.writeText(link);
-              setCopied(true);
-              setTimeout(() => setCopied(false), 1500);
+              void navigator.clipboard.writeText(link).then(() => {
+                setCopied(true); setTimeout(() => setCopied(false), 1500);
+              }).catch(() => setCopied(false));
             } catch {
               // ignore
             }
           }}
           className="mt-2 inline-flex min-h-[40px] items-center rounded-2xl bg-white/10 px-4 text-[12.5px] font-bold text-white hover:bg-white/15"
         >
-          {copied ? "Copied ✓" : "Copy"}
+          {copied ? "Copied ✓" : "Copy Link"}
         </button>
       </div>
-      <dl className="grid grid-cols-3 gap-2 text-center">
+      <dl className="grid grid-cols-2 gap-2 text-center">
         {[
           ["Invites", String(data?.totalInvites ?? 0)],
           ["Qualified", String(data?.qualified ?? 0)],
+          ["Pending", String(data?.pendingInvites ?? 0)],
           ["Points", String(data?.referralPoints ?? 0)],
         ].map(([k, v]) => (
           <div
@@ -541,13 +508,15 @@ function ReferralsTab({
 function StatusPill({ status }: { status: string | null }) {
   const s = (status ?? "").toLowerCase();
   const label =
-    s === "verified" ? "Verified" : s === "rejected" ? "Rejected" : "Pending";
+    s === "verified" ? "Verified" : s === "rejected" ? "Rejected" : s === "available" ? "Available" : s === "unavailable" ? "Unavailable" : "Pending Verification";
   const cls =
     s === "verified"
       ? "border-emerald-300/30 bg-emerald-400/10 text-emerald-200"
       : s === "rejected"
         ? "border-red-400/30 bg-red-500/10 text-red-200"
-        : "border-amber-300/30 bg-amber-300/10 text-amber-200";
+        : s === "available" || s === "unavailable"
+          ? "border-white/15 bg-white/5 text-white/60"
+          : "border-amber-300/30 bg-amber-300/10 text-amber-200";
   return (
     <span
       className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-bold tracking-wide ${cls}`}
@@ -557,14 +526,20 @@ function StatusPill({ status }: { status: string | null }) {
   );
 }
 
-function AirdropTab({
+export function AirdropTab({
   wallet,
   account,
+  questsOnly = false,
+  onChanged,
 }: {
   wallet: Wallet | null;
   account: WalletAccount | null;
+  questsOnly?: boolean;
+  onChanged?: () => void;
 }) {
   const { data, needsAuth, loading, error, reload } = useAuthedFetch<{
+    campaignUrl?: string | null;
+    socialAvailable?: boolean;
     season?: string;
     verifiedTotal?: number;
     pendingTotal?: number;
@@ -587,7 +562,7 @@ function AirdropTab({
   const [editHandle, setEditHandle] = useState("");
   const [editingReply, setEditingReply] = useState(false);
   const [editReplyUrl, setEditReplyUrl] = useState("");
-  const campaignUrl = campaignPostUrl();
+  const campaignUrl = data?.campaignUrl !== undefined ? data.campaignUrl : campaignPostUrl();
   const social = data?.social ?? null;
   const claim = async (task: "connect_x" | "repost" | "reply") => {
     setClaimNote(null);
@@ -606,7 +581,7 @@ function AirdropTab({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           task,
-          handle,
+          handle: social?.handle ?? handle,
           evidenceUrl: task === "reply" ? replyUrl : undefined,
         }),
       });
@@ -625,7 +600,10 @@ function AirdropTab({
       );
       if (task === "connect_x") setHandle("");
       if (task === "reply") setReplyUrl("");
-      void reload(false);
+      await reload(false);
+      onChanged?.();
+    } catch {
+      setClaimNote("Could not save. Please try again.");
     } finally {
       setClaiming(false);
     }
@@ -667,7 +645,10 @@ function AirdropTab({
       );
       if (task === "connect_x") setEditingX(false);
       else setEditingReply(false);
-      void reload(false);
+      await reload(false);
+      onChanged?.();
+    } catch {
+      setClaimNote("Could not save. Please try again.");
     } finally {
       setClaiming(false);
     }
@@ -693,10 +674,12 @@ function AirdropTab({
     return (
       <p role="alert" className="text-[13px] text-[#ff9db1]">
         {error}
+        <button type="button" className="ml-3 underline" onClick={() => void reload()}>Try again</button>
       </p>
     );
   return (
     <div className="flex flex-col gap-3">
+      {!questsOnly && <>
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center">
         <p className="mt-1 text-[26px] font-bold text-white">
           {data?.verifiedTotal ?? 0}
@@ -733,6 +716,7 @@ function AirdropTab({
       <p className="text-[11px] leading-relaxed text-white/40">
         Social activity is re-checked before rewards are finalized.
       </p>
+      </>}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <p className="text-[12px] font-bold text-white">X tasks</p>
         <p className="mt-1 text-[11px] text-white/50">
@@ -758,9 +742,14 @@ function AirdropTab({
             </a>
           </p>
         )}
+        <fieldset disabled={data?.socialAvailable === false} className="min-w-0">
+        {data?.socialAvailable === false && <p role="alert" className="mt-3 text-sm text-amber-200">Quest verification is temporarily unavailable. Try refreshing.</p>}
+        <section className={questsOnly ? "earn-quest-card" : undefined} aria-label="Connect X account">
+        <p className="mt-2 text-xs text-white/50">Submit your X handle for verification. +100 Points after approval.</p>
+        {!social?.handle && <StatusPill status={data?.socialAvailable === false ? "unavailable" : "available"} />}
         {/* Row 1 — X account: persisted server-side, survives refresh. */}
         <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-white/50">
-          X account
+          <EarnIcon className="mr-1 inline h-4 w-4" />Connect X account · +100 Points
         </p>
         {social?.handle ? (
           editingX ? (
@@ -831,9 +820,13 @@ function AirdropTab({
             </button>
           </div>
         )}
+        </section>
+        <section className={questsOnly ? "earn-quest-card" : undefined} aria-label="Reply quest">
+        <p className="mt-2 text-xs text-white/50">Paste your reply URL. +50 Points after review.</p>
+        {!social?.replyUrl && <StatusPill status={data?.socialAvailable === false ? "unavailable" : "available"} />}
         {/* Row 2 — Reply: always submittable, admin-reviewed. */}
         <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-white/50">
-          Reply
+          <EarnIcon className="mr-1 inline h-4 w-4" />Reply to a campaign post · +50 Points
         </p>
         {social?.replyUrl ? (
           editingReply ? (
@@ -904,6 +897,10 @@ function AirdropTab({
             </button>
           </div>
         )}
+        </section>
+        <section className={questsOnly ? "earn-quest-card" : undefined} aria-label="Repost quest">
+        <div className="mt-4 border-t border-white/10 pt-3"><p className="text-sm font-bold">Repost campaign post · +75 Points</p><p className="mt-1 text-xs text-white/50">Submit for review after reposting the eligible campaign.</p></div>
+        {!campaignUrl && !social?.repostStatus && <p className="mt-2 text-xs text-white/50">Unavailable — no active campaign post is configured.</p>}
         {/* Repost appears only when a real campaign post is configured. */}
         {campaignUrl && !social?.repostStatus && (
           <div className="mt-3 flex gap-2">
@@ -917,7 +914,7 @@ function AirdropTab({
             </button>
           </div>
         )}
-        {campaignUrl && social?.repostStatus && (
+        {social?.repostStatus && (
           <div className="mt-3 flex items-center gap-2 rounded-2xl border border-white/10 bg-black/30 px-3 py-2">
             <span className="min-w-0 flex-1 truncate text-[12px] text-white/80">
               Repost claimed
@@ -925,6 +922,8 @@ function AirdropTab({
             <StatusPill status={social.repostStatus} />
           </div>
         )}
+        </section>
+        </fieldset>
         {claimNote && (
           <p role="status" className="mt-2 text-[12px] text-white/70">
             {claimNote}

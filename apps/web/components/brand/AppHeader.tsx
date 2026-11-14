@@ -1,3 +1,4 @@
+import { EarnPointsLink } from "@/components/earn/EarnPointsLink";
 import type { ReactNode } from "react";
 import { LogoLockup } from "@/components/brand/Logo";
 import { WalletButton } from "@/components/wallet/WalletButton";
@@ -40,7 +41,7 @@ export function AppHeader({
       <span className="flex items-center gap-2">
         <LogoLockup />
       </span>
-      <p className="hidden items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] lg:flex">
+      <p className="hidden items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] xl:flex">
         <span>Fair</span>
         <span aria-hidden="true" className="text-[10px]">
           •
@@ -62,7 +63,7 @@ export function AppHeader({
         </span>
         <nav
           aria-label="Social links"
-          className="mr-auto flex shrink-0 items-center gap-0.5 sm:mr-0 sm:gap-1"
+          className="header-social-links mr-auto hidden shrink-0 items-center gap-0.5 sm:mr-0 lg:flex lg:gap-1"
         >
           <a
             href={SOCIAL_LINKS.x}
@@ -101,6 +102,7 @@ export function AppHeader({
             <GitHubIcon className="h-4 w-4" />
           </a>
         </nav>
+        <EarnPointsLink />
         {addressLabel ? (
           <button
             type="button"
