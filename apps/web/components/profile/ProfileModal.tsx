@@ -10,9 +10,8 @@ import { BUG_SEVERITIES } from "@/lib/bugs/validate";
 import { campaignPostUrl } from "@/lib/airdrop/campaign";
 import { TeamPreference, type Team } from "./TeamPreference";
 import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
-import Link from "next/link";
 import { useRewardResource as useAuthedFetch } from "@/lib/airdrop/useRewardResource";
-import { EarnIcon } from "@/components/earn/EarnPointsLink";
+import { EarnIcon, EarnPointsLink } from "@/components/earn/EarnPointsLink";
 
 type Tab = "profile" | "referrals" | "airdrop" | "bug";
 
@@ -360,7 +359,7 @@ export function ProfileModal({
                 </p>
               )}
 
-              <Link href="/earn-points" className="earn-profile-link"><EarnIcon />Earn Points<span aria-hidden="true">↗</span></Link>
+              <EarnPointsLink className="earn-profile-link w-full" onOpen={onClose} />
               <button
                 type="button"
                 onClick={onLogout}
@@ -375,7 +374,7 @@ export function ProfileModal({
           )}
           {tab === "airdrop" && (
             <>
-              <Link href="/earn-points" className="earn-profile-link"><EarnIcon />Open Earn Points<span aria-hidden="true">↗</span></Link>
+              <EarnPointsLink className="earn-profile-link w-full" label="Open Earn Points" onOpen={onClose} />
               <AirdropTab wallet={wallet} account={account} />
             </>
           )}

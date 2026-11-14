@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { EarnPointsClient } from "@/components/earn/EarnPointsClient";
-import "./earn-points.css";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
   title: "Earn Points — HeadsTails.fun",
@@ -8,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function EarnPointsPage() {
-  return <EarnPointsClient />;
+  redirect("/?earn=1");
 }

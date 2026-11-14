@@ -18,7 +18,7 @@
     "test:mobile-controller": "node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit --test-name-pattern=real.controller components/game/LiveGameClient.selection.test.tsx",
     "test:fairness": "node --import tsx --test lib/fairness/verifier.test.ts lib/solana/settlementReservation.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/fairness/FairnessPanel.test.tsx components/history/RecentFlips.test.tsx",
     "test:walletconnect": "node --import tsx --test lib/solana/walletConnectBridge.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/wallet/WalletConnectProvider.test.tsx",
-    "test:earn": "node --import tsx --test lib/airdrop/earn.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/earn/EarnPoints.test.tsx"
+    "test:earn": "node --import tsx --test lib/airdrop/earn.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/earn/EarnPoints.test.tsx components/earn/EarnPointsModal.test.tsx"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1",

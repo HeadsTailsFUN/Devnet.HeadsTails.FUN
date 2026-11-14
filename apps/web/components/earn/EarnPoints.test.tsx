@@ -1,10 +1,10 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, useMemo } from "react";
-import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
 import type { Wallet } from "@wallet-standard/base";
 import { WalletStandardProvider, useWalletState } from "../wallet/WalletProvider";
-import { EarnPointsScreen } from "./EarnPointsClient";
+import { EarnPointsContent } from "./EarnPointsClient";
 import { useRewardResource } from "../../lib/airdrop/useRewardResource";
 
 const address = "11111111111111111111111111111111";
@@ -30,7 +30,7 @@ const originalFetch = globalThis.fetch;
 afterEach(() => { cleanup(); globalThis.fetch = originalFetch; window.localStorage.clear(); });
 function Harness() {
   const state = useWalletState();
-  return <><button onClick={() => void state.connect(wallet)}>Connect fixture</button><EarnPointsScreen /></>;
+  return <><button onClick={() => void state.connect(wallet)}>Connect fixture</button><EarnPointsContent onConnect={() => undefined} onPlay={() => undefined} /></>;
 }
 function mount() { return render(createElement(WalletStandardProvider, null, createElement(Harness))); }
 function installFetch(overrides: Record<string, () => Response | Promise<Response>> = {}) {
@@ -47,13 +47,10 @@ function installFetch(overrides: Record<string, () => Response | Promise<Respons
   return calls;
 }
 
-test("disconnected page has all earning instructions, wallet action and the original four mobile links without private reads", async () => {
+test("disconnected popup content has earning instructions and wallet actions without private reads", async () => {
   const calls = installFetch(); mount();
-  assert(screen.getByRole("heading", { name: "Earn Points", level: 1 }));
-  assert.equal(screen.getByRole("link", { name: "Earn Points", exact: true }).getAttribute("href"), "/earn-points");
-  assert(screen.getAllByRole("button", { name: "Connect Wallet", exact: true }).length >= 1);
-  const navigation = screen.getByRole("navigation", { name: "Mobile navigation" });
-  assert.deepEqual(within(navigation).getAllByRole("link").map(link => link.textContent), ["social", "play", "flips", "profile"]);
+  assert(screen.getByRole("button", { name: /Connect Wallet|Restoring wallet/ }));
+  assert.equal(screen.getAllByRole("tab").length, 3);
   fireEvent.click(screen.getByRole("tab", { name: "QUESTS" }));
   assert(screen.getByText("Connect X account"));
   assert(screen.getByText(/Opening X never awards Points/));
@@ -65,8 +62,6 @@ test("connected page separates pending from verified, renders true progress and 
   await screen.findByText("222"); assert(screen.getByText("175"));
   assert.equal(screen.getByRole("progressbar", { name: "Today's Gameplay Points" }).getAttribute("aria-valuenow"), "20");
   assert.equal(screen.getByRole("progressbar", { name: "Today's recurring Referral Points" }).getAttribute("aria-valuenow"), "2");
-  const link = screen.getByRole("link", { name: "Earn Points", exact: true });
-  assert.match(link.nextElementSibling?.getAttribute("aria-label") ?? "", /Open profile/);
   fireEvent.click(screen.getByRole("tab", { name: "INVITE" }));
   await screen.findByText("https://headstails.fun/?ref=REALCODE");
   assert(screen.getByRole("button", { name: "Copy Link" }));

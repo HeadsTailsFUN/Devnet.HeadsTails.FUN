@@ -1,57 +1,30 @@
 "use client";
 
-import Link from "next/link";
 import { useRef, useState } from "react";
-import { AppHeader } from "@/components/brand/AppHeader";
-import { AppFooter } from "@/components/brand/AppFooter";
-import { WalletStandardProvider, useWalletState, shortAddr } from "@/components/wallet/WalletProvider";
-import { WalletModal } from "@/components/wallet/WalletModal";
-import { AirdropTab, ProfileModal, ReferralsTab } from "@/components/profile/ProfileModal";
-import { CommunityIcon, QueueIcon, SolanaIcon, WalletIcon } from "@/components/ui/icons";
-import { useProfile } from "@/lib/profile/useProfile";
+import { useWalletState } from "@/components/wallet/WalletProvider";
+import { AirdropTab, ReferralsTab } from "@/components/profile/ProfileModal";
+import { CommunityIcon, SolanaIcon, WalletIcon } from "@/components/ui/icons";
 import { useRewardResource } from "@/lib/airdrop/useRewardResource";
 import type { PointsOverview } from "@/lib/airdrop/earn";
 import { GAMEPLAY_DAILY_CAP, GAMEPLAY_LOSS_POINTS, GAMEPLAY_WIN_TOTAL, SOCIAL_CONNECT_X_POINTS, SOCIAL_REPOST_POINTS, SOCIAL_REPLY_POINTS } from "@/lib/airdrop/rules";
 import { REFERRAL_INVITEE_ONCE, REFERRAL_REFERRER_ONCE, REFERRAL_PER_GAME } from "@/lib/referrals/logic";
-import { MOBILE_TABS } from "@/lib/mobile/navigation";
 import { EarnIcon } from "./EarnPointsLink";
 
 const tabs = ["play", "invite", "quests"] as const;
 type EarningTab = typeof tabs[number];
 const tabIcons = { play: SolanaIcon, invite: CommunityIcon, quests: EarnIcon };
-const mobileIcons = { social: CommunityIcon, play: SolanaIcon, flips: QueueIcon, profile: WalletIcon };
 const number = (value: number) => new Intl.NumberFormat("en-US").format(value);
 
-export function EarnPointsClient() {
-  return <WalletStandardProvider><EarnPointsScreen /></WalletStandardProvider>;
-}
-
-/** No game controller, transaction signing or reward-awarding code on this page. */
-export function EarnPointsScreen() {
-  const { wallet, account, disconnect, restoring } = useWalletState();
+/** Shared rewards content; the existing game and wallet remain mounted behind it. */
+export function EarnPointsContent({ onConnect, onPlay }: { onConnect: () => void; onPlay: () => void }) {
+  const { wallet, account, restoring } = useWalletState();
   const address = account?.address ?? null;
-  const { profile, reload: reloadProfile } = useProfile(address);
-  const [connectOpen, setConnectOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [tab, setTab] = useState<EarningTab>("play");
   const tabList = useRef<HTMLDivElement>(null);
   const points = useRewardResource<PointsOverview>("/api/airdrop/points", wallet, account);
   const data = points.data;
 
-  return <div className="earn-page relative flex min-h-[100svh] flex-col">
-    <AppHeader state={address ? "connected" : "disconnected"} live onConnect={() => setConnectOpen(true)}
-      onDisconnect={() => void disconnect()} addressLabel={address ? shortAddr(address) : undefined}
-      profileName={profile?.username} profileAvatarUrl={profile?.avatarUrl}
-      onProfileClick={() => setProfileOpen(true)} />
-    <main className="relative z-10 mx-auto w-full max-w-[1056px] flex-1 px-4 pb-8 pt-8 sm:px-6 sm:pt-12">
-      <div className="earn-page-heading mb-6 flex flex-wrap items-end justify-between gap-4">
-        <div><p className="earn-eyebrow">HEADSTAILS BETA · POINTS</p>
-          <h1 className="font-display mt-2 text-4xl font-bold text-white sm:text-5xl">Earn <span className="text-[var(--heads)]">Points</span></h1>
-          <p className="mt-3 text-sm text-[var(--text-secondary)] sm:text-base">Play. Invite. Complete quests. Earn rewards.</p>
-        </div>
-        <Link href="/?tab=play" className="earn-secondary">← Back to Game</Link>
-      </div>
-
+  return <div className="earn-content">
       <section aria-label="Points overview" className="earn-overview glass rounded-[28px] p-5 sm:p-7">
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-xl font-semibold">Your Points</h2>
@@ -62,7 +35,7 @@ export function EarnPointsScreen() {
           <div><h3 className="font-display text-xl font-semibold">Your next flip is just the beginning</h3>
             <p className="mt-2 text-sm text-[var(--text-secondary)]">Connect your wallet to view verified Points, track your progress and share your invite link.</p>
           </div>
-          <button type="button" onClick={() => setConnectOpen(true)} disabled={restoring} className="earn-primary">{restoring ? "Restoring wallet…" : "Connect Wallet"}</button>
+          <button type="button" onClick={onConnect} disabled={restoring} className="earn-primary">{restoring ? "Restoring wallet…" : "Connect Wallet"}</button>
         </div> : points.loading ? <div aria-label="Loading Points" role="status" className="earn-skeleton-grid"><span /><span /><span /><span /></div>
         : points.needsAuth ? <div className="earn-callout"><p>Verify wallet ownership to view your private Points and activity.</p>
           <button type="button" className="earn-primary" onClick={() => void points.reload(true)}>Verify wallet</button></div>
@@ -95,15 +68,15 @@ export function EarnPointsScreen() {
         {tab === item && (item === "play" ? <>
           <SectionHeading eyebrow="EVERY ELIGIBLE FLIP COUNTS" title="Play & Earn" description="Pick your side. Points arrive after an eligible match settles, whatever the outcome." />
           <div className="earn-rule-grid"><Reward title="Win a settled match" points={GAMEPLAY_WIN_TOTAL} /><Reward title="Lose a settled match" points={GAMEPLAY_LOSS_POINTS} /><div className="earn-rule-card"><p className="earn-label">Daily Gameplay cap</p><strong>{GAMEPLAY_DAILY_CAP}<small> Points</small></strong><p className="earn-caption">Same rewards in every room</p></div></div>
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-4"><p className="max-w-lg text-sm text-white/60">Unsettled, cancelled, duplicate and excluded QA games do not earn Points. Eligibility and anti-abuse checks apply.</p><Link className="earn-primary" href="/?tab=play">Play Now <span aria-hidden="true">↗</span></Link></div>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-4"><p className="max-w-lg text-sm text-white/60">Unsettled, cancelled, duplicate and excluded QA games do not earn Points. Eligibility and anti-abuse checks apply.</p><button type="button" className="earn-primary" onClick={onPlay}>Play Now <span aria-hidden="true">↗</span></button></div>
         </> : item === "invite" ? <>
           <SectionHeading eyebrow="GOOD FLIPS. BETTER TOGETHER." title="Invite Friends" description="Share your link. Your friend qualifies after 3 eligible settled matches." />
           <div className="earn-rule-grid mb-5"><Reward title="For the inviter" points={REFERRAL_REFERRER_ONCE} /><Reward title="For your friend" points={REFERRAL_INVITEE_ONCE} /><Reward title="Each eligible subsequent match" points={REFERRAL_PER_GAME} /></div>
-          {address ? <ReferralsTab key={address} wallet={wallet} account={account} /> : <ConnectPrompt onConnect={() => setConnectOpen(true)} text="Connect your wallet to get your actual referral link and qualification progress." />}
+          {address ? <ReferralsTab key={address} wallet={wallet} account={account} /> : <ConnectPrompt onConnect={onConnect} text="Connect your wallet to get your actual referral link and qualification progress." />}
         </> : <>
           <SectionHeading eyebrow="SHOW UP FOR THE COMMUNITY" title="Social Quests" description="Link your X account and submit campaign activity for review. Opening X never awards Points." />
           {address ? <div className="earn-quests"><AirdropTab key={address} wallet={wallet} account={account} questsOnly onChanged={() => void points.reload()} /></div>
-            : <><div className="earn-rule-grid mb-5"><Reward title="Connect X account" points={SOCIAL_CONNECT_X_POINTS} /><Reward title="Repost eligible campaign" points={SOCIAL_REPOST_POINTS} /><Reward title="Reply to eligible campaign" points={SOCIAL_REPLY_POINTS} /></div><ConnectPrompt onConnect={() => setConnectOpen(true)} text="Connect and verify your wallet to check quest availability and submit evidence." /></>}
+            : <><div className="earn-rule-grid mb-5"><Reward title="Connect X account" points={SOCIAL_CONNECT_X_POINTS} /><Reward title="Repost eligible campaign" points={SOCIAL_REPOST_POINTS} /><Reward title="Reply to eligible campaign" points={SOCIAL_REPLY_POINTS} /></div><ConnectPrompt onConnect={onConnect} text="Connect and verify your wallet to check quest availability and submit evidence." /></>}
         </>)}
       </section>)}
 
@@ -124,12 +97,6 @@ export function EarnPointsScreen() {
         <p>Verified Points are confirmed off-chain rewards. Pending Points await verification and are not confirmed rewards. HTS on Solana Devnet are separate test tokens with no asserted financial value.</p>
         <p className="mt-2">Points may contribute to potential future airdrop eligibility, subject to review and the final rules. They do not guarantee an allocation, token conversion rate or future token value.</p>
       </aside>
-    </main>
-    <AppFooter />
-    <nav aria-label="Mobile navigation" className="earn-mobile-nav glass">{MOBILE_TABS.map(item => { const Icon = mobileIcons[item]; return <Link href={`/?tab=${item}`} key={item}><Icon className="h-5 w-5" />{item}</Link>; })}</nav>
-    <WalletModal open={connectOpen} onClose={() => setConnectOpen(false)} />
-    {profileOpen && address && <ProfileModal key={address} wallet={wallet} account={account} address={address} profile={profile}
-      onClose={() => setProfileOpen(false)} onChanged={reloadProfile} onLogout={() => { setProfileOpen(false); void disconnect(); }} />}
   </div>;
 }
 
