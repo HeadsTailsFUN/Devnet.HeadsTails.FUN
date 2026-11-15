@@ -42,6 +42,9 @@ function mount(x = false, changed = () => undefined) {
   render(<WalletStandardProvider><Harness /></WalletStandardProvider>);
 }
 async function connect() { fireEvent.click(screen.getByRole("button", { name: "Connect fixture" })); await screen.findByRole("button", { name: "Refresh status ↻" }); }
+function openQuest(name: string) {
+  fireEvent.click(within(screen.getByRole("region", { name })).getByText(name, { exact: true }));
+}
 test("public quest cards preserve all four approved values and never request private data while disconnected", async () => {
   const calls = fetchFixture(); mount();
   await screen.findByText("Community & gameplay quests");
@@ -49,19 +52,24 @@ test("public quest cards preserve all four approved values and never request pri
   for (const [name, points] of [["Join Telegram Group", 20], ["Join Announcement Channel", 5], ["Join Discord Server", 15], ["Play on Three Different Days", 20]] as const) {
     assert(within(screen.getByRole("region", { name })).getByText(`+${points} Points`));
   }
-  assert(!calls.includes("/api/earn/status")); assert(screen.getByText("Connect to view progress"));
+  assert(!calls.includes("/api/earn/status"));
+  assert.equal(screen.queryByRole("button", { name: "Verify Membership" }), null);
+  openQuest("Play on Three Different Days"); assert(screen.getByText("Connect to view progress"));
 });
 test("owner-scoped state displays real gameplay progress and suppresses completed submissions", async () => {
   fetchFixture(() => ({ ...fixture, quests: fixture.quests.map(q => q.id === "telegram_group" ? { ...q, claim: { status: "verified" } } : q) }));
   mount(); await connect(); await screen.findByText("2/3 days");
   const card = within(screen.getByRole("region", { name: "Join Telegram Group" }));
+  openQuest("Join Telegram Group");
   assert(card.getByText("Completed")); assert.equal(card.queryByRole("button", { name: "Verify Membership" }), null);
+  openQuest("Play on Three Different Days");
   assert.equal(screen.getByRole("progressbar").getAttribute("aria-valuenow"), "2");
 });
 test("pending job remains pending, disables repeated submissions and never appears completed", async () => {
   fetchFixture(() => ({ ...fixture, quests: fixture.quests.map(q => q.id === "telegram_group" ? { ...q, job: { result_status: null, completed_at: null, expires_at: new Date(Date.now() + 600000).toISOString() } } : q) }));
   mount(); await connect(); await screen.findByText("2/3 days");
   const card = within(screen.getByRole("region", { name: "Join Telegram Group" }));
+  openQuest("Join Telegram Group");
   assert(card.getByText("Pending Verification")); assert((card.getByRole("button", { name: "Verify Membership" }) as HTMLButtonElement).disabled);
   assert.equal(card.queryByText("Completed"), null);
 });
@@ -71,6 +79,7 @@ test("Telegram verification creates one pending request and refreshes owner data
     assert.deepEqual(body, { action: "telegram_group" }); submissions++; pending = true; return Response.json({ wallet: address, status: "pending" });
   });
   mount(); await connect(); await screen.findByText("2/3 days");
+  openQuest("Join Telegram Group");
   fireEvent.click(within(screen.getByRole("region", { name: "Join Telegram Group" })).getByRole("button", { name: "Verify Membership" }));
   await screen.findByText("Pending Verification"); assert.equal(submissions, 1); assert.equal(screen.queryByText("Completed"), null);
 });
@@ -79,6 +88,7 @@ test("newly disabled rewards show unavailable and preserve historical completed 
   mount(); await connect(); await screen.findByText("2/3 days");
   assert(within(screen.getByRole("region", { name: "Join Announcement Channel" })).getByText("Completed"));
   const group = within(screen.getByRole("region", { name: "Join Telegram Group" }));
+  openQuest("Join Telegram Group");
   assert(group.getByText("Unavailable")); assert((group.getByRole("button", { name: "Verify Membership" }) as HTMLButtonElement).disabled);
 });
 test("a swapped session response cannot disclose another wallet's social connections or challenge", async () => {

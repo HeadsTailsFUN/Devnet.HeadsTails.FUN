@@ -53,6 +53,8 @@ test("disconnected popup content has earning instructions and wallet actions wit
   assert(screen.getByRole("button", { name: /Connect Wallet|Restoring wallet/ }));
   assert.equal(screen.getAllByRole("tab").length, 3);
   fireEvent.click(screen.getByRole("tab", { name: "QUESTS" }));
+  assert.equal(screen.queryByRole("textbox", { name: "X reply URL" }), null);
+  fireEvent.click(screen.getByText("X quests", { exact: true }));
   assert(screen.getByText("Connect X account"));
   assert(screen.getByText(/Opening X never awards Points/));
   assert(!calls.some(call => call.includes("/api/airdrop") || call.includes("/api/referrals")));
@@ -61,6 +63,7 @@ test("disconnected popup content has earning instructions and wallet actions wit
 test("connected page separates pending from verified, renders true progress and opens existing referral actions", async () => {
   installFetch(); mount(); fireEvent.click(screen.getByRole("button", { name: "Connect fixture" }));
   await screen.findByText("222"); assert(screen.getByText("175"));
+  fireEvent.click(screen.getByText("Today's progress", { exact: true }));
   assert.equal(screen.getByRole("progressbar", { name: "Today's Gameplay Points" }).getAttribute("aria-valuenow"), "20");
   assert.equal(screen.getByRole("progressbar", { name: "Today's recurring Referral Points" }).getAttribute("aria-valuenow"), "2");
   fireEvent.click(screen.getByRole("tab", { name: "INVITE" }));
@@ -69,6 +72,7 @@ test("connected page separates pending from verified, renders true progress and 
   assert(screen.getByText(/2 \/ 3 eligible games/));
   fireEvent.keyDown(screen.getByRole("tab", { name: "INVITE" }), { key: "ArrowRight" });
   assert.equal(screen.getByRole("tab", { name: "QUESTS" }).getAttribute("aria-selected"), "true");
+  fireEvent.click(screen.getByText("X quests", { exact: true }));
   await screen.findByText(/Unavailable — no active campaign/);
   assert.equal(screen.queryByRole("button", { name: /Claim Repost/ }), null);
 });
@@ -84,6 +88,7 @@ test("quest with stored handle submits evidence through existing authenticated A
   globalThis.fetch = async (input, init) => { if (String(input) === "/api/airdrop/social-claim") body = JSON.parse(String(init?.body)); return fetcher(input, init); };
   mount(); fireEvent.click(screen.getByRole("button", { name: "Connect fixture" })); await screen.findByText("222");
   fireEvent.click(screen.getByRole("tab", { name: "QUESTS" }));
+  fireEvent.click(screen.getByText("X quests", { exact: true }));
   const reply = await screen.findByRole("textbox", { name: "X reply URL" });
   fireEvent.change(reply, { target: { value: "https://x.com/degen/status/123" } });
   fireEvent.click(screen.getByRole("button", { name: "Submit Reply" }));
@@ -103,6 +108,7 @@ test("loading, service error/retry and a new user's empty state are honest", asy
   answer(Response.json({ error: "offline" }, { status: 503 }));
   await screen.findByRole("alert"); assert.equal(screen.queryByText("222"), null);
   fail = false; fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+  fireEvent.click(screen.getByText("Points Activity", { exact: true }));
   await screen.findByText("No Points activity yet");
 });
 
@@ -165,9 +171,23 @@ test("new manual mode lets rejected repost evidence be corrected without creatin
   globalThis.fetch = async (input, init) => { if (String(input) === "/api/airdrop/social-edit") body = JSON.parse(String(init?.body)); return fetcher(input, init); };
   mount(); fireEvent.click(screen.getByRole("button", { name: "Connect fixture" })); await screen.findByText("222");
   fireEvent.click(screen.getByRole("tab", { name: "QUESTS" }));
+  fireEvent.click(screen.getByText("X quests", { exact: true }));
   fireEvent.click(await screen.findByRole("button", { name: "Edit repost evidence" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Updated X repost evidence URL" }), { target: { value: "https://x.com/degen/status/12" } });
   fireEvent.click(screen.getByRole("button", { name: "Save repost evidence" }));
   await screen.findByText("Updated — back to pending review.");
   assert.deepEqual(body, { task: "repost", handle: "degen", evidenceUrl: "https://x.com/degen/status/12" });
+});
+
+test("compact rules disclosure preserves all 12 approved rewards and their eligibility conditions", () => {
+  installFetch(); mount();
+  const disclosure = screen.getByText("Points table & important rules", { exact: true }).closest("details")!;
+  assert.equal(disclosure.open, false);
+  fireEvent.click(screen.getByText("Points table & important rules", { exact: true }));
+  const table = screen.getByRole("table", { name: "Complete Points rewards" });
+  const rows = Array.from(table.querySelectorAll("tbody tr"));
+  assert.equal(rows.length, 12);
+  assert.deepEqual(rows.map(row => row.lastElementChild?.textContent), ["+5", "+2", "+50", "+25", "+2", "+100", "+75", "+50", "+20", "+5", "+15", "+20"]);
+  const rules = table.closest("details")!.textContent!;
+  for (const text of ["200 Points per wallet per UTC day", "00:00 UTC", "3 eligible settled matches", "From match 4 onward", "25 recurring match rewards", "500 recurring Points", "60 Points total", "do not require gameplay", "Days need not be consecutive", "No quiz or tutorial quest"]) assert(rules.includes(text), text);
 });

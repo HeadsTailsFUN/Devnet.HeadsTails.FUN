@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useWalletState } from "@/components/wallet/WalletProvider";
-import { TelegramIcon, DiscordIcon, WalletIcon, XIcon } from "@/components/ui/icons";
+import { TelegramIcon, DiscordIcon, XIcon } from "@/components/ui/icons";
 import { useRewardResource } from "@/lib/airdrop/useRewardResource";
 import { NEW_QUESTS, type Quest } from "@/lib/earn/config";
 import { EarnIcon } from "./EarnPointsLink";
@@ -99,18 +99,20 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
     { provider: "x", title: "X", Icon: XIcon, linked: data?.connections.x, enabled: false, action: "" },
   ];
   return <div className="earn-verification-section">
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-2"><h3 className="font-display text-xl font-semibold">Connected accounts</h3>
+    <div className="earn-quest-toolbar"><span className="earn-caption">4 seasonal quests · {NEW_QUESTS.reduce((total, q) => total + q.points, 0)} Points total</span>
       {account && <button type="button" className="earn-text-button" disabled={!!busy || state.loading} onClick={() => void state.reload()}>Refresh status ↻</button>}</div>
-    <p className="mb-4 text-xs leading-relaxed text-[var(--text-secondary)]">Your wallet remains your website identity. Community XP and competition prizes are separate from website Points.</p>
-    <div className="earn-connections">
-      <div className="earn-connection"><WalletIcon className="h-5 w-5 text-[var(--heads)]" /><strong>Wallet</strong><span>{account ? "Connected" : "Not connected"}</span>{!account && <button type="button" onClick={onConnect}>Connect Wallet</button>}</div>
-      {connectButtons.map(({ provider, title, Icon, linked, enabled, action: command }) => <div className="earn-connection" key={provider}>
+    <details className="earn-accounts-disclosure">
+      <summary><span>Connected accounts</span><span className="earn-caption">{data ? `${connectButtons.filter(c => c.linked).length}/3 connected` : "Manage connections"} ⌄</span></summary>
+      <div className="earn-account-list">
+      {connectButtons.map(({ provider, title, Icon, linked, enabled, action: command }) => <div className="earn-connection-row" key={provider}>
         <Icon className="h-5 w-5" /><strong>{title}</strong><span>{linked ? provider === "x" ? "Manually verified" : "Connected" : "Not connected"}</span>
         {linked ? <button type="button" disabled={!!busy} onClick={() => void run(provider, { action: "unlink", provider })}>Disconnect</button>
           : provider === "x" ? <span className="earn-caption">Ownership reviewed below</span>
           : <button type="button" disabled={!!busy || (!!account && !enabled)} onClick={() => void run(provider, { action: command })}>{busy === provider ? "Please wait…" : `Connect ${title}`}</button>}
       </div>)}
-    </div>
+      </div>
+      <p className="earn-caption p-3">Your wallet is your website identity. Community XP and prizes are separate from website Points. Disconnecting preserves reward history.</p>
+    </details>
     {currentLink && !data?.connections.telegram && <div className="earn-callout mt-3 rounded-xl border border-[var(--heads)]/20 p-3">
       <p className="text-xs text-white/70">Open the official bot privately to finish linking. This link expires shortly; do not share it.</p>
       {Date.now() < currentLink.expires ? <a className="earn-primary" href={currentLink.url} target="_blank" rel="noopener noreferrer">Open official Telegram bot ↗</a> : <span>Link expired — connect again</span>}
@@ -118,9 +120,9 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
     {state.needsAuth && <div className="earn-callout mt-3"><p className="text-sm text-white/60">Verify wallet ownership to manage social connections.</p><button type="button" className="earn-secondary" onClick={async () => { await state.reload(true); onChanged(); }}>Verify wallet</button></div>}
     {state.error && <p role="alert" className="mt-3 text-xs text-amber-200">{state.error} <button type="button" className="underline" onClick={() => void state.reload()}>Retry</button></p>}
     {catalogError && <p role="alert" className="mt-3 text-xs text-amber-200">Quest settings could not load. <button type="button" className="underline" onClick={() => void loadCatalog()}>Retry settings</button></p>}
-    <h3 className="font-display mb-3 mt-6 text-xl font-semibold">Community & gameplay quests</h3>
-    <p className="mb-4 text-xs text-[var(--text-secondary)]">One reward per eligible account and season. {data?.newRewardsEnabled ? "Verified quests earn Points when all eligibility checks pass." : "New rewards are inactive until verification and activation are approved."}</p>
-    <div className="earn-new-quest-grid">{NEW_QUESTS.map(quest => {
+    <h3 className="sr-only">Community & gameplay quests</h3>
+    <p className="earn-caption my-3">{data?.newRewardsEnabled ? "Verified quests earn Points when all eligibility checks pass." : "New quest rewards are inactive until testing and activation are approved."}</p>
+    <div className="earn-quest-list">{NEW_QUESTS.map(quest => {
       const row = data?.quests.find(q => q.id === quest.id);
       const completed = row?.claim?.status === "verified";
       const pending = row?.job && !row.job.completed_at && Date.parse(row.job.expires_at) > Date.now();
@@ -128,17 +130,21 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
       const label = completed ? "Completed" : row?.claim?.status === "rejected" ? "Rejected" : !available ? "Unavailable" : pending ? "Pending Verification" : row?.job?.result_status === "NOT_MEMBER" || (quest.provider === "discord" && data?.discordMembership === "NOT_MEMBER") ? "In Progress" : quest.provider === "discord" && data?.discordMembership === "PENDING" ? "Pending Verification" : "Available";
       const destination = quest.id === "telegram_group" ? catalog?.groupUrl : quest.id === "telegram_channel" ? catalog?.channelUrl : quest.id === "discord_member" ? catalog?.discordJoinUrl : null;
       const Icon = quest.provider === "telegram" ? TelegramIcon : quest.provider === "discord" ? DiscordIcon : EarnIcon;
-      return <section className="earn-new-quest" key={quest.id} aria-label={quest.title}>
-        <div className="earn-quest-top"><Icon className="h-5 w-5" /><span className="earn-quest-reward">+{quest.points} Points</span></div>
-        <h4 className="font-semibold">{quest.title}</h4><span className={`earn-status ${completed ? "earn-status-verified" : pending ? "earn-status-pending" : ""}`}>{label}</span>
+      return <section key={quest.id} aria-label={quest.title}>
+        <details className="earn-quest-disclosure" name="earn-quest-details">
+        <summary><Icon className="h-5 w-5" /><span className="earn-quest-name"><strong>{quest.title}</strong><small>{quest.id === "three_days" ? data ? `${data.gameplayDays}/3 days` : "3 different UTC dates" : quest.provider === "telegram" ? "Official bot verification" : "Official Discord verification"}</small></span>
+          <span className="earn-quest-numbers">+{quest.points} Points<span className={`earn-status ${completed ? "earn-status-verified" : pending ? "earn-status-pending" : ""}`}>{label}</span></span><span className="earn-chevron" aria-hidden="true">⌄</span></summary>
+        <div className="earn-quest-body">
         <p>{quest.provider === "telegram" ? "Verified by the official bot. No gameplay is required." : quest.provider === "discord" ? "Official Discord verification, including membership screening. No automatic join." : "At least one eligible settled match on 3 distinct UTC dates. Days need not be consecutive; past eligible matches count."}</p>
-        {quest.id === "three_days" && <div className="earn-day-progress" role="progressbar" aria-label="Three-day gameplay quest" aria-valuemin={0} aria-valuemax={3} aria-valuenow={data?.gameplayDays ?? 0}><span style={{ width: `${(data?.gameplayDays ?? 0) / 3 * 100}%` }} /><strong>{data ? `${data.gameplayDays}/3 days` : "Connect to view progress"}</strong></div>}
+        {quest.id === "three_days" && <div className="earn-day-progress" role="progressbar" aria-label="Three-day gameplay quest" aria-valuemin={0} aria-valuemax={3} aria-valuenow={data?.gameplayDays ?? 0}><span style={{ width: `${(data?.gameplayDays ?? 0) / 3 * 100}%` }} /><strong>{data ? `${data.gameplayDays}/3 UTC days` : "Connect to view progress"}</strong></div>}
         {destination && <a href={destination} target="_blank" rel="noopener noreferrer" className="earn-text-button">{quest.id === "telegram_group" ? "Join Telegram Group" : quest.id === "telegram_channel" ? "Join Announcement Channel" : "Join Discord Server"} ↗</a>}
         {row?.job?.completed_at && ["ERROR", "UNAVAILABLE", "PENDING"].includes(row.job.result_status ?? "") && !completed && <small>Membership was not confirmed. Retry verification when the service is available.</small>}
-        {!completed && <button type="button" className="earn-secondary" disabled={!!busy || pending || (!!account && (!available || (quest.provider === "telegram" && !data?.connections.telegram)))}
+        {quest.provider === "telegram" && !completed && !data?.connections.telegram ? <button type="button" className="earn-secondary" disabled={!!busy || (!!account && !data?.capabilities.telegramLink)} onClick={() => void run("telegram", { action: "telegram_token" })}>{!account ? "Connect Wallet" : busy === "telegram" ? "Please wait…" : "Connect Telegram"}</button>
+        : !completed && <button type="button" className="earn-secondary" disabled={!!busy || pending || (!!account && !available)}
           onClick={() => void run(quest.id, { action: quest.id === "discord_member" ? "discord_connect" : quest.id })}>
           {!account ? "Connect Wallet" : busy === quest.id ? "Please wait…" : quest.id === "three_days" ? "Check progress & claim" : quest.id === "discord_member" ? "Verify Discord Membership" : "Verify Membership"}</button>}
         {quest.provider === "discord" && <small>Retry verification reopens official Discord authorization.</small>}
+        </div></details>
       </section>;
     })}</div>
     {note && <p role="status" className="mt-3 rounded-xl bg-white/5 p-3 text-xs text-white/70">{note}</p>}
