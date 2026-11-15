@@ -91,6 +91,23 @@ test("newly disabled rewards show unavailable and preserve historical completed 
   openQuest("Join Telegram Group");
   assert(group.getByText("Unavailable")); assert((group.getByRole("button", { name: "Verify Membership" }) as HTMLButtonElement).disabled);
 });
+
+test("a release with integrations off shows inactive quests when verification storage is unavailable, without invented progress", async () => {
+  fetchFixture();
+  const fixtureFetch = globalThis.fetch; let statusRead = false;
+  globalThis.fetch = async (input, init) => {
+    if (String(input) === "/api/earn/catalog") return Response.json({ rewardsEnabled: false, telegramEnabled: false, discordEnabled: false, xManualEnabled: false });
+    if (String(input) === "/api/earn/status") { statusRead = true; return Response.json({ error: "verification_not_installed" }, { status: 503 }); }
+    return fixtureFetch(input, init);
+  };
+  mount(); await connect();
+  await waitFor(() => { assert(statusRead); assert.equal((screen.getByRole("button", { name: "Refresh status ↻" }) as HTMLButtonElement).disabled, false); });
+  openQuest("Play on Three Different Days");
+  assert(screen.getByText("Progress unavailable"));
+  assert.equal(screen.getByRole("progressbar").getAttribute("aria-valuenow"), null);
+  assert.equal(!!screen.queryByRole("alert"), false);
+  assert(screen.getByText(/New quest rewards are inactive/));
+});
 test("a swapped session response cannot disclose another wallet's social connections or challenge", async () => {
   fetchFixture(() => ({ ...fixture, wallet: "other-owner", gameplayDays: 3 }));
   mount(); await connect(); await screen.findByRole("alert");

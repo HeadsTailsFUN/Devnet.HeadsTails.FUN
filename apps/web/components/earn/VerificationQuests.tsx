@@ -17,7 +17,8 @@ export interface VerificationState {
   discordMembership: string | null;
   xChallenge: { id: string; code: string; profile_url: string; expires_at: string; status: string; review_reason: string | null } | null;
 }
-interface Catalog { groupUrl: string | null; channelUrl: string | null; discordJoinUrl: string | null; rewardsEnabled: boolean }
+interface Catalog { groupUrl: string | null; channelUrl: string | null; discordJoinUrl: string | null; rewardsEnabled: boolean;
+  telegramEnabled?: boolean; discordEnabled?: boolean; xManualEnabled?: boolean }
 
 async function action(body: Record<string, unknown>) {
   const r = await fetch("/api/earn/action", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -93,6 +94,8 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
     finally { setBusy(null); }
   };
   const data = state.data;
+  const integrationsInactive = catalog?.telegramEnabled === false && catalog.discordEnabled === false &&
+    catalog.xManualEnabled === false && catalog.rewardsEnabled === false;
   const connectButtons = [
     { provider: "telegram", title: "Telegram", Icon: TelegramIcon, linked: data?.connections.telegram, enabled: data?.capabilities.telegramLink, action: "telegram_token" },
     { provider: "discord", title: "Discord", Icon: DiscordIcon, linked: data?.connections.discord, enabled: data?.capabilities.discord, action: "discord_connect" },
@@ -105,7 +108,7 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
       <summary><span>Connected accounts</span><span className="earn-caption">{data ? `${connectButtons.filter(c => c.linked).length}/3 connected` : "Manage connections"} ⌄</span></summary>
       <div className="earn-account-list">
       {connectButtons.map(({ provider, title, Icon, linked, enabled, action: command }) => <div className="earn-connection-row" key={provider}>
-        <Icon className="h-5 w-5" /><strong>{title}</strong><span>{linked ? provider === "x" ? "Manually verified" : "Connected" : "Not connected"}</span>
+        <Icon className="h-5 w-5" /><strong>{title}</strong><span>{account && !data ? "Unavailable" : linked ? provider === "x" ? "Manually verified" : "Connected" : "Not connected"}</span>
         {linked ? <button type="button" disabled={!!busy} onClick={() => void run(provider, { action: "unlink", provider })}>Disconnect</button>
           : provider === "x" ? <span className="earn-caption">Ownership reviewed below</span>
           : <button type="button" disabled={!!busy || (!!account && !enabled)} onClick={() => void run(provider, { action: command })}>{busy === provider ? "Please wait…" : `Connect ${title}`}</button>}
@@ -118,7 +121,7 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
       {Date.now() < currentLink.expires ? <a className="earn-primary" href={currentLink.url} target="_blank" rel="noopener noreferrer">Open official Telegram bot ↗</a> : <span>Link expired — connect again</span>}
     </div>}
     {state.needsAuth && <div className="earn-callout mt-3"><p className="text-sm text-white/60">Verify wallet ownership to manage social connections.</p><button type="button" className="earn-secondary" onClick={async () => { await state.reload(true); onChanged(); }}>Verify wallet</button></div>}
-    {state.error && <p role="alert" className="mt-3 text-xs text-amber-200">{state.error} <button type="button" className="underline" onClick={() => void state.reload()}>Retry</button></p>}
+    {state.error && !integrationsInactive && <p role="alert" className="mt-3 text-xs text-amber-200">{state.error} <button type="button" className="underline" onClick={() => void state.reload()}>Retry</button></p>}
     {catalogError && <p role="alert" className="mt-3 text-xs text-amber-200">Quest settings could not load. <button type="button" className="underline" onClick={() => void loadCatalog()}>Retry settings</button></p>}
     <h3 className="sr-only">Community & gameplay quests</h3>
     <p className="earn-caption my-3">{data?.newRewardsEnabled ? "Verified quests earn Points when all eligibility checks pass." : "New quest rewards are inactive until testing and activation are approved."}</p>
@@ -136,7 +139,7 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
           <span className="earn-quest-numbers">+{quest.points} Points<span className={`earn-status ${completed ? "earn-status-verified" : pending ? "earn-status-pending" : ""}`}>{label}</span></span><span className="earn-chevron" aria-hidden="true">⌄</span></summary>
         <div className="earn-quest-body">
         <p>{quest.provider === "telegram" ? "Verified by the official bot. No gameplay is required." : quest.provider === "discord" ? "Official Discord verification, including membership screening. No automatic join." : "At least one eligible settled match on 3 distinct UTC dates. Days need not be consecutive; past eligible matches count."}</p>
-        {quest.id === "three_days" && <div className="earn-day-progress" role="progressbar" aria-label="Three-day gameplay quest" aria-valuemin={0} aria-valuemax={3} aria-valuenow={data?.gameplayDays ?? 0}><span style={{ width: `${(data?.gameplayDays ?? 0) / 3 * 100}%` }} /><strong>{data ? `${data.gameplayDays}/3 UTC days` : "Connect to view progress"}</strong></div>}
+        {quest.id === "three_days" && <div className="earn-day-progress" role="progressbar" aria-label="Three-day gameplay quest" aria-valuemin={0} aria-valuemax={3} aria-valuenow={data?.gameplayDays}><span style={{ width: `${(data?.gameplayDays ?? 0) / 3 * 100}%` }} /><strong>{data ? `${data.gameplayDays}/3 UTC days` : account ? "Progress unavailable" : "Connect to view progress"}</strong></div>}
         {destination && <a href={destination} target="_blank" rel="noopener noreferrer" className="earn-text-button">{quest.id === "telegram_group" ? "Join Telegram Group" : quest.id === "telegram_channel" ? "Join Announcement Channel" : "Join Discord Server"} ↗</a>}
         {row?.job?.completed_at && ["ERROR", "UNAVAILABLE", "PENDING"].includes(row.job.result_status ?? "") && !completed && <small>Membership was not confirmed. Retry verification when the service is available.</small>}
         {quest.provider === "telegram" && !completed && !data?.connections.telegram ? <button type="button" className="earn-secondary" disabled={!!busy || (!!account && !data?.capabilities.telegramLink)} onClick={() => void run("telegram", { action: "telegram_token" })}>{!account ? "Connect Wallet" : busy === "telegram" ? "Please wait…" : "Connect Telegram"}</button>

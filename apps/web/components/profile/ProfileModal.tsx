@@ -14,7 +14,7 @@ import { useRewardResource as useAuthedFetch } from "@/lib/airdrop/useRewardReso
 import { XOwnershipForm } from "@/components/earn/VerificationQuests";
 import { EarnIcon, EarnPointsLink } from "@/components/earn/EarnPointsLink";
 
-type Tab = "profile" | "referrals" | "airdrop" | "bug";
+type Tab = "profile" | "referrals" | "bug";
 
 export function ProfileModal({
   wallet,
@@ -239,7 +239,7 @@ export function ProfileModal({
           aria-label="Profile sections"
           className="mt-3 flex gap-1.5 overflow-x-auto"
         >
-          {(["profile", "referrals", "airdrop", "bug"] as Tab[]).map((t) => (
+          {(["profile", "referrals", "bug"] as Tab[]).map((t) => (
             <button
               key={t}
               role="tab"
@@ -256,9 +256,7 @@ export function ProfileModal({
                 ? "Profile"
                 : t === "referrals"
                   ? "Referrals"
-                  : t === "airdrop"
-                    ? "Airdrop"
-                    : "Report Bug"}
+                  : "Report Bug"}
             </button>
           ))}
         </div>
@@ -372,12 +370,6 @@ export function ProfileModal({
           )}
           {tab === "referrals" && (
             <ReferralsTab wallet={wallet} account={account} />
-          )}
-          {tab === "airdrop" && (
-            <>
-              <EarnPointsLink className="earn-profile-link w-full" label="Open Earn Points" onOpen={onClose} />
-              <AirdropTab wallet={wallet} account={account} />
-            </>
           )}
           {tab === "bug" && <BugTab wallet={wallet} account={account} />}
         </div>
