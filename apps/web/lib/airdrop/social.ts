@@ -1,3 +1,4 @@
+import { earnConfig } from "@/lib/earn/config";
 import { socialPointsFor } from "./rules";
 
 export type SocialTask = "connect_x" | "repost" | "reply";
@@ -190,6 +191,9 @@ export async function reviewSocialClaim(
   const { claimId, decision, reviewer } = input;
   if (decision !== "verified" && decision !== "rejected") {
     return { ok: false, error: "invalid review", status: 400 };
+  }
+  if (earnConfig().xManual && decision === "verified") {
+    return { ok: false, error: "Use the social verification queue with explicit ownership/evidence review.", status: 409 };
   }
   let data: unknown;
   let error: unknown;

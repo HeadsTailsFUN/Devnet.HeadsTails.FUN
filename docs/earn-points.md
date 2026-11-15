@@ -1,5 +1,7 @@
 # Earn Points
 
+The initial popup implementation is documented below. The 2026-11-15 social-verification extension, its additive migration and current activation gates are documented in [the integration readiness report](../EARN_POINTS_INTEGRATION_READINESS.md) and [the finalized Telegram contract](../TELEGRAM_WEBSITE_API_CONTRACT_FINAL.md).
+
 Implemented on `feat/earn-points`, based on main commit `4811bcf4d193c3d648493d6f16e1af5a9fae1f25`.
 
 The user flow is Header/Profile → Earn Points popup over the mounted game → existing wallet session → existing Points/Referral APIs → the current ledger, attribution and social-claim records. The popup has no transaction-signing or reward-awarding code.
@@ -20,7 +22,7 @@ Rules come from the existing Airdrop/Referral modules. Gameplay uses +5/+2 and a
 
 Quest claims stay pending until the existing review process verifies them. Repost submission requires a configured campaign. An already recorded repost status remains visible after the campaign closes. Social read failures disable submissions rather than pretending the task is available. A quest mutation refreshes the main Points overview and activity.
 
-There are no new dependencies, tables, migrations or reward engines. Gameplay, Solana transactions, ORAO, settlement and fee sponsorship are unchanged. No production deployment or remote write was performed.
+The initial popup required no new dependencies, tables, migrations or reward engines. The later social-verification extension adds the schema described in the linked readiness report. Gameplay, Solana transactions, ORAO, settlement and fee sponsorship remain unchanged. No production deployment or remote write was performed.
 
 ## Verification
 

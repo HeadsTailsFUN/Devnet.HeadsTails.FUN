@@ -4,6 +4,8 @@ import { getSupabaseAdmin } from "@/lib/solana/sponsorServer";
 import { pointsDetails, readPointsLedger } from "@/lib/airdrop/earn";
 import { campaignPostUrl } from "@/lib/airdrop/campaign";
 
+import { earnConfig } from "@/lib/earn/config";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -51,7 +53,8 @@ export async function GET(req: Request): Promise<NextResponse> {
     replyUrl: string | null;
     replyStatus: string | null;
     repostStatus: string | null;
-  } = { handle: null, handleStatus: null, connectStatus: null, replyUrl: null, replyStatus: null, repostStatus: null };
+    repostUrl: string | null;
+  } = { handle: null, handleStatus: null, connectStatus: null, replyUrl: null, replyStatus: null, repostStatus: null, repostUrl: null };
   let socialAvailable = true;
   try {
     const { data: ident, error: identityError } = await db
@@ -78,6 +81,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       replyUrl: byTask.reply?.evidence_url ?? null,
       replyStatus: byTask.reply?.status ?? null,
       repostStatus: byTask.repost?.status ?? null,
+      repostUrl: byTask.repost?.evidence_url ?? null,
     };
   } catch {
     socialAvailable = false;
@@ -91,6 +95,7 @@ export async function GET(req: Request): Promise<NextResponse> {
     pending: byCategory(pending),
     social,
     socialAvailable,
+    manualOwnershipRequired: earnConfig().xManual,
     campaignUrl: campaignPostUrl(),
     ...pointsDetails(rows),
   }, { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });

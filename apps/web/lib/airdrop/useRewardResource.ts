@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Wallet, WalletAccount } from "@wallet-standard/base";
+import { subscribeSessionEstablished, subscribeSessionCleared } from "@/lib/auth/sessionEvents";
 import { currentSessionWallet, ensureSession } from "@/lib/auth/client";
 
 /** Personal data stays bound to the connected address, including late responses. */
@@ -33,7 +34,7 @@ export function useRewardResource<T>(url: string | null, wallet: Wallet | null, 
       if (response.status === 401) { setResult(null); setNeedsAuth(true); return; }
       if (!response.ok) throw new Error("Rewards are temporarily unavailable. Please try again.");
       const data = await response.json() as T;
-      if (["/api/airdrop/points", "/api/referrals/mine"].includes(url) &&
+      if (["/api/airdrop/points", "/api/referrals/mine", "/api/earn/status"].includes(url) &&
           (data as { wallet?: string } | null)?.wallet !== identity) {
         throw new Error("Your wallet session changed. Verify the connected wallet and try again.");
       }
@@ -54,5 +55,12 @@ export function useRewardResource<T>(url: string | null, wallet: Wallet | null, 
     void reload();
     return () => { requestGeneration.current++; };
   }, [reload]);
+  useEffect(() => {
+    const established = subscribeSessionEstablished(address => { if (address === identity) void reload(); });
+    const cleared = subscribeSessionCleared(() => {
+      generation.current++; setResult(null); setLoading(false); setError(null); setNeedsAuth(!!identity);
+    });
+    return () => { established(); cleared(); };
+  }, [identity, reload]);
   return { data: result?.identity === identity ? result.data : null, needsAuth, loading, error, reload };
 }

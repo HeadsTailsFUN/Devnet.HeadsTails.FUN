@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { EarnVerificationQueue } from "./EarnVerificationQueue";
 import { shortWallet } from "@/lib/leaderboard";
 import { BUG_SEVERITIES } from "@/lib/bugs/validate";
 
@@ -169,6 +170,7 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
   };
   return (
     <div className="flex flex-col gap-4">
+      <EarnVerificationQueue canReview={canWebAdmin} />
       <Section title="Users">
         <div className="flex flex-wrap gap-2">
           <input

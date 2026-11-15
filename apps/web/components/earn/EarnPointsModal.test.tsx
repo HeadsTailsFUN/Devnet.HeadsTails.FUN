@@ -8,6 +8,7 @@ import { WalletStandardProvider } from "../wallet/WalletProvider";
 
 // jsdom has no top-layer implementation. Browser behavior is verified separately.
 before(() => {
+  Object.defineProperty(globalThis, "PopStateEvent", { value: window.PopStateEvent, configurable: true });
   window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute("open", ""); };
   window.HTMLDialogElement.prototype.close = function () { this.removeAttribute("open"); };
 });

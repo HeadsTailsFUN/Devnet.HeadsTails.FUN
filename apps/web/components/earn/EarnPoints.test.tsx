@@ -1,11 +1,12 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, useMemo } from "react";
-import { render, screen, fireEvent, cleanup, waitFor } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
 import type { Wallet } from "@wallet-standard/base";
 import { WalletStandardProvider, useWalletState } from "../wallet/WalletProvider";
 import { EarnPointsContent } from "./EarnPointsClient";
 import { useRewardResource } from "../../lib/airdrop/useRewardResource";
+import { notifySessionCleared } from "../../lib/auth/sessionEvents";
 
 const address = "11111111111111111111111111111111";
 const account = { address, publicKey: new Uint8Array(32), chains: ["solana:devnet"], features: ["solana:signTransaction", "solana:signMessage"] };
@@ -135,4 +136,38 @@ test("late responses from the previous account never overwrite the new account",
   current = "second"; view.rerender(<Resource address="second" />);
   await screen.findByText("8"); answer(Response.json({ total: 999 }));
   await waitFor(() => assert.equal(screen.queryByText("999"), null));
+});
+
+test("clearing a session during an in-flight Points read stops loading and discards the late response", async () => {
+  let answer: (response: Response) => void = () => undefined;
+  installFetch({ "/api/airdrop/points": () => new Promise(resolve => { answer = resolve; }) });
+  mount(); fireEvent.click(screen.getByRole("button", { name: "Connect fixture" }));
+  await screen.findByRole("status", { name: "Loading Points" });
+  await waitFor(() => assert.notEqual(answer.toString(), "() => undefined"));
+  act(() => notifySessionCleared());
+  await screen.findByRole("button", { name: "Verify wallet" });
+  await act(async () => { answer(Response.json(fixture)); });
+  assert.equal(screen.queryByText("222"), null);
+  assert.equal(screen.queryByRole("status", { name: "Loading Points" }), null);
+});
+
+test("new manual mode lets rejected repost evidence be corrected without creating a new claim", async () => {
+  let body: Record<string, unknown> | null = null;
+  installFetch({
+    "/api/airdrop/points": () => Response.json({ ...fixture, manualOwnershipRequired: true, campaignUrl: "https://x.com/HeadsTailsFun/status/10", social: { ...fixture.social, repostStatus: "rejected", repostUrl: "https://x.com/degen/status/11" } }),
+    "/api/earn/catalog": () => Response.json({}),
+    "/api/earn/status": () => Response.json({ wallet: address, connections: { telegram: false, discord: false, x: true, xHandle: "degen" }, capabilities: { xManual: true }, quests: [], gameplayDays: 0, xChallenge: null }),
+    "/api/auth/challenge": () => Response.json({ challenge: { wallet: address }, message: "Synthetic ownership challenge" }),
+    "/api/auth/verify": () => Response.json({ wallet: address }),
+    "/api/airdrop/social-edit": () => Response.json({ status: "pending-verification" }),
+  });
+  const fetcher = globalThis.fetch;
+  globalThis.fetch = async (input, init) => { if (String(input) === "/api/airdrop/social-edit") body = JSON.parse(String(init?.body)); return fetcher(input, init); };
+  mount(); fireEvent.click(screen.getByRole("button", { name: "Connect fixture" })); await screen.findByText("222");
+  fireEvent.click(screen.getByRole("tab", { name: "QUESTS" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Edit repost evidence" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Updated X repost evidence URL" }), { target: { value: "https://x.com/degen/status/12" } });
+  fireEvent.click(screen.getByRole("button", { name: "Save repost evidence" }));
+  await screen.findByText("Updated — back to pending review.");
+  assert.deepEqual(body, { task: "repost", handle: "degen", evidenceUrl: "https://x.com/degen/status/12" });
 });

@@ -11,6 +11,7 @@ import { campaignPostUrl } from "@/lib/airdrop/campaign";
 import { TeamPreference, type Team } from "./TeamPreference";
 import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
 import { useRewardResource as useAuthedFetch } from "@/lib/airdrop/useRewardResource";
+import { XOwnershipForm } from "@/components/earn/VerificationQuests";
 import { EarnIcon, EarnPointsLink } from "@/components/earn/EarnPointsLink";
 
 type Tab = "profile" | "referrals" | "airdrop" | "bug";
@@ -537,6 +538,7 @@ export function AirdropTab({
   onChanged?: () => void;
 }) {
   const { data, needsAuth, loading, error, reload } = useAuthedFetch<{
+    manualOwnershipRequired?: boolean;
     campaignUrl?: string | null;
     socialAvailable?: boolean;
     season?: string;
@@ -551,10 +553,13 @@ export function AirdropTab({
       replyUrl: string | null;
       replyStatus: string | null;
       repostStatus: string | null;
+      repostUrl?: string | null;
     };
   }>("/api/airdrop/points", wallet, account);
   const [handle, setHandle] = useState("");
   const [replyUrl, setReplyUrl] = useState("");
+  const [repostUrl, setRepostUrl] = useState("");
+  const [editingRepost, setEditingRepost] = useState(false);
   const [claimNote, setClaimNote] = useState<string | null>(null);
   const [claiming, setClaiming] = useState(false);
   const [editingX, setEditingX] = useState(false);
@@ -581,7 +586,7 @@ export function AirdropTab({
         body: JSON.stringify({
           task,
           handle: social?.handle ?? handle,
-          evidenceUrl: task === "reply" ? replyUrl : undefined,
+          evidenceUrl: task === "reply" ? replyUrl : task === "repost" ? repostUrl : undefined,
         }),
       });
       const b = (await r.json().catch(() => null)) as {
@@ -608,7 +613,7 @@ export function AirdropTab({
     }
   };
   // Edit an existing claim: same reward row back to Pending, never a new one.
-  const editClaim = async (task: "connect_x" | "reply") => {
+  const editClaim = async (task: "connect_x" | "reply" | "repost") => {
     setClaimNote(null);
     setClaiming(true);
     try {
@@ -626,7 +631,7 @@ export function AirdropTab({
         body: JSON.stringify({
           task,
           handle: task === "connect_x" ? editHandle : (social?.handle ?? ""),
-          evidenceUrl: task === "reply" ? editReplyUrl : undefined,
+          evidenceUrl: task === "reply" ? editReplyUrl : task === "repost" ? repostUrl : undefined,
         }),
       });
       const b = (await r.json().catch(() => null)) as {
@@ -643,7 +648,8 @@ export function AirdropTab({
           : "Updated — back to pending review.",
       );
       if (task === "connect_x") setEditingX(false);
-      else setEditingReply(false);
+      else if (task === "reply") setEditingReply(false);
+      else setEditingRepost(false);
       await reload(false);
       onChanged?.();
     } catch {
@@ -744,6 +750,7 @@ export function AirdropTab({
         <fieldset disabled={data?.socialAvailable === false} className="min-w-0">
         {data?.socialAvailable === false && <p role="alert" className="mt-3 text-sm text-amber-200">Quest verification is temporarily unavailable. Try refreshing.</p>}
         <section className={questsOnly ? "earn-quest-card" : undefined} aria-label="Connect X account">
+        {data?.manualOwnershipRequired ? <XOwnershipForm onChanged={() => { void reload(false); onChanged?.(); }} /> : <>
         <p className="mt-2 text-xs text-white/50">Submit your X handle for verification. +100 Points after approval.</p>
         {!social?.handle && <StatusPill status={data?.socialAvailable === false ? "unavailable" : "available"} />}
         {/* Row 1 — X account: persisted server-side, survives refresh. */}
@@ -819,6 +826,7 @@ export function AirdropTab({
             </button>
           </div>
         )}
+        </>}
         </section>
         <section className={questsOnly ? "earn-quest-card" : undefined} aria-label="Reply quest">
         <p className="mt-2 text-xs text-white/50">Paste your reply URL. +50 Points after review.</p>
@@ -901,6 +909,7 @@ export function AirdropTab({
         <div className="mt-4 border-t border-white/10 pt-3"><p className="text-sm font-bold">Repost campaign post · +75 Points</p><p className="mt-1 text-xs text-white/50">Submit for review after reposting the eligible campaign.</p></div>
         {!campaignUrl && !social?.repostStatus && <p className="mt-2 text-xs text-white/50">Unavailable — no active campaign post is configured.</p>}
         {/* Repost appears only when a real campaign post is configured. */}
+        {data?.manualOwnershipRequired && campaignUrl && !social?.repostStatus && <label className="mt-3 block text-xs text-white/60">Repost evidence URL<input value={repostUrl} onChange={e => setRepostUrl(e.target.value.slice(0, 500))} aria-label="X repost evidence URL" placeholder="https://x.com/…/status/…" className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-sm" /></label>}
         {campaignUrl && !social?.repostStatus && (
           <div className="mt-3 flex gap-2">
             <button
@@ -919,8 +928,10 @@ export function AirdropTab({
               Repost claimed
             </span>
             <StatusPill status={social.repostStatus} />
+            {data?.manualOwnershipRequired && social.repostStatus !== "verified" && <button type="button" className="earn-text-button" disabled={claiming} onClick={() => { setRepostUrl(social.repostUrl ?? ""); setEditingRepost(true); }}>Edit repost evidence</button>}
           </div>
         )}
+        {editingRepost && <div className="mt-3 space-y-3"><label className="block text-xs text-white/60">Updated repost evidence URL<input aria-label="Updated X repost evidence URL" value={repostUrl} onChange={e => setRepostUrl(e.target.value.slice(0, 500))} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-sm" /></label><button type="button" className="earn-secondary" disabled={claiming || !repostUrl} onClick={() => void editClaim("repost")}>Save repost evidence</button><button type="button" className="earn-text-button" disabled={claiming} onClick={() => setEditingRepost(false)}>Cancel repost edit</button></div>}
         </section>
         </fieldset>
         {claimNote && (

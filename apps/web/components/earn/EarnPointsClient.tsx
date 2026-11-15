@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useWalletState } from "@/components/wallet/WalletProvider";
 import { AirdropTab, ReferralsTab } from "@/components/profile/ProfileModal";
 import { CommunityIcon, SolanaIcon, WalletIcon } from "@/components/ui/icons";
@@ -8,6 +8,7 @@ import { useRewardResource } from "@/lib/airdrop/useRewardResource";
 import type { PointsOverview } from "@/lib/airdrop/earn";
 import { GAMEPLAY_DAILY_CAP, GAMEPLAY_LOSS_POINTS, GAMEPLAY_WIN_TOTAL, SOCIAL_CONNECT_X_POINTS, SOCIAL_REPOST_POINTS, SOCIAL_REPLY_POINTS } from "@/lib/airdrop/rules";
 import { REFERRAL_INVITEE_ONCE, REFERRAL_REFERRER_ONCE, REFERRAL_PER_GAME } from "@/lib/referrals/logic";
+import { VerificationQuests } from "./VerificationQuests";
 import { EarnIcon } from "./EarnPointsLink";
 
 const tabs = ["play", "invite", "quests"] as const;
@@ -20,6 +21,9 @@ export function EarnPointsContent({ onConnect, onPlay }: { onConnect: () => void
   const { wallet, account, restoring } = useWalletState();
   const address = account?.address ?? null;
   const [tab, setTab] = useState<EarningTab>("play");
+  useEffect(() => {
+    if (new URL(window.location.href).searchParams.get("earn_notice")?.startsWith("discord_")) setTab("quests");
+  }, []);
   const tabList = useRef<HTMLDivElement>(null);
   const points = useRewardResource<PointsOverview>("/api/airdrop/points", wallet, account);
   const data = points.data;
@@ -74,7 +78,9 @@ export function EarnPointsContent({ onConnect, onPlay }: { onConnect: () => void
           <div className="earn-rule-grid mb-5"><Reward title="For the inviter" points={REFERRAL_REFERRER_ONCE} /><Reward title="For your friend" points={REFERRAL_INVITEE_ONCE} /><Reward title="Each eligible subsequent match" points={REFERRAL_PER_GAME} /></div>
           {address ? <ReferralsTab key={address} wallet={wallet} account={account} /> : <ConnectPrompt onConnect={onConnect} text="Connect your wallet to get your actual referral link and qualification progress." />}
         </> : <>
-          <SectionHeading eyebrow="SHOW UP FOR THE COMMUNITY" title="Social Quests" description="Link your X account and submit campaign activity for review. Opening X never awards Points." />
+          <SectionHeading eyebrow="SHOW UP FOR THE COMMUNITY" title="Social Quests" description="Connect your accounts, verify community quests and submit X campaign activity for review. Opening X never awards Points." />
+          <VerificationQuests onConnect={onConnect} onChanged={() => void points.reload()} />
+          <h3 className="font-display mt-8 mb-4 text-xl font-semibold">X quests</h3>
           {address ? <div className="earn-quests"><AirdropTab key={address} wallet={wallet} account={account} questsOnly onChanged={() => void points.reload()} /></div>
             : <><div className="earn-rule-grid mb-5"><Reward title="Connect X account" points={SOCIAL_CONNECT_X_POINTS} /><Reward title="Repost eligible campaign" points={SOCIAL_REPOST_POINTS} /><Reward title="Reply to eligible campaign" points={SOCIAL_REPLY_POINTS} /></div><ConnectPrompt onConnect={onConnect} text="Connect and verify your wallet to check quest availability and submit evidence." /></>}
         </>)}

@@ -3,6 +3,9 @@ import { getSessionWallet } from "@/lib/auth/session";
 import { getSupabaseAdmin } from "@/lib/solana/sponsorServer";
 import { isSocialTask } from "@/lib/airdrop/social";
 
+import { guardXSubmission } from "@/lib/earn/x-guards";
+import { failure } from "@/lib/earn/server";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -52,10 +55,13 @@ export async function POST(req: Request): Promise<NextResponse> {
   const seasonId = (season as { id?: string } | null)?.id;
   if (!seasonId) return NextResponse.json({ error: "no active season" }, { status: 503 });
 
+  let verifiedEvidence;
+  try { verifiedEvidence = await guardXSubmission(db, seasonId, wallet, task, evidence); }
+  catch (error) { return failure(error); }
   let data: unknown;
   let error: unknown;
   try {
-    const res = await db.rpc("update_airdrop_social_claim_atomic", {
+    const res = verifiedEvidence ? await db.rpc("earn_dispatch", { p_action: "x_evidence", p_wallet: wallet, p_data: { task, handle, evidence: verifiedEvidence.evidenceUrl, campaign: verifiedEvidence.campaignUrl, edit: true } }) : await db.rpc("update_airdrop_social_claim_atomic", {
       p_season_id: seasonId,
       p_wallet: wallet,
       p_task_type: task,
@@ -69,7 +75,9 @@ export async function POST(req: Request): Promise<NextResponse> {
   }
   if (!error) {
     const status = (data as { status?: string; claim_id?: string } | null)?.status;
-    if (status === "edited") return NextResponse.json({ status: "pending-verification" });
+    if (status === "edited") {
+      return NextResponse.json({ status: "pending-verification" });
+    }
     if (status === "unchanged") return NextResponse.json({ status: "unchanged" });
     return NextResponse.json({ error: "could not save edit" }, { status: 503 });
   }

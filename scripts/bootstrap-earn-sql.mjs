@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import {execFileSync} from 'node:child_process';
+const container='headstails-earn-v510-qa';
+const label=execFileSync('docker',['inspect','-f','{{index .Config.Labels "headstails.purpose"}}',container],{encoding:'utf8'}).trim();
+if(label!=='earn-v510-isolated-tests')throw Error('Refusing non-test container');
+const sql=(text,db='postgres')=>execFileSync('docker',['exec','-i',container,'psql','-U','postgres','-d',db,'-X','-At','-v','ON_ERROR_STOP=1'],{input:text,encoding:'utf8',stdio:['pipe','pipe','pipe']});
+const db='earn_bootstrap_'+Date.now();sql('create database '+db+';');
+sql("do $$ begin create role anon; exception when duplicate_object then null; end $$; do $$ begin create role authenticated; exception when duplicate_object then null; end $$; do $$ begin create role service_role bypassrls; exception when duplicate_object then null; end $$;",db);
+for (const name of ['20260920004853_create_matches.sql','20260929000000_growth_systems.sql','20260929000002_gameplay_event_day_idempotency.sql','20260929000003_social_claim_edit.sql'])sql(fs.readFileSync('supabase/migrations/'+name,'utf8'),db);
+sql('create table public.admin_members(wallet text primary key,role text);grant usage on schema public to service_role;grant all on all tables in schema public to service_role;',db);
+sql(fs.readFileSync('supabase/migrations/20261115124344_earn_points_social_verification.sql','utf8'),db);
+fs.writeFileSync('artifacts/earn-points/verification-db.json',JSON.stringify({container,db}));
+console.log('Isolated PostgreSQL migration applied: '+db);
+console.log(sql("select public.earn_dispatch('three_days','test-wallet',jsonb_build_object('program','test','mint','test','award',false));",db));

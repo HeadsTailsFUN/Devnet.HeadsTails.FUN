@@ -3,6 +3,9 @@ import { getSessionWallet } from "@/lib/auth/session";
 import { getSupabaseAdmin } from "@/lib/solana/sponsorServer";
 import { isSocialTask, socialPendingPoints } from "@/lib/airdrop/social";
 
+import { guardXSubmission } from "@/lib/earn/x-guards";
+import { failure } from "@/lib/earn/server";
+
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
@@ -44,15 +47,15 @@ export async function POST(req: Request): Promise<NextResponse> {
   const handle = sanitizeHandle(b.handle ?? b.x_handle);
   if (!handle) return NextResponse.json({ error: "invalid X handle" }, { status: 400 });
   const evidence = task === "connect_x" ? null : sanitizeUrl(b.evidenceUrl ?? b.evidence_url ?? b.replyUrl);
-  const xUserId =
-    typeof b.x_user_id === "string" && /^[A-Za-z0-9_-]{1,64}$/.test(b.x_user_id.trim())
-      ? b.x_user_id.trim()
-      : null;
+  const xUserId = null; // Manual ownership does not provide an API-verified X user ID.
   const db = getSupabaseAdmin();
   if (!db) return NextResponse.json({ error: "unavailable" }, { status: 503 });
   const { data: season } = await db.from("airdrop_seasons").select("id").eq("active", true).limit(1).maybeSingle();
   const seasonId = (season as { id?: string } | null)?.id;
   if (!seasonId) return NextResponse.json({ error: "no active season" }, { status: 503 });
+  let verifiedEvidence;
+  try { verifiedEvidence = await guardXSubmission(db, seasonId, wallet, task, evidence); }
+  catch (error) { return failure(error); }
   const profileUrl = `https://x.com/${handle}`;
 
   // Atomic single transaction: identity bind + claim + pending ledger.
@@ -61,7 +64,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   let data: unknown;
   let error: unknown;
   try {
-    const res = await db.rpc("create_airdrop_social_claim_atomic", {
+    const res = verifiedEvidence ? await db.rpc("earn_dispatch", { p_action: "x_evidence", p_wallet: wallet, p_data: { task, handle, evidence: verifiedEvidence.evidenceUrl, campaign: verifiedEvidence.campaignUrl, edit: false } }) : await db.rpc("create_airdrop_social_claim_atomic", {
       p_season_id: seasonId,
       p_wallet: wallet,
       p_task_type: task,
@@ -79,7 +82,9 @@ export async function POST(req: Request): Promise<NextResponse> {
   if (!error) {
     const status = (data as { status?: string; claim_id?: string } | null)?.status;
     const claimId = (data as { claim_id?: string } | null)?.claim_id;
-    if (status === "created") return NextResponse.json({ status: "pending-verification", id: claimId });
+    if (status === "created") {
+      return NextResponse.json({ status: "pending-verification", id: claimId });
+    }
     if (status === "already-claimed") return NextResponse.json({ status: "already-claimed" });
     return NextResponse.json({ error: "could not save claim" }, { status: 503 });
   }

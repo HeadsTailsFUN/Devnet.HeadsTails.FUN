@@ -95,3 +95,22 @@
   .earn-dialog .earn-overview, .earn-dialog .earn-panel { padding: 16px; border-radius: 20px; }
   .earn-dialog .earn-guest > button { justify-self: stretch; }
 }
+
+.earn-verification-section { margin-block: 24px; padding-block: 20px; border-block: 1px solid #ffffff12; }
+.earn-connections { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 8px; }
+.earn-connection { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 14px; min-width: 0; border: 1px solid #ffffff10; border-radius: 16px; background: #ffffff03; font-size: 12px; }
+.earn-connection > span { font-size: 10px; color: var(--text-secondary); }
+.earn-connection > button { min-height: 36px; color: var(--heads); text-align: left; font-size: 11px; font-weight: 650; }
+.earn-connection > button:disabled { opacity: .4; }
+.earn-new-quest-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.earn-new-quest { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 18px; min-width: 0; border: 1px solid #ffffff12; border-radius: 18px; background: #ffffff03; }
+.earn-new-quest > p { font-size: 12px; line-height: 1.7; color: var(--text-secondary); }
+.earn-new-quest small { font-size: 10px; color: var(--text-secondary); }
+.earn-new-quest > button { margin-top: auto; }
+.earn-quest-top { display: flex; align-items: center; justify-content: space-between; width: 100%; color: var(--heads); }
+.earn-quest-reward { font-size: 13px; font-weight: 750; color: var(--tails); }
+.earn-day-progress { width: 100%; height: 28px; position: relative; overflow: hidden; border: 1px solid #3dffc820; border-radius: 8px; background: #3dffc808; }
+.earn-day-progress > span { position: absolute; inset-block: 0; left: 0; background: #3dffc820; }
+.earn-day-progress > strong { position: relative; display: block; padding-inline: 8px; line-height: 26px; font-size: 11px; font-weight: 550; color: var(--heads); }
+.earn-verification-section button:disabled, .earn-x-ownership button:disabled { opacity: .4; cursor: not-allowed; }
+@media (max-width: 639px) { .earn-connections { grid-template-columns: repeat(2,minmax(0,1fr)); } .earn-new-quest-grid { grid-template-columns: 1fr; } }
