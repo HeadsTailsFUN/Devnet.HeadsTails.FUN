@@ -2,6 +2,8 @@
 
 2026-11-15 · branch feat/earn-points · latest inspected main: 4811bcf4d193c3d648493d6f16e1af5a9fae1f25.
 
+Final handoff review: 2026-11-16. Integration code is recorded in cae5cfe; the subsequent UI-only review in 1d936a5 simplified the popup and added the complete rules table. Its 54 targeted tests and final production build passed; [the UI review](docs/earn-points-ui-review-2026-11-16.md) records those results. The original 2026-11-15 integration test counts below are historical evidence, not additional tests to add to that 54. No live integration, deployment, reward activation or production migration has occurred in either phase.
+
 **Website-side implementation is complete for review. Production deployment, production migration, live linking and new reward activation have not been performed.** The active Telegram bot and Bot Manager were not modified.
 
 | Area | Status | Evidence / limit |

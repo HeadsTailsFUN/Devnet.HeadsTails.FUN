@@ -1,6 +1,8 @@
 # HeadsTails.FUN website ↔ Telegram V5.10
 
-Website implementation contract, 2026-11-15. **Implemented and tested locally; NOT deployed, NOT live-confirmed, NOT activated.** The separately managed bot was not modified. This replaces the proposed website-side details in the supplied contract; it does not assert that a live V5.10 installation has accepted them.
+Website implementation contract v1, initially implemented 2026-11-15 and reviewed for final handoff 2026-11-16. **Implemented and tested locally; NOT deployed, NOT live-confirmed, NOT activated.** The separately managed bot was not modified. This replaces the proposed website-side details in the supplied contract; it does not assert that a live V5.10 installation has accepted them.
+
+Review basis: website integration commit cae5cfe and popup/rules review commit 1d936a5 on the local feat/earn-points branch. The 2026-11-16 UI simplification did not change this API protocol, reward amounts or activation gates. The companion [readiness report](EARN_POINTS_INTEGRATION_READINESS.md) lists exact changed files, migration, offline test evidence, Discord configuration and remaining live-test requirements.
 
 ## Base URL and transport
 
@@ -32,6 +34,8 @@ Idempotency-Key: <mutation key defined below>
 The dedicated credential must have at least 32 characters and be provisioned securely on both servers. No HMAC mode is implemented. Headers are case-insensitive. UUID4 identifiers and the proposal's 32-hex example identifiers are accepted, case-insensitively; a link/unlink idempotency key must exactly equal the body's request_id. Result keys are exactly verification:<job_id>. Mutations require these keys; GET requests do not.
 
 Generate a new X-Request-Id for each attempt. Retrying a mutation requires the same Idempotency-Key and identical JSON field values, including timestamps and optional detail. Object property order is immaterial. A changed body with an existing key returns HTTP 409. There is no separate HMAC-style X-Request-Id replay cache in this Bearer mode.
+
+Transport, authentication, feature gates and structural validation run before receipt replay. A malformed request may therefore return its validation error (including status=invalid for a malformed link token) rather than 409, and a disabled integration may return 503 before a receipt is read. Only responses committed to the durable receipt journal are replayable; validation/rate-limit/availability errors are not all journaled. Replay guarantees below assume those preliminary checks still pass.
 
 All responses are JSON objects, private/no-store, with no token plaintext, service credential, wallet address, database diagnostic or stack trace in service responses. Request bodies are limited to 64 KiB. Typical failures:
 
@@ -176,7 +180,7 @@ Owner-confirmed identifiers: bot username HeadsTailsFunBot; group ID -1004441691
 
 Link tokens become invalid at 600 seconds, OAuth state at 600 seconds, and membership jobs at 900 seconds regardless of whether their database rows remain. The current release has **no automatic purge**: token digests, receipts, verification records and audits remain at rest; identity reservations and historical rewards survive unlinking. Plaintext link tokens, OAuth credentials and Telegram usernames are not retained. The owner must approve the operational retention/deletion policy before live enablement; deleting an identity reservation must never silently allow a second reward.
 
-This is the 2026-11-15 website contract for the existing unversioned five routes. Breaking changes require an agreed adapter/website release and a revised contract or new versioned route; do not silently change request fields or overwrite integration history during rollback.
+This is protocol revision v1 (2026-11-15), reviewed 2026-11-16, for the existing unversioned five routes. Breaking changes require an agreed adapter/website release and a revised contract or new versioned route; do not silently change request fields or overwrite integration history during rollback.
 
 ## Compatibility decisions and remaining sign-off
 
