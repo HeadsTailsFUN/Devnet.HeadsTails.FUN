@@ -1,6 +1,6 @@
 # HeadsTails.FUN website ↔ Telegram V5.10
 
-Website implementation contract v1, initially implemented 2026-11-15 and reviewed for final handoff 2026-11-16. **Implemented and tested locally; NOT deployed, NOT live-confirmed, NOT activated.** The separately managed bot was not modified. This replaces the proposed website-side details in the supplied contract; it does not assert that a live V5.10 installation has accepted them.
+Website implementation contract v1, initially implemented 2026-11-15 and reviewed for final handoff 2026-11-16. **Website code deployed to production 2026-11-16; provider integration NOT live-confirmed or activated.** All new integration/reward switches remain false and the additive production migration was not run. See the [production release report](docs/earn-points-production-release-2026-11-16.md). The separately managed bot was not modified. This replaces the proposed website-side details in the supplied contract; it does not assert that a live V5.10 installation has accepted them.
 
 Review basis: website integration commit cae5cfe and popup/rules review commit 1d936a5 on the local feat/earn-points branch. The 2026-11-16 UI simplification did not change this API protocol, reward amounts or activation gates. The companion [readiness report](EARN_POINTS_INTEGRATION_READINESS.md) lists exact changed files, migration, offline test evidence, Discord configuration and remaining live-test requirements.
 
