@@ -72,8 +72,13 @@ test("malformed / untrusted ingress values cannot be stored as IP fingerprints",
   for (const v of [null, "", "999.1.1.1", "1.2.3.04", "203.0.113.1, 1.2.3.4", "attacker", "http://evil.invalid", "::ffff:1.2.3.4%zone"]) assert.equal(normalizeWelcomeIp(v), null);
   let calls = 0; const forbidden = (async () => { calls++; throw new Error(); }) as typeof fetch;
   await claimWelcomeIp(new Headers({ "x-vercel-forwarded-for": "203.0.113.9" }), forbidden);
-  deployed(); await claimWelcomeIp(new Headers({ "x-forwarded-for": "203.0.113.9" }), forbidden);
+  deployed(); await claimWelcomeIp(new Headers({ "x-forwarded-for": "203.0.113.9, 1.2.3.4" }), forbidden);
   assert.equal(calls, 0);
+});
+test("Vercel's overwritten standard forwarded header is supported when its alias is absent", async () => {
+  deployed(); let calls=0;
+  const result=await claimWelcomeIp(new Headers({"x-forwarded-for":"203.0.113.19"}),async()=>{calls++;return Response.json(true);});
+  assert.equal(result,true);assert.equal(calls,1);
 });
 test("an existing browser and wallet session cannot hide a genuinely new IP", async () => {
   deployed(); const seen = new Set<string>(); let calls = 0;

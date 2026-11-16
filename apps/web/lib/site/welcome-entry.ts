@@ -26,16 +26,18 @@ export async function welcomeIpDigest(ip: string, secret: string, hostname = "he
 export async function requestWelcomeDigest(headers: Headers, hostname = "headstails.fun"): Promise<string | null> {
   // Forwarded headers are trusted only on the actual Vercel deployment, never on a self-hosted origin.
   if (process.env.VERCEL !== "1") return null;
-  const ip = normalizeWelcomeIp(headers.get("x-vercel-forwarded-for"));
+  const ip = normalizeWelcomeIp(headers.get("x-vercel-forwarded-for") || headers.get("x-forwarded-for"));
   const secret = process.env.WELCOME_IP_HASH_SECRET;
-  if (!ip || !secret || secret.length < 32) return null;
+  if (!ip) { console.warn("welcome_entry_unavailable: ingress_ip_missing_or_invalid"); return null; }
+  if (!secret || secret.length < 32) { console.warn("welcome_entry_unavailable: preference_key_not_configured"); return null; }
   try { return await welcomeIpDigest(ip, secret, hostname); } catch { return null; }
 }
 
 export async function claimWelcomeIp(headers: Headers, fetcher: typeof fetch = fetch, digest?: string): Promise<boolean | null> {
   const currentDigest = digest ?? await requestWelcomeDigest(headers);
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL, service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!currentDigest || !base || !service) return null;
+  if (!currentDigest) return null;
+  if (!base || !service) { console.warn("welcome_entry_unavailable: storage_not_configured"); return null; }
   try {
     const url = new URL("/rest/v1/rpc/claim_site_welcome_visit", base);
     if (url.protocol !== "https:") return null;
@@ -44,10 +46,10 @@ export async function claimWelcomeIp(headers: Headers, fetcher: typeof fetch = f
       headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" },
       body: JSON.stringify({ p_ip_digest: currentDigest }),
     });
-    if (!response.ok) return null;
+    if (!response.ok) { console.warn(`welcome_entry_unavailable: storage_status_${response.status}`); return null; }
     const result: unknown = await response.json();
     return typeof result === "boolean" ? result : null;
-  } catch { return null; }
+  } catch { console.warn("welcome_entry_unavailable: storage_transport_failure"); return null; }
 }
 
 function remember(response: NextResponse, req: NextRequest, digest: string | null): NextResponse {
