@@ -194,4 +194,80 @@ body:has(.welcome-page) { background:#05070b; }
   .w-hero-bottom { position: relative; inset: auto; margin-top: 40px; }
   .w-hero-ctas { padding-inline: 0; }
 }
+.w-header {
+  position: sticky;
+  top: 16px;
+  z-index: 30;
+  background-color: rgb(5 10 15 / 94%);
+  backdrop-filter: blur(16px);
+}
+.welcome-page [id] { scroll-margin-top:116px; }
+.w-token-panel { display:grid;grid-template-columns:1.2fr .8fr 1fr;align-items:center;gap:32px;padding:32px; }
+.w-token-intro h3 { font-size:28px;font-weight:800;letter-spacing:-1px; }
+.w-token-intro h3 > span { margin-left:8px;color:var(--w-green);font-size:13px;letter-spacing:1px; }
+.w-token-supply { display:block;font-size:32px;font-weight:850;letter-spacing:-1.4px;margin:17px 0 14px; }
+.w-token-supply > span { display:block;font-size:11px;font-weight:500;letter-spacing:.4px;color:#95b3b5; }
+.w-token-intro p { font-size:12px;line-height:1.8;color:#a6b5c4;max-width:340px; }
+.w-token-intro .w-text-link { font-size:11px;margin-top:5px; }
+.w-allocation { position:relative;isolation:isolate;aspect-ratio:1;width:220px;max-width:100%;border-radius:50%;margin:auto;box-shadow:0 0 36px #3dffc80c; }
+.w-allocation > div { position:absolute;inset:22px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:50%;background:#0b141b; }
+.w-allocation img { width:83px;height:83px;object-fit:contain; }
+.w-allocation > div > span { font-size:8px;letter-spacing:1.4px;line-height:1.8;color:#a5b6c3;text-align:center;margin-top:8px; }
+.w-allocation-legend { list-style:none;padding:0;margin:0;display:grid;gap:12px; }
+.w-allocation-legend li { display:flex;align-items:center;gap:10px;font-size:12px;color:#c2cdd7; }
+.w-allocation-legend i { width:7px;height:7px;border-radius:50%;flex-shrink:0; }
+.w-allocation-legend strong { margin-left:auto;color:#eff9f7;font-size:13px;font-weight:700; }
+.w-token-note,.w-roadmap-note { font-size:11px;line-height:1.9;color:#9aaaba;margin-top:17px!important; }
+.w-token-details { margin-top:12px;border-bottom:1px solid #ffffff17; }
+.w-token-details summary { cursor:pointer;list-style:none;display:flex;align-items:center;justify-content:space-between;min-height:48px;font-size:12px;font-weight:650; }
+.w-token-details summary::-webkit-details-marker { display:none; }
+.w-token-details summary > span { color:var(--w-green);font-size:21px;font-weight:400; }
+.w-token-details[open] summary > span { transform:rotate(45deg); }
+.w-token-details p { margin-bottom:13px;font-size:12px;color:#a6b6c6;line-height:1.9; }
+.w-mint-address { display:block;overflow-wrap:anywhere;font-size:10px;color:var(--w-green);min-height:36px;margin-bottom:12px; }
+.w-roadmap-grid { display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px; }
+.w-roadmap-card { padding:27px 26px; }
+.w-roadmap-top { display:flex;align-items:center;justify-content:space-between;margin-bottom:19px; }
+.w-roadmap-top > span { font-size:36px;font-weight:850;letter-spacing:-2px;line-height:1;color:#4c686d; }
+.w-roadmap-top > i { width:7px;height:7px;border-radius:50%;background:var(--w-green);box-shadow:0 0 11px #3dffc84a; }
+.w-roadmap-card h3 { font-size:15px;font-weight:750;letter-spacing:-.2px; }
+.w-roadmap-status { font-size:10px;font-weight:600;color:var(--w-green);margin-top:7px!important;min-height:30px; }
+.w-roadmap-card ul { margin:13px 0 0;padding:0;list-style:none;display:grid;gap:10px;font-size:11px;line-height:1.6;color:#b6c4d0; }
+.w-roadmap-card li::before { content:"·";color:var(--w-green);margin-right:9px; }
+.w-roadmap-pink { border-color:#ff7ebd55;background:radial-gradient(at 0 0,#ff7ebd20,transparent 70%),#12151e; }
+.w-roadmap-pink .w-roadmap-status,.w-roadmap-pink li::before { color:var(--w-pink); }
+.w-roadmap-pink .w-roadmap-top > i { background:var(--w-pink);box-shadow:0 0 11px #ff7ebd4a; }
+@media (min-width:851px) and (max-width:1100px) {
+  .w-desktop-nav { display:none; }
+  .w-mobile-menu { display:block;position:relative; }
+  .w-mobile-menu > summary { display:flex;align-items:center;justify-content:center;width:40px;height:44px;list-style:none;color:#e5f6ed;font-size:21px;cursor:pointer; }
+  .w-mobile-menu > summary::-webkit-details-marker { display:none; }
+  .w-mobile-menu nav { position:absolute;right:0;top:51px;width:200px;display:flex;flex-direction:column;align-items:stretch;padding:10px;border:1px solid #3dffc855;border-radius:14px;background:#0c171e;box-shadow:0 12px 35px #000a; }
+  .w-mobile-menu nav a { display:flex;align-items:center;min-height:44px;padding:8px 12px;font-size:13px;color:#d3e0e4; }
+  .w-mobile-menu nav a:hover { color:var(--w-green);background:#3dffc80a;border-radius:8px; }
+}
+@media (max-width:900px) {
+  .w-token-panel { grid-template-columns:1fr 1fr;gap:25px;padding:27px; }
+  .w-token-intro { grid-column:1 / -1; }
+  .w-token-intro p { max-width:100%; }
+  .w-roadmap-card { padding:23px 19px; }
+  .w-roadmap-card h3 { font-size:13px; }
+}
+@media (max-width:600px) {
+  .w-header { top:10px; }
+  .w-token-panel { grid-template-columns:1fr;gap:27px;padding:24px 22px; }
+  .w-token-intro h3 { font-size:25px; }
+  .w-token-supply { font-size:30px; }
+  .w-token-intro p { font-size:11px; }
+  .w-allocation { width:200px; }
+  .w-allocation-legend { gap:11px; }
+  .w-allocation-legend li { font-size:11px; }
+  .w-token-note,.w-roadmap-note { font-size:10px; }
+  .w-roadmap-grid { grid-template-columns:1fr;gap:13px; }
+  .w-roadmap-card { padding:23px; }
+  .w-roadmap-top { margin-bottom:14px; }
+  .w-roadmap-card h3 { font-size:15px; }
+  .w-roadmap-status { min-height:0; }
+  .w-roadmap-card ul { margin-top:18px; }
+}
 @media(prefers-reduced-motion:reduce) { .welcome-page * { scroll-behavior:auto!important;animation:none!important;transition:none!important; }.welcome-page a:hover { transform:none; } }

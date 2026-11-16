@@ -30,14 +30,20 @@ test("direct welcome entry can always render and Launch App cannot redirect-loop
   const launch = await welcomeEntry(req("/?ref=FRIEND")); assert.equal(launch.headers.get("location"), null);
 });
 test("legacy referrals, Earn Points, Discord notices, mobile tabs and wallet callbacks bypass the welcome gate", async () => {
-  for (const query of ["ref=CODE", "earn=1", "earn=1&earn_notice=discord_verified", "tab=profile&info=privacy&ref=OWNER", "data=wallet-return&nonce=state", "unknown=legacy"]) {
+  for (const query of ["ref=CODE", "earn=1", "earn=1&earn_notice=discord_verified", "tab=profile&info=privacy&ref=OWNER", "data=wallet-return&nonce=state"]) {
     const r = await welcomeEntry(req(`/?${query}`)); assert.equal(r.headers.get("x-middleware-next"), "1", query);
     assert.equal(r.headers.get("location"), null);
   }
 });
-test("session restoration, prefetch and non-GET requests never consume a first visit", async () => {
+test("ordinary campaign parameters retain the first-visit introduction and survive Launch App", async () => {
+  const first=await welcomeEntry(req("/?utm_source=community"));
+  assert.equal(first.status,307);assert.equal(new URL(first.headers.get("location")!).pathname,"/welcome");
+  assert.equal(new URL(first.headers.get("location")!).searchParams.get("utm_source"),"community");
+  assert.equal(welcomeAppHref({utm_source:"community"}),"/?utm_source=community");
+});
+test("prefetch and non-GET requests never consume a first visit", async () => {
   globalThis.fetch = async () => { throw new Error("must not call storage"); };
-  for (const headers of [{ cookie: "ht_session=existing-session" }, { rsc: "1" }, { "next-router-prefetch": "1" }, { purpose: "prefetch" }]) {
+  for (const headers of [{ rsc: "1" }, { "next-router-prefetch": "1" }, { purpose: "prefetch" }]) {
     assert.equal((await welcomeEntry(req("/", headers as Record<string, string>))).headers.get("x-middleware-next"), "1");
   }
   for (const method of ["HEAD", "POST"]) {
@@ -68,6 +74,29 @@ test("malformed / untrusted ingress values cannot be stored as IP fingerprints",
   await claimWelcomeIp(new Headers({ "x-vercel-forwarded-for": "203.0.113.9" }), forbidden);
   deployed(); await claimWelcomeIp(new Headers({ "x-forwarded-for": "203.0.113.9" }), forbidden);
   assert.equal(calls, 0);
+});
+test("an existing browser and wallet session cannot hide a genuinely new IP", async () => {
+  deployed(); const seen = new Set<string>(); let calls = 0;
+  globalThis.fetch = async (_input, init) => { calls++; const key=JSON.parse(String(init?.body)).p_ip_digest; const first=!seen.has(key);seen.add(key);return Response.json(first); };
+  const first=await welcomeEntry(req("/", {"x-vercel-forwarded-for":"203.0.113.20"}));
+  assert.equal(first.status,307); const old=first.cookies.get(WELCOME_COOKIE)!.value;assert.match(old,/^[a-f0-9]{64}$/);
+  const same=await welcomeEntry(req("/", {"x-vercel-forwarded-for":"203.0.113.20",cookie:`${WELCOME_COOKIE}=${old}; ht_session=unchanged-owner-session`}));
+  assert.equal(same.headers.get("location"),null);assert.equal(calls,1);
+  const changed=await welcomeEntry(req("/", {"x-vercel-forwarded-for":"203.0.113.21",cookie:`${WELCOME_COOKIE}=${old}; ht_session=unchanged-owner-session`}));
+  assert.equal(changed.status,307);assert.notEqual(changed.cookies.get(WELCOME_COOKIE)!.value,old);
+  assert.equal(changed.cookies.get("ht_session"),undefined);
+  const knownAgain=await welcomeEntry(req("/", {"x-vercel-forwarded-for":"203.0.113.20",cookie:`${WELCOME_COOKIE}=${changed.cookies.get(WELCOME_COOKIE)!.value}`}));
+  assert.equal(knownAgain.headers.get("location"),null);assert.equal(knownAgain.cookies.get(WELCOME_COOKIE)!.value,old);
+});
+test("a direct welcome visit on the new IP permits Launch App without looping", async () => {
+  deployed(); globalThis.fetch=async()=>Response.json(true);
+  const welcome=await welcomeEntry(req("/welcome",{"x-vercel-forwarded-for":"203.0.113.22",cookie:`${WELCOME_COOKIE}=1`}));
+  const value=welcome.cookies.get(WELCOME_COOKIE)!.value;assert.match(value,/^[a-f0-9]{64}$/);
+  globalThis.fetch=async()=>{throw new Error("matching IP cookie must not need storage");};
+  assert.equal((await welcomeEntry(req("/",{"x-vercel-forwarded-for":"203.0.113.22",cookie:`${WELCOME_COOKIE}=${value}`}))).headers.get("location"),null);
+});
+test("staged deployment visits cannot consume the canonical production IP introduction", async () => {
+  assert.notEqual(await welcomeIpDigest("203.0.113.9","test-key","preview.vercel.app"),await welcomeIpDigest("203.0.113.9","test-key","headstails.fun"));
 });
 test("HMAC is stable for the same normalized IP and separates keys and IPs", async () => {
   const a = await welcomeIpDigest("203.0.113.9", "test-key-a"); assert.match(a, /^[a-f0-9]{64}$/);

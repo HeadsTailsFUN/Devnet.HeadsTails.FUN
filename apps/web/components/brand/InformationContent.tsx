@@ -1,16 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { InfoPage } from "./InfoPage";
+import { HTS_ALLOCATIONS as allocations, PROJECT_ROADMAP as stages } from "@/lib/site/project-content";
 
-const allocations = [
-  ["Founder", 15, "#32f5c4"],
-  ["Team", 5, "#77ffe0"],
-  ["Player Rewards", 30, "#ff7ebd"],
-  ["Ecosystem", 15, "#d564ef"],
-  ["Treasury", 15, "#75aaff"],
-  ["Liquidity", 15, "#f4c276"],
-  ["Initial Community", 5, "#d9e8ef"],
-] as const;
 export function TokenomicsContent() {
   return (
     <InfoPage title="One token. Every flip." eyebrow="HTS / TOKENOMICS">
@@ -94,38 +86,6 @@ export function TokenomicsContent() {
   );
 }
 
-const stages = [
-  {
-    name: "DEVNET BETA",
-    tag: "Live · improving",
-    items: [
-      "HTS gameplay",
-      "Real matchmaking and settlement",
-      "Community testing",
-      "Reliability improvements",
-    ],
-  },
-  {
-    name: "COMMUNITY & GROWTH",
-    tag: "Building on existing features",
-    items: [
-      "Points and referrals",
-      "Leaderboards",
-      "Community competition",
-      "Gameplay improvements",
-    ],
-  },
-  {
-    name: "EXPANSION",
-    tag: "Planned",
-    items: [
-      "Additional rooms",
-      "Better UX and infrastructure",
-      "Community campaigns",
-      "Future product opportunities",
-    ],
-  },
-];
 export function RoadmapContent() {
   return (
     <InfoPage title="The next flips." eyebrow="HEADSTAILS / ROADMAP">

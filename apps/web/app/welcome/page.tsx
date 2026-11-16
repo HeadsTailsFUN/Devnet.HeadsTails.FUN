@@ -4,6 +4,7 @@ import { WelcomeIcon, type WelcomeIconName } from "@/components/welcome/WelcomeI
 import { WelcomeReferral } from "@/components/welcome/WelcomeReferral";
 import { DiscordIcon, GitHubIcon, TelegramIcon, XIcon } from "@/components/ui/icons";
 import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
+import { HTS_ALLOCATIONS, PROJECT_ROADMAP } from "@/lib/site/project-content";
 import { welcomeAppHref, type WelcomeSearch } from "@/lib/site/welcome-links";
 import "./welcome.css";
 
@@ -26,6 +27,12 @@ const socials = [
   { name: "Discord", href: SOCIAL_LINKS.discord, Icon: DiscordIcon },
   { name: "GitHub", href: SOCIAL_LINKS.github, Icon: GitHubIcon },
 ];
+const allocationGradient = (() => {
+  let stop = 0;
+  return `conic-gradient(${HTS_ALLOCATIONS.map(([, percent, color]) => {
+    const start = stop; stop += percent; return `${color} ${start}% ${stop}%`;
+  }).join(", ")})`;
+})();
 const steps: { title: string; text: string; icon: WelcomeIconName }[] = [
   { title: "Connect Wallet", text: "Bring your Solana wallet. Phantom, Backpack and more.", icon: "wallet" },
   { title: "Pick a Side", text: "Team HEADS or team TAILS. Same room. Same stake.", icon: "coin" },
@@ -82,10 +89,10 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
     <header className="w-header w-container">
       <a href={welcome} aria-label="HeadsTails.fun welcome"><Brand /></a>
       <nav className="w-desktop-nav" aria-label="Main navigation">
-        <a href="#how-it-works">How It Works</a><a href="#fairness">Fairness</a><a href="#faq">FAQ</a>
+        <a href="#how-it-works">How It Works</a><a href="#fairness">Fairness</a><a href="#tokenomics">Tokenomics</a><a href="#roadmap">Roadmap</a><a href="#faq">FAQ</a>
         <details className="w-community-menu"><summary>Community <span aria-hidden="true">⌄</span></summary><div>{socials.map(({ name, href, Icon }) => <a key={name} href={href} target="_blank" rel="noopener noreferrer"><Icon />{name}</a>)}</div></details>
       </nav>
-      <div className="w-header-actions"><Launch href={app} /><details className="w-mobile-menu"><summary aria-label="Navigation menu"><span aria-hidden="true">☰</span></summary><nav aria-label="Mobile navigation"><a href="#how-it-works">How It Works</a><a href="#fairness">Fairness</a><a href="#faq">FAQ</a><a href="#community">Community</a></nav></details></div>
+      <div className="w-header-actions"><Launch href={app} /><details className="w-mobile-menu"><summary aria-label="Navigation menu"><span aria-hidden="true">☰</span></summary><nav aria-label="Mobile navigation"><a href="#how-it-works">How It Works</a><a href="#fairness">Fairness</a><a href="#tokenomics">Tokenomics</a><a href="#roadmap">Roadmap</a><a href="#faq">FAQ</a><a href="#community">Community</a></nav></details></div>
     </header>
 
     <main id="welcome-content">
@@ -115,12 +122,26 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
         <section className="w-section w-fairness" aria-labelledby="fairness"><div className="w-fairness-art"><Image src="/welcome/coin-fire.png" alt="Official HeadsTails coin with green and pink energy" width={512} height={512} sizes="(max-width: 767px) 270px, 380px" /><span className="w-fairness-stamp"><WelcomeIcon name="shield" />VERIFIABLE ON SOLANA</span></div><div><span className="w-eyebrow">FAIRNESS & TRANSPARENCY</span><h2 id="fairness">Don&apos;t trust the flip.<br /><span>Verify it.</span></h2><p>Every round leaves a trail. Read the ORAO randomness, calculate the winning side and check the on-chain payout yourself.</p><div className="w-fairness-links"><a className="w-button w-button-ghost" href="/how-to"><WelcomeIcon name="shield" />Verification Guide</a><a className="w-text-link" href={SOCIAL_LINKS.github} target="_blank" rel="noopener noreferrer"><GitHubIcon />Read the Code <span aria-hidden="true">↗</span></a></div><p className="w-small">Independent checks, not a promise of an audit. The guide explains what each check can verify.</p></div></section>
 
 
+        <section className="w-section" aria-labelledby="tokenomics">
+          <SectionTitle id="tokenomics" note="HTS · Solana Devnet">TOKENOMICS</SectionTitle>
+          <div className="w-token-panel w-glass">
+            <div className="w-token-intro"><span className="w-eyebrow">ONE TOKEN. EVERY FLIP.</span><h3>HeadsTails <span>HTS</span></h3><strong className="w-token-supply">1,000,000,000<span>HTS issued · 6 decimals</span></strong><p>HTS supplies gameplay stakes and a bounded player-reward pool. Welcome grants transfer existing tokens.</p><a className="w-text-link" href="https://explorer.solana.com/address/HiteMiqxQG1GjLGDmvV1JmVyR9ayWm46ZjhjHzJrN9R4?cluster=devnet" target="_blank" rel="noopener noreferrer">View the Devnet mint <span aria-hidden="true">↗</span></a></div>
+            <div className="w-allocation" style={{ background: allocationGradient }} role="img" aria-label={`Proposed distribution: ${HTS_ALLOCATIONS.map(([label, percent]) => `${label} ${percent}%`).join(", ")}`}><div><Image src="/welcome/coin.png" alt="" width={90} height={90} sizes="90px" /><span>PROPOSED<br />DISTRIBUTION</span></div></div>
+            <ul className="w-allocation-legend">{HTS_ALLOCATIONS.map(([label, percent, color]) => <li key={label}><i style={{ background: color }} aria-hidden="true" /><span>{label}</span><strong>{percent}%</strong></li>)}</ul>
+          </div>
+          <p className="w-token-note">These percentages are planning allocations, not completed distributions.</p>
+          <details className="w-token-details"><summary>Token details &amp; authorities <span aria-hidden="true">+</span></summary><p>No on-chain vesting or allocation locks are claimed. The owner retains mint and metadata update authority; there is no freeze authority.</p><p>The broader ecosystem and future distributions remain subject to separate decisions. Devnet HTS is a test resource: <strong>100 HTS = $1 simulated USD</strong> is not a market price, exchange promise or guaranteed value.</p><a className="w-mint-address" href="https://explorer.solana.com/address/HiteMiqxQG1GjLGDmvV1JmVyR9ayWm46ZjhjHzJrN9R4?cluster=devnet" target="_blank" rel="noopener noreferrer">HiteMiqxQG1GjLGDmvV1JmVyR9ayWm46ZjhjHzJrN9R4 ↗</a></details>
+          <a className="w-text-link" href="/tokenomics">Read the full Tokenomics <WelcomeIcon name="arrow" /></a>
+        </section>
+
+        <section className="w-section w-roadmap-section" aria-labelledby="roadmap"><SectionTitle id="roadmap" note="The next flips.">ROADMAP</SectionTitle><div className="w-roadmap-grid">{PROJECT_ROADMAP.map((stage, i) => <article className={`w-roadmap-card w-glass ${i === 1 ? "w-roadmap-pink" : ""}`} key={stage.name}><div className="w-roadmap-top"><span>0{i + 1}</span><i aria-hidden="true" /></div><h3>{stage.name}</h3><p className="w-roadmap-status">{stage.tag}</p><ul>{stage.items.map(item => <li key={item}>{item}</li>)}</ul></article>)}</div><p className="w-roadmap-note">HTS matches and payouts have been verified on Devnet. Points, referrals and leaderboards are implemented; community programs and further expansion remain plans. No dates, listings, financial returns or future airdrops are guaranteed.</p><a className="w-text-link" href="/roadmap">Read the full Roadmap <WelcomeIcon name="arrow" /></a></section>
+
         <section className="w-section w-faq-section" aria-labelledby="faq"><div><span className="w-eyebrow">A FEW THINGS BEFORE YOU FLIP</span><h2 id="faq">Good questions.<br />Straight answers.</h2><p>Still curious?<br />Come say hi to the community.</p><a className="w-text-link" href={SOCIAL_LINKS.telegram} target="_blank" rel="noopener noreferrer"><TelegramIcon />Join us on Telegram <span aria-hidden="true">↗</span></a></div><div className="w-faq-list">{faqs.map(([question, answer]) => <details key={question}><summary>{question}<span aria-hidden="true">+</span></summary><p>{answer}</p></details>)}</div></section>
 
         <section className="w-final-cta w-glass" aria-labelledby="final-cta"><span className="w-beta-pill"><span /> THE DEVNET ARENA IS WAITING</span><h2 id="final-cta">Heads? Tails?<br /><span>Your move.</span></h2><p>Two sides. One community. Come flip with us.</p><Launch href={app}>Launch Devnet Beta</Launch><small>Test HTS only. Points do not guarantee future token allocations.</small></section>
       </div>
     </main>
 
-    <footer id="community" className="w-footer w-container"><div className="w-footer-top"><a href={welcome} aria-label="HeadsTails.fun welcome"><Brand /></a><p>A 1v1, on-chain coin-flip game on Solana.</p><nav aria-label="Official community">{socials.map(({ name, href, Icon }) => <a key={name} href={href} target="_blank" rel="noopener noreferrer"><Icon /><span>{name}</span></a>)}</nav></div><div className="w-footer-bottom"><p>HeadsTails.fun · Devnet Beta · Built for the flip.</p><nav aria-label="Legal and project information"><a href="/how-to">How to Verify</a><a href="/tokenomics">Tokenomics</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav></div></footer>
+    <footer id="community" className="w-footer w-container"><div className="w-footer-top"><a href={welcome} aria-label="HeadsTails.fun welcome"><Brand /></a><p>A 1v1, on-chain coin-flip game on Solana.</p><nav aria-label="Official community">{socials.map(({ name, href, Icon }) => <a key={name} href={href} target="_blank" rel="noopener noreferrer"><Icon /><span>{name}</span></a>)}</nav></div><div className="w-footer-bottom"><p>HeadsTails.fun · Devnet Beta · Built for the flip.</p><nav aria-label="Legal and project information"><a href="/how-to">How to Verify</a><a href="/tokenomics">Tokenomics</a><a href="/roadmap">Roadmap</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav></div></footer>
   </div>;
 }

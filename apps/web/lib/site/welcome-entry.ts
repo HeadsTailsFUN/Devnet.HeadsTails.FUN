@@ -15,28 +15,34 @@ export function normalizeWelcomeIp(raw: string | null): string | null {
   try { return new URL(`http://[${value}]/`).hostname.slice(1, -1).toLowerCase(); } catch { return null; }
 }
 
-export async function welcomeIpDigest(ip: string, secret: string): Promise<string> {
+export async function welcomeIpDigest(ip: string, secret: string, hostname = "headstails.fun"): Promise<string> {
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey("raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const hash = await crypto.subtle.sign("HMAC", key, encoder.encode(`headstails-welcome:v1:${ip}`));
+  const hash = await crypto.subtle.sign("HMAC", key, encoder.encode(`headstails-welcome:v1:${hostname.toLowerCase().replace(/\.$/, "")}:${ip}`));
   return Array.from(new Uint8Array(hash), n => n.toString(16).padStart(2, "0")).join("");
 }
 
 /** Atomic first-visit claim; bounded and fail-open so marketing cannot block gameplay. */
-export async function claimWelcomeIp(headers: Headers, fetcher: typeof fetch = fetch): Promise<boolean | null> {
+export async function requestWelcomeDigest(headers: Headers, hostname = "headstails.fun"): Promise<string | null> {
   // Forwarded headers are trusted only on the actual Vercel deployment, never on a self-hosted origin.
   if (process.env.VERCEL !== "1") return null;
   const ip = normalizeWelcomeIp(headers.get("x-vercel-forwarded-for"));
   const secret = process.env.WELCOME_IP_HASH_SECRET;
+  if (!ip || !secret || secret.length < 32) return null;
+  try { return await welcomeIpDigest(ip, secret, hostname); } catch { return null; }
+}
+
+export async function claimWelcomeIp(headers: Headers, fetcher: typeof fetch = fetch, digest?: string): Promise<boolean | null> {
+  const currentDigest = digest ?? await requestWelcomeDigest(headers);
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL, service = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!ip || !secret || secret.length < 32 || !base || !service) return null;
+  if (!currentDigest || !base || !service) return null;
   try {
     const url = new URL("/rest/v1/rpc/claim_site_welcome_visit", base);
     if (url.protocol !== "https:") return null;
     const response = await fetcher(url, {
       method: "POST", redirect: "error", cache: "no-store", signal: AbortSignal.timeout(1200),
       headers: { apikey: service, Authorization: `Bearer ${service}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ p_ip_digest: await welcomeIpDigest(ip, secret) }),
+      body: JSON.stringify({ p_ip_digest: currentDigest }),
     });
     if (!response.ok) return null;
     const result: unknown = await response.json();
@@ -44,31 +50,35 @@ export async function claimWelcomeIp(headers: Headers, fetcher: typeof fetch = f
   } catch { return null; }
 }
 
-function remember(response: NextResponse, req: NextRequest): NextResponse {
-  response.cookies.set(WELCOME_COOKIE, "1", { httpOnly: true, secure: req.nextUrl.protocol === "https:", sameSite: "lax", path: "/", maxAge: 365 * 24 * 60 * 60 });
+function remember(response: NextResponse, req: NextRequest, digest: string | null): NextResponse {
+  response.cookies.set(WELCOME_COOKIE, digest ?? "1", { httpOnly: true, secure: req.nextUrl.protocol === "https:", sameSite: "lax", path: "/", maxAge: 365 * 24 * 60 * 60 });
   return response;
 }
 
 export async function welcomeEntry(req: NextRequest): Promise<NextResponse> {
   const next = () => NextResponse.next({ headers: privateCache });
   if (process.env.WELCOME_ENABLED === "false" || !["GET", "HEAD"].includes(req.method)) return next();
-  // Prefetch / RSC navigation, old deep links, and existing wallet sessions must stay in the app.
+  // Prefetch / RSC navigation and old deep links must stay in the app.
   // This preference is never an authentication or authorization check.
   const returnToGame = req.nextUrl.pathname === "/" && (
-    req.nextUrl.search.length > 0 || req.cookies.has("ht_session") ||
+    ["ref", "earn", "earn_notice", "tab", "info", "data", "nonce", "code", "state", "signature", "session", "phantom_encryption_public_key", "solflare_encryption_public_key", "errorCode", "errorMessage"].some(key => req.nextUrl.searchParams.has(key)) ||
     req.headers.has("rsc") || req.headers.has("next-router-prefetch") || req.headers.get("purpose") === "prefetch"
   );
   if (returnToGame) return next();
-  if (req.cookies.get(WELCOME_COOKIE)?.value === "1") return next();
   if (req.method === "HEAD") return next(); // Probes must not consume a person's first visit.
+  const digest = await requestWelcomeDigest(req.headers, req.nextUrl.hostname);
+  const cookie = req.cookies.get(WELCOME_COOKIE)?.value;
+  // A browser preference only skips the lookup for THIS IP and origin, not a new network.
+  if (digest && cookie === digest) return next();
+  if (process.env.VERCEL !== "1" && cookie === "1") return next();
 
-  const firstVisit = await claimWelcomeIp(req.headers);
+  const firstVisit = await claimWelcomeIp(req.headers, fetch, digest ?? undefined);
   // A direct /welcome visit also counts as the first visit; Launch App never loops back.
-  if (req.nextUrl.pathname === "/welcome") return remember(next(), req);
-  if (firstVisit === false) return remember(next(), req);
+  if (req.nextUrl.pathname === "/welcome") return remember(next(), req, digest);
+  if (firstVisit === false) return remember(next(), req, digest);
   // Missing service configuration uses a browser preference. A configured service failure
   // always admits the user to the game rather than making gameplay depend on marketing.
-  if (firstVisit === null && process.env.VERCEL === "1") return remember(next(), req);
+  if (firstVisit === null && process.env.VERCEL === "1") return remember(next(), req, digest);
   const target = req.nextUrl.clone(); target.pathname = "/welcome";
-  return remember(NextResponse.redirect(target, { status: 307, headers: privateCache }), req);
+  return remember(NextResponse.redirect(target, { status: 307, headers: privateCache }), req, digest);
 }
