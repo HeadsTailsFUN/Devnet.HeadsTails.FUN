@@ -17,7 +17,9 @@ await check('direct welcome renders official artwork, metadata and same-origin r
  assert.match(r.headers.get('set-cookie'),/ht_welcome_seen=1/);
  assert.match(html,/https:\/\/headstails.fun\/welcome/); assert.match(html,/href="\/\?ref=KEEP_CODE"/);
  assert.match(html,/100/);assert.match(html,/1,000/);assert.match(html,/simulated USD/);
- for(const word of ['HOW IT WORKS','WHY HEADSTAILS','EARN POINTS','Devnet Beta','Good questions.','HeadsTails.fun'])assert.ok(html.includes(word),word);
+ for(const word of ['HOW IT WORKS','WHY HEADSTAILS','Devnet Beta','Good questions.','HeadsTails.fun'])assert.ok(html.includes(word),word);
+ assert.ok(!html.includes('id="game-rooms"')); assert.ok(!html.includes('id="app-preview"')); assert.ok(!html.includes('id="earn-points"'));
+ assert.match(html,/PICK A SIDE/); assert.ok(!html.includes('Two Idiots'));
  assert.ok(!html.includes('/devnet')); // The owner's correction keeps the game at /.
 });
 await check('Launch App and later visits render the original root game with no welcome loop',async()=>{

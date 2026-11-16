@@ -1,5 +1,15 @@
 # HeadsTails welcome landing — preview handoff
 
+## Latest visual revision, 2026-11-16
+
+The owner requested a simpler welcome page. The current headline and SEO/social titles are **PICK A SIDE. OWN THE FLIP.** The room-introduction, Meet the Arena and Earn Points sections are removed, along with the Earn Points navigation links and the removed sections' unused CSS. Points/referral promotional FAQ items were also removed; referral capture and the game's actual Earn Points feature remain intact.
+
+Each hero character now has its own colored light field, shadow, subtle breathing aura and decorative neon SVG arcs. Desktop artwork uses smaller separated frames with a clear center lane for the coin. On phones the characters occupy separate columns, with the coin in a second row in normal document flow. This avoids fixed-position overlap as the viewport narrows.
+
+This UI-only follow-up passed the production build (including TypeScript/ESLint), all six production-build HTTP acceptance flows, and browser geometry/image checks at 320, 390, 768, 1024 and 1440 pixels. No character/coin intersections, broken images or horizontal overflow were found. Measured phone character gaps exceeded 22 px horizontally and the coin was at least 17 px below the characters in the checked frames. The new HTTP assertions also confirm all three removed section IDs are absent and the old headline is gone. Original game entry, legacy referrals/Earn/mobile links, API protection and supporting routes still pass. No production deployment, environment change or hosted database mutation was performed.
+
+Latest screenshots: `artifacts/welcome/revision-desktop-hero.png`, `revision-desktop.png`, `revision-mobile-hero.png`; measured results: `revision-responsive-results.json`. The preview remains at http://127.0.0.1:3340/welcome. The original implementation and 700-check acceptance record below describe the earlier preview phase; its three removed content sections are superseded by this revision, and its test count is not a claim that the full suite was rerun for this styling change.
+
 2026-11-16 · branch `feat/welcome-landing` · base `0c92bfe`.
 
 **Preview:** http://127.0.0.1:3340/welcome on the owner's computer. Not deployed to production. The live alias still points to `dpl_CWzkUNdVivmQiWjXhvWdKrWghqu6`; its homepage returned HTTP 200 with the original game title and no landing markup.
