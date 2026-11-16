@@ -114,6 +114,7 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
   const [adjReason, setAdjReason] = useState("");
   const [exReason, setExReason] = useState("");
   const [reviewWallet, setReviewWallet] = useState("");
+  const [reviewRequest, setReviewRequest] = useState(0);
   const [activityRevision, setActivityRevision] = useState(0);
   const search = useCallback(async () => {
     const params = new URLSearchParams({ query: q });
@@ -141,6 +142,7 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
   };
   const openReview = (wallet: string) => {
     setReviewWallet(wallet);
+    setReviewRequest(v => v + 1);
     document.getElementById("social-verification-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const exclude = (wallet: string) => {
@@ -169,7 +171,7 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
   return (
     <div className="flex flex-col gap-4">
       <EarnActivityReport revision={activityRevision} onReviewWallet={openReview} />
-      <EarnVerificationQueue canReview={canWebAdmin} walletFilter={reviewWallet} onChanged={() => { setActivityRevision(v => v + 1); void search(); }} />
+      <EarnVerificationQueue canReview={canWebAdmin} walletFilter={reviewWallet} filterRequest={reviewRequest} onChanged={() => { setActivityRevision(v => v + 1); void search(); }} />
       <Section title="Users">
         <div className="flex flex-wrap gap-2">
           <input

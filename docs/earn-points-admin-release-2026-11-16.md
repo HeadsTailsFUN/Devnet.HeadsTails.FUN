@@ -22,7 +22,7 @@ Quest activation remains **Health-only** as last instructed: Telegram Health ena
 
 ## Verification
 
-- 553 reliability tests, 34 verification tests, 11 new admin API/component tests and 14 real isolated PostgreSQL tests passed (612 total), plus ESLint and TypeScript.
+- 553 reliability tests, 34 verification tests, 12 new admin API/component tests and 14 real isolated PostgreSQL tests passed (613 total), plus ESLint and TypeScript. The follow-up component regression verifies reopening the same user after manually searching another queue target.
 - SQL tests include 1050 games and 130 pending claims, global search/pagination, zero credits, bonus deduplication, evidence/expiry enforcement, approval/rejection/replay, audit preservation and denial of browser SQL/RPC access.
 - Real production read-only comparison: 161 users; 5621 reported games exactly match 5621 ledger gameplay markers; reported verified Points 14118 exactly match the ledger total. These are a snapshot, not a permanently fixed count.
 - Security advisors returned the same 41 informational notices for deliberately server-only RLS tables, with no new warning/error findings. [Supabase explanation](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).

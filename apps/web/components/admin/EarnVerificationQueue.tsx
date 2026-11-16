@@ -9,7 +9,7 @@ type Row = { id: string; wallet: string; username?: string | null; task_type: st
   challenge: { code: string; expires_at: string; status: string } | null;
   rewards: Array<{ points: number; status: string; created_at: string }>; history: Array<{ status: string; created_at: string; review_reason: string | null }>;
   reviews: Array<{ created_at: string; review_details: { reviewer: string; decision: string; reason: string } | null }> };
-export function EarnVerificationQueue({ canReview, walletFilter = "", onChanged }: { canReview: boolean; walletFilter?: string; onChanged?: () => void }) {
+export function EarnVerificationQueue({ canReview, walletFilter = "", filterRequest = 0, onChanged }: { canReview: boolean; walletFilter?: string; filterRequest?: number; onChanged?: () => void }) {
   const [rows, setRows] = useState<Row[]>([]), [query, setQuery] = useState(""), [filter, setFilter] = useState("all"), [task, setTask] = useState("all"), [direction, setDirection] = useState("desc");
   const [applied, setApplied] = useState({ query: "", state: "all", task: "all", direction: "desc" }), [page, setPage] = useState(1), [total, setTotal] = useState(0), [pageSize, setPageSize] = useState(25), [version, setVersion] = useState(0);
   const [selected, setSelected] = useState<string | null>(null), [reason, setReason] = useState(""), [confirmed, setConfirmed] = useState(false), [busy, setBusy] = useState<string | null>(null);
@@ -17,9 +17,9 @@ export function EarnVerificationQueue({ canReview, walletFilter = "", onChanged 
   const inFlight = useRef(false);
   const resetReview = () => { setSelected(null); setReason(""); setConfirmed(false); };
   useEffect(() => {
-    setQuery(walletFilter); setPage(1); setFilter("all"); setTask("all"); setApplied({ query: walletFilter, state: "all", task: "all", direction: "desc" });
+    setQuery(walletFilter); setPage(1); setFilter("all"); setTask("all"); setDirection("desc"); setApplied({ query: walletFilter, state: "all", task: "all", direction: "desc" });
     setSelected(null); setReason(""); setConfirmed(false);
-  }, [walletFilter]);
+  }, [walletFilter, filterRequest]);
   useEffect(() => {
     const abort = new AbortController(); setLoading(true); setError(null); setRows([]);
     void fetch(`/api/admin/earn-verifications?${new URLSearchParams({ ...applied, page: String(page) })}`, { cache: "no-store", signal: abort.signal })

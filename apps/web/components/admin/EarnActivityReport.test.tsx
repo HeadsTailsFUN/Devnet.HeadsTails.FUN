@@ -36,3 +36,10 @@ test('switching review requests clears the previous reason and evidence confirma
 test('read-only staff see requests and history without approval controls',async()=>{
  globalThis.fetch=async()=>Response.json({rows:[row('first','alpha')],active:true,total:1,page:1,pageSize:25});render(<EarnVerificationQueue canReview={false}/>);await screen.findByText('X account ownership · @alpha');assert.equal(screen.queryByRole('button',{name:/Review X account ownership/}),null);
 });
+test('reopening the same user resets an intervening manual queue search and order',async()=>{
+ const calls:string[]=[];globalThis.fetch=async input=>{calls.push(String(input));return Response.json({rows:[],active:true,total:0,page:1,pageSize:25});};
+ const view=render(<EarnVerificationQueue canReview walletFilter={user.wallet}/>);
+ await waitFor(()=>assert(calls.some(c=>c.includes(user.wallet))));
+ fireEvent.change(screen.getByRole('textbox',{name:'Search verification requests'}),{target:{value:'other-player'}});fireEvent.change(screen.getByRole('combobox',{name:'Verification order'}),{target:{value:'asc'}});fireEvent.click(screen.getByRole('button',{name:'Apply review filters'}));await waitFor(()=>assert(calls.some(c=>c.includes('other-player'))));
+ const count=calls.length;view.rerender(<EarnVerificationQueue canReview walletFilter={user.wallet} filterRequest={1}/>);await waitFor(()=>assert(calls.length>count));assert.equal((screen.getByRole('textbox',{name:'Search verification requests'}) as HTMLInputElement).value,user.wallet);assert.equal((screen.getByRole('combobox',{name:'Verification order'}) as HTMLSelectElement).value,'desc');
+});
