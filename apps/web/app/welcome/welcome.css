@@ -116,6 +116,36 @@ body:has(.welcome-page) { background:#05070b; }
   filter: blur(12px);
 }
 @keyframes w-aura-breathe { 0%, 100% { opacity: .55; } 50% { opacity: .9; } }
+.w-hero-coin::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: -40%;
+  bottom: -16%;
+  width: 180%;
+  height: 53%;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 27% 48%, rgb(61 255 200 / 38%), transparent 57%),
+    radial-gradient(ellipse at 74% 48%, rgb(255 126 189 / 34%), transparent 57%),
+    radial-gradient(ellipse at 50% 72%, rgb(210 255 245 / 22%), transparent 48%);
+  filter: blur(15px);
+  pointer-events: none;
+}
+.w-hero-coin::after {
+  content: "";
+  position: absolute;
+  z-index: 3;
+  left: 11%;
+  right: 11%;
+  bottom: -3%;
+  height: 67%;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 100%, rgb(228 255 246 / 52%), rgb(119 255 221 / 13%) 38%, transparent 72%);
+  filter: blur(12px);
+  mix-blend-mode: screen;
+  pointer-events: none;
+}
 @media (min-width: 601px) {
   .w-hero { min-height: 700px; }
   .w-hero h1 { font-size: clamp(34px, 3.4vw, 48px); letter-spacing: -1.8px; }
@@ -132,9 +162,9 @@ body:has(.welcome-page) { background:#05070b; }
     position: relative;
     inset: auto;
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: end;
-    column-gap: 28px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, .82fr) minmax(0, 1fr);
+    align-items: center;
+    column-gap: 14px;
     width: 100%;
     max-width: 440px;
     margin: 38px auto 0;
@@ -147,18 +177,20 @@ body:has(.welcome-page) { background:#05070b; }
     max-width: none;
   }
   .w-character-scene-heads { grid-column: 1; }
-  .w-character-scene-tails { grid-column: 2; }
+  .w-character-scene-tails { grid-column: 3; }
   .w-character-scene .w-character-orbits { inset: -5%; width: 110%; height: 110%; }
   .w-hero-coin {
     position: relative;
     inset: auto;
-    grid-column: 1 / -1;
-    grid-row: 2;
-    width: clamp(108px, 31vw, 150px);
+    grid-column: 2;
+    grid-row: 1;
+    width: 100%;
     max-width: none;
-    margin: 27px auto 0;
+    margin: 0;
     transform: none;
   }
+  .w-hero-coin::before { filter: blur(8px); }
+  .w-hero-coin::after { filter: blur(6px); }
   .w-hero-bottom { position: relative; inset: auto; margin-top: 40px; }
   .w-hero-ctas { padding-inline: 0; }
 }

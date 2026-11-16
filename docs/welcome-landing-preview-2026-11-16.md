@@ -1,5 +1,13 @@
 # HeadsTails welcome landing — preview handoff
 
+## Latest fog and mobile alignment correction
+
+The coin now has a soft green/pink fog field beneath its platform and an upward screen-blended highlight along its lower edge. Both effects use decorative CSS pseudo-elements with no extra images, scripts or interaction targets.
+
+The owner's latest correction supersedes the earlier two-row phone composition: HEADS, the coin and TAILS now occupy three separated columns in a single centered row. The coin is between the characters, rather than beneath them. Browser checks at 320, 390 and 600 px measured less than 0.01 px difference between the three container centerlines. Checks at 601, 768 and 1440 px also confirmed the coin stays between the characters. All six widths had no artwork intersections, broken images or horizontal overflow; fog and highlight layers were present. The production build, including lint/type validation, passed. No routing, application behavior, production deployment or hosted configuration changed.
+
+Latest proof: `artifacts/welcome/fog-mobile-hero.png`, `fog-desktop-hero.png`, `fog-responsive-results.json`; build log: `fog-build.txt`. The preview remains at http://127.0.0.1:3340/welcome. The earlier layout descriptions below are historical.
+
 ## Latest visual revision, 2026-11-16
 
 The owner requested a simpler welcome page. The current headline and SEO/social titles are **PICK A SIDE. OWN THE FLIP.** The room-introduction, Meet the Arena and Earn Points sections are removed, along with the Earn Points navigation links and the removed sections' unused CSS. Points/referral promotional FAQ items were also removed; referral capture and the game's actual Earn Points feature remain intact.
