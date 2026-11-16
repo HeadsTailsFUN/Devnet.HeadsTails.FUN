@@ -1,5 +1,7 @@
 # Earn Points integration readiness
 
+Admin update, 2026-11-16: [complete activity reporting and audited manual review](docs/earn-points-admin-release-2026-11-16.md) are deployed. The requested wallet has the existing Devnet FULL_ADMIN role. This does not activate new quests or provider linking.
+
 2026-11-15 · branch feat/earn-points · latest inspected main: 4811bcf4d193c3d648493d6f16e1af5a9fae1f25.
 
 Final handoff review: 2026-11-16. Integration code is recorded in cae5cfe; the subsequent UI-only review in 1d936a5 simplified the popup and added the complete rules table. Its 54 targeted tests and final production build passed; [the UI review](docs/earn-points-ui-review-2026-11-16.md) records those results. The original 2026-11-15 integration test counts below are historical evidence, not additional tests to add to that 54. Those review phases did not deploy or activate integrations. The later owner-authorized production release is recorded in the [2026-11-16 release report](docs/earn-points-production-release-2026-11-16.md).
