@@ -57,7 +57,7 @@ export function AppHeader({
         <span>For the Degens</span>
         <HeartIcon className="h-3.5 w-3.5 text-[var(--heads)]" />
       </p>
-      <span className="order-2 flex w-full min-w-0 items-center justify-between gap-1.5 sm:ml-auto sm:w-auto sm:justify-end sm:gap-2">
+      <span role="group" aria-label="Wallet and rewards" className="order-2 flex w-full min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-2">
         <span className="hidden sm:inline-flex sm:items-center sm:gap-2">
           {faucet}
         </span>
@@ -102,7 +102,7 @@ export function AppHeader({
             <GitHubIcon className="h-4 w-4" />
           </a>
         </nav>
-        <EarnPointsLink />
+        {addressLabel && <EarnPointsLink className="earn-entry header-earn-entry font-display" />}
         {addressLabel ? (
           <button
             type="button"

@@ -33,7 +33,7 @@ export function PointsRules() {
         <li><strong>X:</strong> ownership requires an expiring code in your bio and manual approval. Repost/reply evidence must match the verified profile and the official campaign post. Opening X or submitting a URL never awards Points by itself.</li>
         <li><strong>New quests:</strong> group +20, channel +5, Discord +15 and three-day play +20 — <strong>{NEW_QUESTS.reduce((total, q) => total + q.points, 0)} Points total</strong>, each once per eligible account and season. Telegram and Discord membership do not require gameplay. Discord Membership Screening must be complete.</li>
         <li><strong>Three-day play:</strong> at least one eligible settled match on each of 3 distinct UTC dates in the current season. Days need not be consecutive; past eligible season matches count.</li>
-        <li><strong>Verification:</strong> pending, failed or unavailable verification earns no confirmed Points. New quest rewards remain inactive until testing and activation are approved. No quiz or tutorial quest is included.</li>
+        <li><strong>Verification:</strong> pending, failed or unavailable verification earns no confirmed Points. Only active quests with completed verification and eligibility checks can award Points. No quiz or tutorial quest is included.</li>
       </ul>
     </div>
   </details>;

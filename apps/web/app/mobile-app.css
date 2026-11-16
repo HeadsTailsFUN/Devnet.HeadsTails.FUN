@@ -31,6 +31,8 @@
     overflow: hidden;
   }
   .heads-app > header { flex: none; padding-top: calc(12px + env(safe-area-inset-top)); gap: 8px; }
+  .heads-app:not([data-mobile-tab="play"]) .header-earn-entry,
+  .heads-app[data-mobile-info] .header-earn-entry { display: none; }
   .heads-app .app-main { display: flex; flex: 1; flex-direction: column; min-height: 0; overflow: hidden; gap: 10px; padding: 6px 16px; }
   .heads-app .app-main > [data-mobile-panel] { display: none; }
   .heads-app[data-mobile-tab="play"] .mobile-play-panel { display: flex; }

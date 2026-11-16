@@ -8,9 +8,25 @@ import { MobileFlips } from "./MobileFlips";
 import MobileInformation from "./MobileInformation";
 import { ProfileModal } from "../profile/ProfileModal";
 import { AppFooter } from "../brand/AppFooter";
+import { AppHeader } from "../brand/AppHeader";
 import { useMobileNavigation } from "@/lib/mobile/useMobileNavigation";
 const realFetch=globalThis.fetch;
 afterEach(()=>{cleanup();globalThis.fetch=realFetch;window.history.replaceState(null,"","/");});
+
+test("Earn Points appears beside the wallet control only while a wallet is connected",()=>{
+  const props={state:"disconnected" as const,onConnect(){},onDisconnect(){}};
+  const view=render(createElement(AppHeader,props));
+  const controls=screen.getByRole("group",{name:"Wallet and rewards"});
+  assert(within(controls).getByRole("button",{name:"Connect Wallet"}));
+  assert.equal(within(controls).queryByRole("link",{name:"Earn Points"}),null);
+  view.rerender(createElement(AppHeader,{...props,state:"ready",addressLabel:"1234…5678",profileName:"Player"}));
+  const earn=within(controls).getByRole("link",{name:"Earn Points"});
+  const wallet=within(controls).getByRole("button",{name:"Open profile for Player"});
+  assert.equal(earn.nextElementSibling,wallet);
+  assert(earn.classList.contains("header-earn-entry"));
+  view.rerender(createElement(AppHeader,props));
+  assert.equal(screen.queryByRole("link",{name:"Earn Points"}),null);
+});
 
 test("navigation has exactly four ordered touch targets and preserves a mounted controller through info and browser Back",async()=>{
   Object.defineProperty(window,"matchMedia",{configurable:true,writable:true,value:(media:string)=>({matches:true,media,addEventListener(){},removeEventListener(){}})});
