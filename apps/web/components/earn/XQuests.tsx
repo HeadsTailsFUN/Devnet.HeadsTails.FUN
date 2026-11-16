@@ -36,6 +36,8 @@ export function XQuests({ wallet, account, onChanged }: { wallet: Wallet | null;
         { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const result = await response.json();
       if (!response.ok) { if(response.status===401)await resource.reload(); throw new Error(result.message ?? result.error ?? "Could not submit. Please retry."); }
+      if(result.status==="disabled")throw new Error("New submissions for this quest are paused. Please try again later.");
+      if(!["pending","pending-verification","created","edited","completed","already-claimed","unchanged"].includes(result.status))throw new Error("The task could not be saved. Refresh and retry.");
       setNote(result.status === "completed" || result.status === "already-claimed" ? "This task is already saved. Check its review status below." : "Submitted for manual review. Points are confirmed only after approval.");
       await resource.reload(); onChanged?.();
     } catch (e) { setNote(e instanceof Error ? e.message : "Could not submit. Please retry."); }
