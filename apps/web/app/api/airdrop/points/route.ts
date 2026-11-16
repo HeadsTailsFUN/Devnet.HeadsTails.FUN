@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getSessionWallet } from "@/lib/auth/session";
 import { getSupabaseAdmin } from "@/lib/solana/sponsorServer";
 import { pointsDetails, readPointsLedger } from "@/lib/airdrop/earn";
-import { campaignPostUrl } from "@/lib/airdrop/campaign";
+import { readCampaignUrls } from "@/lib/earn/campaigns";
 
 import { earnConfig } from "@/lib/earn/config";
 
@@ -54,9 +54,12 @@ export async function GET(req: Request): Promise<NextResponse> {
     replyStatus: string | null;
     repostStatus: string | null;
     repostUrl: string | null;
-  } = { handle: null, handleStatus: null, connectStatus: null, replyUrl: null, replyStatus: null, repostStatus: null, repostUrl: null };
+    replyCampaignUrl: string | null; repostCampaignUrl: string | null;
+  } = { handle: null, handleStatus: null, connectStatus: null, replyUrl: null, replyStatus: null, repostStatus: null, repostUrl: null, replyCampaignUrl: null, repostCampaignUrl: null };
   let socialAvailable = true;
+  let campaignUrls: { reply: string | null; repost: string | null } = { reply: null, repost: null };
   try {
+    campaignUrls = await readCampaignUrls(db);
     const { data: ident, error: identityError } = await db
       .from("airdrop_x_identities")
       .select("x_handle,status")
@@ -66,13 +69,13 @@ export async function GET(req: Request): Promise<NextResponse> {
     const idRow = ident as { x_handle?: string; status?: string } | null;
     const { data: claims, error: claimsError } = await db
       .from("airdrop_social_claims")
-      .select("task_type,status,evidence_url")
+      .select("task_type,status,evidence_url,campaign_url")
       .eq("season_id", seasonRow.id)
       .eq("wallet", wallet);
     if (identityError || claimsError) throw new Error("Social state unavailable");
-    const byTask: Record<string, { status: string; evidence_url: string | null }> = {};
-    for (const c of ((claims ?? []) as Array<{ task_type: string; status: string; evidence_url: string | null }>)) {
-      byTask[c.task_type] = { status: c.status, evidence_url: c.evidence_url };
+    const byTask: Record<string, { status: string; evidence_url: string | null; campaign_url: string | null }> = {};
+    for (const c of ((claims ?? []) as Array<{ task_type: string; status: string; evidence_url: string | null; campaign_url: string | null }>)) {
+      byTask[c.task_type] = c;
     }
     social = {
       handle: idRow?.x_handle ?? null,
@@ -82,6 +85,7 @@ export async function GET(req: Request): Promise<NextResponse> {
       replyStatus: byTask.reply?.status ?? null,
       repostStatus: byTask.repost?.status ?? null,
       repostUrl: byTask.repost?.evidence_url ?? null,
+      replyCampaignUrl: byTask.reply?.campaign_url ?? null, repostCampaignUrl: byTask.repost?.campaign_url ?? null,
     };
   } catch {
     socialAvailable = false;
@@ -96,7 +100,8 @@ export async function GET(req: Request): Promise<NextResponse> {
     social,
     socialAvailable,
     manualOwnershipRequired: earnConfig().xManual,
-    campaignUrl: campaignPostUrl(),
+    campaignUrl: campaignUrls.reply,
+    campaignUrls,
     ...pointsDetails(rows),
   }, { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } });
 }

@@ -8,7 +8,7 @@ export async function earnAction(req: Request) {
   try {
     const wallet = await walletIdentity(req), body = await readBody(req), action = String(body.action ?? "");
     const db = dbClient(), c = earnConfig(), season = await activeSeason(db), settings = await seasonSettings(db, season.id);
-    if (!["telegram_token", "telegram_group", "telegram_channel", "discord_connect", "unlink", "x_challenge", "x_submit", "three_days"].includes(action)) throw new EarnError("invalid_action");
+    if (!["telegram_token", "telegram_group", "telegram_channel", "discord_connect", "unlink", "x_follow", "x_challenge", "x_submit", "three_days"].includes(action)) throw new EarnError("invalid_action");
     await rate(db, `wallet:${wallet}:${action}`, action === "unlink" ? 3 : action.endsWith("token") || action === "x_challenge" ? 5 : 10, 600);
     let result: Record<string, unknown>;
     if (action === "telegram_token") {
@@ -25,6 +25,15 @@ export async function earnAction(req: Request) {
     } else if (action === "unlink") {
       if (!["telegram", "discord", "x"].includes(String(body.provider))) throw new EarnError("invalid_provider");
       result = await dispatch(db, "wallet_unlink", wallet, { provider: body.provider });
+    } else if (action === "x_follow") {
+      if (!c.xManual || settings.x_manual_enabled !== true) throw new EarnError("x_verification_unavailable", 503);
+      const profile = xProfile(body.profileUrl);
+      const saved = await db.rpc("earn_submit_x_follow", { p_wallet: wallet, p_handle: profile.handle });
+      if (saved.error) {
+        if (/x-taken|wallet-bound/.test(saved.error.message)) throw new EarnError("x_account_conflict", 409);
+        throw new EarnError("follow_submission_unavailable", 503);
+      }
+      result = saved.data;
     } else if (action === "x_challenge") {
       if (!c.xManual || settings.x_manual_enabled !== true) throw new EarnError("x_verification_unavailable", 503);
       const profile = xProfile(body.profileUrl);

@@ -1,7 +1,7 @@
 export const ACTIVITY_LABELS = {
   win: "Settled wins", loss: "Settled losses", referral_inviter: "Qualified referrals (inviter)",
   referral_invitee: "Referral qualification (invitee)", referral_recurring: "Recurring referral games",
-  connect_x: "X account ownership", repost: "X reposts", reply: "X replies", telegram_group: "Telegram group",
+  connect_x: "Follow on X", repost: "X reposts", reply: "X replies", telegram_group: "Telegram group",
   telegram_channel: "Telegram channel", discord_member: "Discord membership", three_days: "Three-day gameplay",
   telegram_connection: "Telegram connections", discord_connection: "Discord connections", adjustment: "Point adjustments", other: "Other recorded activity",
 } as const;

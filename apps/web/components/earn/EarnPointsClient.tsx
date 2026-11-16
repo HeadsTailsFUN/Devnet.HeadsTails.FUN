@@ -82,10 +82,10 @@ export function EarnPointsContent({ onConnect, onPlay }: { onConnect: () => void
         </> : <>
           <VerificationQuests onConnect={onConnect} onChanged={() => void points.reload()} />
           <details className="earn-quest-disclosure earn-x-disclosure" name="earn-quest-details" onToggle={event => { if (event.currentTarget.open) setXVisited(true); }}>
-            <summary><XIcon className="h-5 w-5" /><span className="earn-quest-name"><strong>X quests</strong><small>Account · repost · reply</small></span><span className="earn-quest-numbers">+{SOCIAL_CONNECT_X_POINTS} / +{SOCIAL_REPOST_POINTS} / +{SOCIAL_REPLY_POINTS}<small>Manual review</small></span><span className="earn-chevron" aria-hidden="true">⌄</span></summary>
+            <summary><XIcon className="h-5 w-5" /><span className="earn-quest-name"><strong>X quests</strong><small>Follow · repost · reply</small></span><span className="earn-quest-numbers">+{SOCIAL_CONNECT_X_POINTS} / +{SOCIAL_REPOST_POINTS} / +{SOCIAL_REPLY_POINTS}<small>Manual review</small></span><span className="earn-chevron" aria-hidden="true">⌄</span></summary>
             <div className="earn-quest-body">{address ? xVisited && <div className="earn-quests"><AirdropTab key={address} wallet={wallet} account={account} questsOnly onChanged={() => void points.reload()} /></div>
-              : <><div className="earn-x-reward-list"><span>Connect X account <strong>+{SOCIAL_CONNECT_X_POINTS}</strong></span><span>Approved repost <strong>+{SOCIAL_REPOST_POINTS}</strong></span><span>Approved reply <strong>+{SOCIAL_REPLY_POINTS}</strong></span></div><ConnectPrompt onConnect={onConnect} text="Connect and verify your wallet to submit X ownership and campaign evidence." /></>}
-              <p className="earn-caption mt-3">Ownership uses a temporary bio code. Reposts and replies are reviewed manually. Opening X never awards Points.</p>
+              : <><div className="earn-x-reward-list"><span>Follow on X <strong>+{SOCIAL_CONNECT_X_POINTS}</strong></span><span>Approved repost <strong>+{SOCIAL_REPOST_POINTS}</strong></span><span>Approved reply <strong>+{SOCIAL_REPLY_POINTS}</strong></span></div><ConnectPrompt onConnect={onConnect} text="Connect and verify your wallet to submit your X profile and campaign tasks." /></>}
+              <p className="earn-caption mt-3">All X tasks are reviewed manually. Opening X never awards Points.</p>
             </div>
           </details>
         </>)}
@@ -128,6 +128,6 @@ function ConnectPrompt({ text, onConnect }: { text: string; onConnect: () => voi
   return <div className="earn-callout"><p className="max-w-xl text-sm text-white/70">{text}</p><button type="button" className="earn-secondary" onClick={onConnect}>Connect Wallet</button></div>;
 }
 function activityLabel(event: string, category: string) {
-  return ({ gameplay_match: "Settled match reward", gameplay_win_bonus: "Match win bonus", referral_game: "Referral match reward", referral_qualify_inviter: "Referral qualification", referral_qualify_invitee: "Welcome referral reward", social_connect_x: "Connect X account", social_repost: "Campaign repost", social_reply: "Campaign reply" } as Record<string, string>)[event]
+  return ({ gameplay_match: "Settled match reward", gameplay_win_bonus: "Match win bonus", referral_game: "Referral match reward", referral_qualify_inviter: "Referral qualification", referral_qualify_invitee: "Welcome referral reward", social_connect_x: "Follow on X", social_repost: "Campaign repost", social_reply: "Campaign reply" } as Record<string, string>)[event]
     ?? ({ gameplay: "Match reward", win_bonus: "Win bonus", referral: "Referral reward", social: "Social Quest reward", adjustment: "Points adjustment" } as Record<string, string>)[category] ?? "Points reward";
 }

@@ -34,7 +34,7 @@ export function EarnVerificationQueue({ canReview, walletFilter = "", filterRequ
     inFlight.current = true; setBusy(row.id); setNote(null);
     try {
       const r = await fetch("/api/admin/earn-verifications", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ claimId: row.id, decision, reason: reason.trim(),
-        ownershipConfirmed: row.task_type === "connect_x" && confirmed, evidenceConfirmed: row.task_type !== "connect_x" && confirmed }) });
+        ownershipConfirmed: row.task_type === "connect_x" && !!row.challenge && confirmed, evidenceConfirmed: (row.task_type !== "connect_x" || !row.challenge) && confirmed }) });
       const b = await r.json(); if (!r.ok) throw new Error(b.message ?? "Review could not be saved");
       resetReview(); setVersion(v => v + 1); onChanged?.(); setNote(`Review saved: ${b.status}`);
     } catch (e) { setNote(e instanceof Error ? e.message : "Review could not be saved"); }
@@ -42,7 +42,7 @@ export function EarnVerificationQueue({ canReview, walletFilter = "", filterRequ
   };
   return <section id="social-verification-review" aria-label="Social verification review queue" className="glass scroll-mt-6 rounded-3xl p-4">
     <h3 className="font-display text-lg font-semibold">Social verification review queue</h3>
-    <p className="mt-2 text-xs text-white/50">Search all requests by user and activity. Review actual ownership or campaign evidence. Decisions update the existing reward atomically and keep its history.</p>
+    <p className="mt-2 text-xs text-white/50">Search all requests by user and activity. Review the actual follow, legacy bio code or campaign activity. Decisions update the existing reward atomically and keep its history.</p>
     <form className="mt-3 flex flex-wrap gap-2" onSubmit={e => { e.preventDefault(); resetReview(); setPage(1); setApplied({ query, state: filter, task, direction }); }}>
       <input aria-label="Search verification requests" value={query} maxLength={64} onChange={e => setQuery(e.target.value)} placeholder="Wallet / username / X handle" className="min-w-0 flex-1 rounded-xl bg-black/20 p-3 text-sm" />
       <select aria-label="Verification review status" value={filter} onChange={e => setFilter(e.target.value)} className="rounded-xl bg-black/20 p-3 text-sm">{["all", "pending", "approved", "rejected", "expired", "needs_review"].map(s => <option key={s} value={s}>{s.replaceAll("_", " ")}</option>)}</select>
@@ -50,7 +50,7 @@ export function EarnVerificationQueue({ canReview, walletFilter = "", filterRequ
       <select aria-label="Verification order" value={direction} onChange={e => setDirection(e.target.value)} className="rounded-xl bg-black/20 p-3 text-sm"><option value="desc">Newest first</option><option value="asc">Oldest first</option></select>
       <button type="submit" className="earn-secondary" disabled={!!busy}>Apply review filters</button><button type="button" disabled={!!busy} onClick={() => { resetReview(); setVersion(v => v + 1); }} className="earn-secondary">Refresh queue</button>
     </form>
-    {!submissions && <p className="mt-3 text-xs text-white/50">New bio-challenge submissions are paused. Existing requests can still be reviewed by the owner or full admin.</p>}
+    {!submissions && <p className="mt-3 text-xs text-white/50">New X submissions are paused. Existing requests can still be reviewed by the owner or full admin.</p>}
     {loading && <p role="status" className="mt-3 text-xs">Loading requests…</p>}{error && <p role="alert" className="mt-3 text-xs text-amber-200">{error}</p>}{note && <p role="status" className="mt-3 text-xs text-amber-200">{note}</p>}
     <div className="mt-4 max-h-[780px] space-y-3 overflow-auto">{!loading && !error && !rows.length && <p className="text-sm text-white/50">No requests in this view.</p>}{rows.map(row => <article key={row.id} className="rounded-2xl border border-white/10 p-4 text-xs">
       <div className="flex flex-wrap justify-between gap-2"><strong>{activityLabel(row.task_type)} · @{row.x_handle}</strong><span>{row.reviewState.replaceAll("_", " ")}</span></div>
@@ -58,11 +58,11 @@ export function EarnVerificationQueue({ canReview, walletFilter = "", filterRequ
       <div className="mt-3 flex flex-wrap gap-3">{[["Profile", row.x_profile_url], ["Evidence", row.evidence_url], ["Official post", row.campaign_url]].map(([label, value]) => { const href = activityEvidenceHref(value ?? undefined); return href ? <a className="underline" key={label} href={href} target="_blank" rel="noopener noreferrer">{label} ↗</a> : null; })}</div>
       {row.challenge ? <p className="mt-2">Bio code: <code className="break-all text-[var(--heads)]">{row.challenge.code}</code> · expires {new Date(row.challenge.expires_at).toLocaleString()}</p> : <p className="mt-2 text-white/40">Legacy claim: review the original profile and evidence. No bio challenge was recorded.</p>}
       <p className="mt-2">{row.rewards.map((r, i) => <span key={i} className="mr-3">{r.status}: {r.points} Points</span>)}</p>{row.review_note && <p className="mt-2">Latest decision: {row.review_note}</p>}
-      <details className="mt-2 text-white/50"><summary>Review history ({row.reviews.length}) · ownership attempts ({row.history.length})</summary>{row.history.map((h, i) => <p key={`h${i}`}>{new Date(h.created_at).toLocaleString()} · {h.status} · {h.review_reason}</p>)}{row.reviews.map((a, i) => <p key={`a${i}`} className="mt-2 break-all">{new Date(a.created_at).toLocaleString()} · {a.review_details?.decision} · {a.review_details?.reason} · reviewer {a.review_details?.reviewer}</p>)}</details>
+      <details className="mt-2 text-white/50"><summary>Review history ({row.reviews.length}) · profile submissions ({row.history.length})</summary>{row.history.map((h, i) => <p key={`h${i}`}>{new Date(h.created_at).toLocaleString()} · {h.status} · {h.review_reason}</p>)}{row.reviews.map((a, i) => <p key={`a${i}`} className="mt-2 break-all">{new Date(a.created_at).toLocaleString()} · {a.review_details?.decision} · {a.review_details?.reason} · reviewer {a.review_details?.reviewer}</p>)}</details>
       {canReview && <button type="button" disabled={!!busy} className="earn-secondary mt-3" onClick={() => { setSelected(row.id); setReason(""); setConfirmed(false); }}>Review {activityLabel(row.task_type)} for @{row.x_handle}</button>}
       {canReview && selected === row.id && <fieldset className="mt-3 rounded-xl bg-white/5 p-3"><legend className="text-white/60">Decision for @{row.x_handle}</legend>
         <label className="block text-xs text-white/60">Auditable review reason (required)<textarea aria-label="Verification review reason" value={reason} maxLength={500} disabled={!!busy} onChange={e => setReason(e.target.value)} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-sm" /></label>
-        <label className="mt-3 flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={confirmed} disabled={!!busy} onChange={e => setConfirmed(e.target.checked)} />I checked this account’s bio code or evidence author and official campaign post</label>
+        <label className="mt-3 flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={confirmed} disabled={!!busy} onChange={e => setConfirmed(e.target.checked)} />{row.task_type === "connect_x" ? row.challenge ? "I checked the legacy bio code on this profile" : "I checked that this profile follows @HeadsTailsFun" : "I checked this profile’s reply/repost and its saved campaign post"}</label>
         <div className="mt-3 flex flex-wrap gap-3">{[["Approve", "verified"], ["Reject / revoke", "rejected"], ["Needs review", "needs_review"]].map(([label, decision]) => <button type="button" key={decision} className="earn-secondary" disabled={!!busy || loading || reason.trim().length < 5 || (decision === "verified" && (!confirmed || row.reviewState === "expired"))} onClick={() => void review(row, decision)}>{busy === row.id ? "Saving…" : label}</button>)}</div>
       </fieldset>}
     </article>)}</div>

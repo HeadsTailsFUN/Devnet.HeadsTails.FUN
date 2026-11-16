@@ -54,7 +54,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   const seasonId = (season as { id?: string } | null)?.id;
   if (!seasonId) return NextResponse.json({ error: "no active season" }, { status: 503 });
   let verifiedEvidence;
-  try { verifiedEvidence = await guardXSubmission(db, seasonId, wallet, task, evidence); }
+  try { verifiedEvidence = await guardXSubmission(db, seasonId, wallet, task, evidence, b.campaignUrl); }
   catch (error) { return failure(error); }
   const profileUrl = `https://x.com/${handle}`;
 
@@ -64,7 +64,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   let data: unknown;
   let error: unknown;
   try {
-    const res = verifiedEvidence ? await db.rpc("earn_dispatch", { p_action: "x_evidence", p_wallet: wallet, p_data: { task, handle, evidence: verifiedEvidence.evidenceUrl, campaign: verifiedEvidence.campaignUrl, edit: false } }) : await db.rpc("create_airdrop_social_claim_atomic", {
+    const res = verifiedEvidence ? await db.rpc("earn_submit_x_campaign", { p_wallet: wallet, p_task: task, p_handle: handle, p_evidence: verifiedEvidence.evidenceUrl, p_campaign: verifiedEvidence.campaignUrl, p_edit: false }) : await db.rpc("create_airdrop_social_claim_atomic", {
       p_season_id: seasonId,
       p_wallet: wallet,
       p_task_type: task,
@@ -89,6 +89,7 @@ export async function POST(req: Request): Promise<NextResponse> {
     return NextResponse.json({ error: "could not save claim" }, { status: 503 });
   }
   const msg = String((error as { message?: unknown } | null)?.message ?? error ?? "");
+  if (/campaign-changed/.test(msg)) return NextResponse.json({error:"The campaign post changed. Refresh the quest and use the current post."},{status:409});
   if (/x-taken/i.test(msg)) {
     return NextResponse.json({ error: "X account already linked to another wallet" }, { status: 409 });
   }

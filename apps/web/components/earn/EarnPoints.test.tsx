@@ -1,7 +1,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createElement, useMemo } from "react";
-import { render, screen, fireEvent, cleanup, waitFor, act } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup, waitFor, act, within } from "@testing-library/react";
 import type { Wallet } from "@wallet-standard/base";
 import { WalletStandardProvider, useWalletState } from "../wallet/WalletProvider";
 import { EarnPointsContent } from "./EarnPointsClient";
@@ -55,7 +55,7 @@ test("disconnected popup content has earning instructions and wallet actions wit
   fireEvent.click(screen.getByRole("tab", { name: "QUESTS" }));
   assert.equal(screen.queryByRole("textbox", { name: "X reply URL" }), null);
   fireEvent.click(screen.getByText("X quests", { exact: true }));
-  assert(screen.getByText("Connect X account"));
+  assert(screen.getByText("Follow on X"));
   assert(screen.getByText(/Opening X never awards Points/));
   assert(!calls.some(call => call.includes("/api/airdrop") || call.includes("/api/referrals")));
 });
@@ -73,13 +73,14 @@ test("connected page separates pending from verified, renders true progress and 
   fireEvent.keyDown(screen.getByRole("tab", { name: "INVITE" }), { key: "ArrowRight" });
   assert.equal(screen.getByRole("tab", { name: "QUESTS" }).getAttribute("aria-selected"), "true");
   fireEvent.click(screen.getByText("X quests", { exact: true }));
-  await screen.findByText(/Unavailable — no active campaign/);
+  await screen.findAllByText(/Unavailable — no active campaign/);
   assert.equal(screen.queryByRole("button", { name: /Claim Repost/ }), null);
 });
 
 test("quest with stored handle submits evidence through existing authenticated API and stays pending", async () => {
   let body: Record<string, string> | null = null;
   const calls = installFetch({
+    "/api/airdrop/points": () => Response.json({...fixture,campaignUrl:"https://x.com/HeadsTailsFun/status/10"}),
     "/api/auth/challenge": () => Response.json({ challenge: { wallet: address }, message: "Synthetic ownership challenge" }),
     "/api/auth/verify": () => Response.json({ wallet: address }),
     "/api/airdrop/social-claim": () => Response.json({ status: "pending-verification" }),
@@ -91,9 +92,9 @@ test("quest with stored handle submits evidence through existing authenticated A
   fireEvent.click(screen.getByText("X quests", { exact: true }));
   const reply = await screen.findByRole("textbox", { name: "X reply URL" });
   fireEvent.change(reply, { target: { value: "https://x.com/degen/status/123" } });
-  fireEvent.click(screen.getByRole("button", { name: "Submit Reply" }));
-  await screen.findByText("Pending verification.");
-  assert.deepEqual(body, { task: "reply", handle: "degen", evidenceUrl: "https://x.com/degen/status/123" });
+  fireEvent.click(within(screen.getByRole("region",{name:"Reply quest"})).getByRole("button",{name:"Submit for Review"}));
+  await screen.findByText(/Submitted for manual review/);
+  assert.deepEqual(body, { task: "reply", handle: "degen", evidenceUrl: "https://x.com/degen/status/123",campaignUrl:"https://x.com/HeadsTailsFun/status/10" });
   assert.equal(calls.filter(call => call.includes("social-claim")).length, 1);
   assert(screen.getByText("222"));
 });
@@ -157,7 +158,7 @@ test("clearing a session during an in-flight Points read stops loading and disca
   assert.equal(screen.queryByRole("status", { name: "Loading Points" }), null);
 });
 
-test("new manual mode lets rejected repost evidence be corrected without creating a new claim", async () => {
+test("normal repost resubmits for manual review without requiring a separate repost URL", async () => {
   let body: Record<string, unknown> | null = null;
   installFetch({
     "/api/airdrop/points": () => Response.json({ ...fixture, manualOwnershipRequired: true, campaignUrl: "https://x.com/HeadsTailsFun/status/10", social: { ...fixture.social, repostStatus: "rejected", repostUrl: "https://x.com/degen/status/11" } }),
@@ -172,11 +173,11 @@ test("new manual mode lets rejected repost evidence be corrected without creatin
   mount(); fireEvent.click(screen.getByRole("button", { name: "Connect fixture" })); await screen.findByText("222");
   fireEvent.click(screen.getByRole("tab", { name: "QUESTS" }));
   fireEvent.click(screen.getByText("X quests", { exact: true }));
-  fireEvent.click(await screen.findByRole("button", { name: "Edit repost evidence" }));
-  fireEvent.change(screen.getByRole("textbox", { name: "Updated X repost evidence URL" }), { target: { value: "https://x.com/degen/status/12" } });
-  fireEvent.click(screen.getByRole("button", { name: "Save repost evidence" }));
-  await screen.findByText("Updated — back to pending review.");
-  assert.deepEqual(body, { task: "repost", handle: "degen", evidenceUrl: "https://x.com/degen/status/12" });
+  const repost=within(await screen.findByRole("region",{name:"Repost quest"}));
+  assert.equal(repost.queryByRole("textbox"),null);
+  fireEvent.click(repost.getByRole("button",{name:"Submit for Review"}));
+  await screen.findByText(/Submitted for manual review/);
+  assert.deepEqual(body,{task:"repost",handle:"degen",campaignUrl:"https://x.com/HeadsTailsFun/status/10"});
 });
 
 test("compact rules disclosure preserves all 12 approved rewards and their eligibility conditions", () => {

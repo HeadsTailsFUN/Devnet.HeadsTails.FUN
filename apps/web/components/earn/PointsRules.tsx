@@ -10,7 +10,7 @@ const rows = [
   { category: "Invite", activity: "Qualified referral — inviter", points: REFERRAL_REFERRER_ONCE },
   { category: "Invite", activity: "Qualified referral — invited player", points: REFERRAL_INVITEE_ONCE },
   { category: "Invite", activity: "Each subsequent eligible referred match — inviter", points: REFERRAL_PER_GAME },
-  { category: "X", activity: "Verified X account ownership", points: SOCIAL_CONNECT_X_POINTS },
+  { category: "X", activity: "Approved Follow on X", points: SOCIAL_CONNECT_X_POINTS },
   { category: "X", activity: "Approved campaign repost", points: SOCIAL_REPOST_POINTS },
   { category: "X", activity: "Approved campaign reply", points: SOCIAL_REPLY_POINTS },
   ...NEW_QUESTS.map(q => ({ category: q.provider === "telegram" ? "Telegram" : q.provider === "discord" ? "Discord" : "Challenge",
@@ -30,7 +30,7 @@ export function PointsRules() {
       <ul className="earn-important-rules">
         <li><strong>Gameplay:</strong> only eligible, fully settled matches count. Cancelled, incomplete, duplicate and excluded games earn zero. Win +{GAMEPLAY_WIN_TOTAL}, loss +{GAMEPLAY_LOSS_POINTS}; all rooms use the same rate. Gameplay is capped at {GAMEPLAY_DAILY_CAP} Points per wallet per UTC day, resetting at 00:00 UTC.</li>
         <li><strong>Referrals:</strong> after the invited player completes {REFERRAL_QUALIFYING_GAMES} eligible settled matches, the inviter earns +{REFERRAL_REFERRER_ONCE} and the invited player +{REFERRAL_INVITEE_ONCE}, once. From match 4 onward, the inviter earns +{REFERRAL_PER_GAME} per eligible match. Existing caps apply: {REFERRAL_MAX_PER_INVITEE_PER_DAY} recurring match rewards per invited player per UTC day and {REFERRAL_MAX_PER_REFERRER_PER_DAY} recurring Points per inviter per UTC day. Qualification bonuses are separate from the recurring cap. Self-referrals and excluded activity do not qualify.</li>
-        <li><strong>X:</strong> ownership requires an expiring code in your bio and manual approval. Repost/reply evidence must match the verified profile and the official campaign post. Opening X or submitting a URL never awards Points by itself.</li>
+        <li><strong>X:</strong> submit your profile URL for manual follow review. Replies and reposts are checked against your approved profile and the official campaign post. Opening X or submitting a URL never awards Points by itself. Unfollowing or deleting a submitted reply/repost before airdrop payout makes that task ineligible for its reward.</li>
         <li><strong>New quests:</strong> group +20, channel +5, Discord +15 and three-day play +20 — <strong>{NEW_QUESTS.reduce((total, q) => total + q.points, 0)} Points total</strong>, each once per eligible account and season. Telegram and Discord membership do not require gameplay. Discord Membership Screening must be complete.</li>
         <li><strong>Three-day play:</strong> at least one eligible settled match on each of 3 distinct UTC dates in the current season. Days need not be consecutive; past eligible season matches count.</li>
         <li><strong>Verification:</strong> pending, failed or unavailable verification earns no confirmed Points. Only active quests with completed verification and eligibility checks can award Points. No quiz or tutorial quest is included.</li>

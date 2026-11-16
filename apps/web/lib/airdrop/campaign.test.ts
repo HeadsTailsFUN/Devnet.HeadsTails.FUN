@@ -3,7 +3,7 @@ import { strict as assert } from "node:assert";
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { campaignPostUrl } from "./campaign.js";
+import { campaignPostUrl, normalizeCampaignUrl } from "./campaign.js";
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -14,21 +14,9 @@ describe("X campaign post gating", () => {
     assert.equal(campaignPostUrl(), null);
   });
 
-  it("simplified X tasks: Link + Reply always; Repost only with campaign; no fake buttons", () => {
-    const src = readFileSync(join(root, "components", "profile", "ProfileModal.tsx"), "utf8");
-    assert.ok(!src.includes("Coming soon"), "no fake Coming soon buttons");
-    assert.ok(src.includes("Link X"), "Link X action");
-    assert.ok(src.includes("Submit Reply"), "Submit Reply always available");
-    assert.ok(src.includes("Claim Repost"), "Claim Repost action exists");
-    assert.ok(src.includes("campaignUrl &&"), "repost gated on real campaign URL");
-    assert.ok(src.includes("View campaign post"), "campaign link when configured");
-    assert.ok(src.includes("replyUrl"), "reply evidence URL input");
-    assert.ok(src.includes("evidenceUrl"), "evidence sent to API");
-    // Persisted server state: stored handle/reply with Edit, status pills.
-    assert.ok(src.includes("social?.handle"), "stored handle from server");
-    assert.ok(src.includes("social?.replyUrl"), "stored reply from server");
-    assert.ok(src.includes("StatusPill"), "pending/verified distinction");
-    assert.ok(src.includes("social-edit"), "edits go through the idempotent edit path");
+  it("accepts official post links and rejects spoofed hosts, profiles, credentials and other accounts",()=>{
+    assert.equal(normalizeCampaignUrl("https://twitter.com/HeadsTailsFun/status/123?s=20"),"https://x.com/HeadsTailsFun/status/123");
+    for(const url of ["javascript:alert(1)","http://x.com/HeadsTailsFun/status/123","https://x.com.evil.invalid/HeadsTailsFun/status/123","https://u:p@x.com/HeadsTailsFun/status/123","https://x.com/other/status/123","https://x.com/HeadsTailsFun"])assert.equal(normalizeCampaignUrl(url),null);
   });
 
   it("points route exposes persisted social state (season + wallet scoped)", () => {

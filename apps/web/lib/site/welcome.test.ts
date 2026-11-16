@@ -43,8 +43,9 @@ test("ordinary campaign parameters retain the first-visit introduction and survi
 });
 test("prefetch and non-GET requests never consume a first visit", async () => {
   globalThis.fetch = async () => { throw new Error("must not call storage"); };
-  for (const headers of [{ rsc: "1" }, { "next-router-prefetch": "1" }, { purpose: "prefetch" }]) {
-    assert.equal((await welcomeEntry(req("/", headers as Record<string, string>))).headers.get("x-middleware-next"), "1");
+  const headerCases: Record<string,string>[] = [{ rsc: "1" }, { "next-router-prefetch": "1" }, { purpose: "prefetch" }];
+  for (const headers of headerCases) {
+    assert.equal((await welcomeEntry(req("/", headers))).headers.get("x-middleware-next"), "1");
   }
   for (const method of ["HEAD", "POST"]) {
     const r = await welcomeEntry(new NextRequest("https://headstails.fun/", { method }));

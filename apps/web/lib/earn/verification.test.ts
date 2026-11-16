@@ -66,6 +66,8 @@ function backend(override?: (c: Call) => Response | undefined) {
         action === "discord_consume" ? { status: "consumed" } : action === "discord_link" ? { status: "linked" } : { ok: true });
     }
     if (table === "earn_three_day_progress") return Response.json(0);
+    if (table === "site_settings") return Response.json([]);
+    if (table === "earn_submit_x_follow") return Response.json({status:"pending"});
     if (["earn_social_links", "earn_quest_claims", "earn_verification_jobs", "earn_x_challenges"].includes(table ?? "")) return Response.json([]);
     if (["airdrop_x_identities", "earn_social_disconnects", "admin_members", "reward_exclusions"].includes(table ?? "")) return Response.json(null);
     throw new Error(`Unexpected fixture request: ${url.pathname}`);
@@ -183,6 +185,16 @@ test("wallet routes reject unauthenticated and cross-origin mutations; admin end
   assert.equal((await earnAction(request("/api/earn/action", { action: "unlink", provider: "telegram" }, { cookie, origin: "https://attacker.invalid" }))).status, 403);
   assert.equal((await adminRead(request("/api/admin/earn-verifications?wallet=owner"))).status, 401);
   assert.equal((await adminWrite(request("/api/admin/earn-verifications", { wallet: "owner", decision: "verified" }))).status, 401);
+});
+
+test("Follow profile submission uses the authenticated owner, validates the URL and never invents an approval",async()=>{
+  configure();const calls=backend();
+  const result=await earnAction(request("/api/earn/action",{action:"x_follow",profileUrl:"https://x.com/FlipViper",wallet:"attacker"},{cookie}));
+  assert.equal(result.status,200);const b=await result.json();assert.equal(b.status,"pending");
+  const rpc=calls.find(c=>c.url.pathname.endsWith("earn_submit_x_follow"))!;
+  assert.deepEqual(rpc.body,{p_wallet:"session-owner",p_handle:"flipviper"});
+  assert.equal(b.wallet,"session-owner");
+  const invalid=await earnAction(request("/api/earn/action",{action:"x_follow",profileUrl:"https://x.com.evil.invalid/flipviper"},{cookie}));assert.equal(invalid.status,400);
 });
 test("private quest status is scoped to the authenticated wallet, not query parameters", async () => {
   configure(); const calls = backend();

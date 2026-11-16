@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Transaction } from "@solana/web3.js";
 import { shortWallet } from "@/lib/leaderboard";
+import { XCampaignSettings } from "./XCampaignSettings";
 
 async function api(path: string, init?: RequestInit): Promise<{ ok: boolean; body: unknown }> {
   try {
@@ -271,6 +272,7 @@ export function SettingsTab() {
   return (
     <div className="flex flex-col gap-4">
       <Section title="Site settings (controlled)">
+        <XCampaignSettings />
         <div className="flex flex-col gap-2">
           <label className="text-[12px] font-bold text-white" htmlFor="adm-set-key">Key</label>
           <select id="adm-set-key" value={key} onChange={(e) => setKey(e.target.value)} className="rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-[13px] text-white">

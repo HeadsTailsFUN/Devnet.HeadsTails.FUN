@@ -11,6 +11,8 @@ import { telegramRoute } from "./telegram";
 import { GET as adminRead, POST as adminWrite } from "../../app/api/admin/earn-verifications/route";
 import { POST as socialClaim } from "../../app/api/airdrop/social-claim/route";
 import { POST as socialEdit } from "../../app/api/airdrop/social-edit/route";
+import { GET as readPoints } from "../../app/api/airdrop/points/route";
+import { GET as readSettings, POST as saveSettings } from "../../app/api/admin/settings/route";
 import { digest } from "./server";
 import { SESSION_COOKIE } from "../auth/message";
 
@@ -29,16 +31,22 @@ const signing = randomBytes(32).toString("hex"), serviceKey = randomBytes(32).to
 const payload = Buffer.from(JSON.stringify({ role: "service_role", exp: Math.floor(Date.now() / 1000) + 600 })).toString("base64url");
 const unsigned = Buffer.from('{"alg":"HS256","typ":"JWT"}').toString("base64url") + "." + payload;
 const jwt = unsigned + "." + createHmac("sha256", signing).update(unsigned).digest("base64url");
-const ownerSession = randomBytes(32).toString("hex"), reviewerSession = randomBytes(32).toString("hex");
+const ownerSession = randomBytes(32).toString("hex"), reviewerSession = randomBytes(32).toString("hex"), followerSession=randomBytes(32).toString("hex");
 sql(`create table public.auth_sessions(token_hash text primary key,wallet text not null,expires_at timestamptz not null);
 grant select on public.auth_sessions to service_role;
-insert into public.auth_sessions values(${literal(digest(ownerSession))},'offline-owner',now()+interval '1 hour'),(${literal(digest(reviewerSession))},'offline-reviewer',now()+interval '1 hour');
+insert into public.auth_sessions values(${literal(digest(ownerSession))},'offline-owner',now()+interval '1 hour'),(${literal(digest(reviewerSession))},'offline-reviewer',now()+interval '1 hour'),(${literal(digest(followerSession))},'offline-follower',now()+interval '1 hour');
 insert into public.admin_members values('offline-reviewer','FULL_ADMIN');
 update public.airdrop_seasons set starts_at=now()-interval '1 day' where active;`);
 sql(`create table public.profiles(wallet text primary key,username text);
 create table public.admin_audit_log(id uuid primary key default gen_random_uuid(),admin_wallet text,action text,target text,metadata jsonb,created_at timestamptz default now());
 grant all on public.profiles,public.admin_audit_log to service_role;`);
 sql(fs.readFileSync(path.join(root,"supabase/migrations/20261116005911_admin_earn_activity_report.sql"),"utf8"));
+sql(`create table public.site_settings(key text primary key,value jsonb not null,updated_at timestamptz default now());
+alter table public.site_settings enable row level security;grant all on public.site_settings to service_role;
+alter table public.airdrop_seasons add column team_points_start_at timestamptz;`);
+const xMigration=fs.readdirSync(path.join(root,"supabase/migrations")).find(f=>f.endsWith("_x_follow_manual_and_campaigns.sql"));assert(xMigration);
+sql(fs.readFileSync(path.join(root,"supabase/migrations",xMigration),"utf8"));
+sql(`update public.site_settings set value='{"text":"https://x.com/HeadsTailsFun/status/123456"}';`);
 let origin = "", rest = "", passed = 0, networkCreated = false, attached = false, restStarted = false, noneDetached = false;
 console.log("SETUP synthetic sessions inserted");
 const originalFetch = globalThis.fetch;
@@ -60,6 +68,8 @@ const server = http.createServer(async (incoming, outgoing) => {
       else if (url.pathname === "/api/admin/earn-verifications") result = incoming.method === "POST" ? await adminWrite(req) : await adminRead(req);
       else if (url.pathname === "/api/airdrop/social-claim") result = await socialClaim(req);
       else if (url.pathname === "/api/airdrop/social-edit") result = await socialEdit(req);
+      else if (url.pathname === "/api/airdrop/points") result = await readPoints(req);
+      else if (url.pathname === "/api/admin/settings") result = incoming.method === "POST" ? await saveSettings(req) : await readSettings(req);
       else {
         const operation = url.pathname.split("/").at(-1);
         result = ["link", "unlink", "health", "verification-jobs", "verification-results"].includes(operation ?? "")
@@ -99,11 +109,11 @@ try {
   process.env.AIRDROP_X_CAMPAIGN_URL = "https://x.com/HeadsTailsFun/status/123456"; delete process.env.NEXT_PUBLIC_AIRDROP_X_CAMPAIGN_URL;
   delete process.env.MAINNET_REAL_VALUE_ENABLED;
   for (let i = 0; i < 30; i++) { try { const ready = await fetch(rest + "/"); if (ready.ok) break; } catch {} await new Promise(resolve => setTimeout(resolve, 100)); }
-  async function call(route: string, body?: Record<string, unknown>, service = false, reviewer = false, idem?: string) {
+  async function call(route: string, body?: Record<string, unknown>, service = false, reviewer = false, idem?: string, follower=false) {
     const response = await fetch(origin + route, { method: body ? "POST" : "GET", headers: {
       ...(body ? { "content-type": "application/json" } : {}),
       ...(service ? { Authorization: `Bearer ${serviceKey}`, "X-Request-Id": randomUUID(), ...(idem ? { "Idempotency-Key": idem } : {}) }
-        : { cookie: `${SESSION_COOKIE}=${reviewer ? reviewerSession : ownerSession}`, Origin: origin }),
+        : { cookie: `${SESSION_COOKIE}=${follower ? followerSession : reviewer ? reviewerSession : ownerSession}`, Origin: origin }),
     }, body: body ? JSON.stringify(body) : undefined });
     return { response, data: await response.json() as Record<string, unknown> };
   }
@@ -195,10 +205,11 @@ try {
     const wrong = await call("/api/airdrop/social-claim", { task: "reply", handle: "offlineplayer", evidenceUrl: "https://x.com/another/status/111" });
     assert.equal(wrong.response.status, 409);
     const reply = await call("/api/airdrop/social-claim", { task: "reply", handle: "offlineplayer", evidenceUrl: "https://x.com/offlineplayer/status/111" });
+    assert.equal(reply.response.status,200,JSON.stringify(reply.data));
     assert.equal(reply.data.status, "pending-verification");
     const edited = await call("/api/airdrop/social-edit", { task: "reply", handle: "offlineplayer", evidenceUrl: "https://x.com/offlineplayer/status/112" });
     assert.equal(edited.data.status, "pending-verification");
-    const repost = await call("/api/airdrop/social-claim", { task: "repost", handle: "offlineplayer", evidenceUrl: "https://x.com/HeadsTailsFun/status/123456" });
+    const repost = await call("/api/airdrop/social-claim", { task: "repost", handle: "offlineplayer" });
     assert.equal(repost.data.status, "pending-verification");
     assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "125");
     for (const task of ["reply", "repost"]) {
@@ -210,6 +221,42 @@ try {
     }
     assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "250");
     assert.equal(sql("select count(*) from public.airdrop_social_claims where campaign_url='https://x.com/headstailsfun/status/123456'"), "2");
+  });
+  await check("Follow on X accepts a profile without a bio and only awards once after explicit staff follow review",async()=>{
+    const submitted=await call("/api/earn/action",{action:"x_follow",profileUrl:"https://x.com/newfollower"},false,false,undefined,true);
+    assert.equal(submitted.response.status,200);assert.equal(submitted.data.status,"pending");
+    const claimId=sql("select id from public.airdrop_social_claims where wallet='offline-follower' and task_type='connect_x'");
+    assert.equal(sql("select verification_method||':'||(ownership_challenge_id is null)::text from public.airdrop_social_claims where id="+literal(claimId)),"manual_follow_review:true");
+    assert.equal(sql("select count(*) from public.earn_x_challenges where wallet='offline-follower'"),"0");
+    assert.equal(sql("select coalesce(sum(points),0) from public.airdrop_points_ledger where wallet='offline-follower' and status='verified'"),"0");
+    const review={claimId,decision:"verified",reason:"Offline fixture: manually checked official account follow"};
+    assert.equal((await call("/api/admin/earn-verifications",review,false,true)).response.status,409);
+    assert.equal((await call("/api/admin/earn-verifications",{...review,evidenceConfirmed:true},false,true)).response.status,200);
+    assert.equal((await call("/api/admin/earn-verifications",{...review,evidenceConfirmed:true},false,true)).response.status,200);
+    assert.equal((await call("/api/earn/action",{action:"x_follow",profileUrl:"https://x.com/newfollower"},false,false,undefined,true)).data.status,"completed");
+    assert.equal(sql("select sum(points)||':'||count(*) from public.airdrop_points_ledger where wallet='offline-follower'"),"100:1");
+    assert.equal(sql("select count(*) from public.earn_verification_audit where event='x_review' and related_ref="+literal(claimId)+" and review_details->>'mode'='manual_follow_review'"),"1");
+    const revoke=await call("/api/admin/earn-verifications",{claimId,decision:"rejected",reason:"Offline payout recheck: account no longer follows"},false,true);assert.equal(revoke.response.status,200);
+    assert.equal(sql("select status from public.airdrop_points_ledger where wallet='offline-follower'"),"rejected");
+    assert.equal(sql("select count(*) from public.airdrop_social_claims where wallet='offline-follower'"),"1");
+  });
+  await check("admin campaign changes appear on the next Points response and saved evidence keeps its original post",async()=>{
+    const update={key:"earn_x_reply_campaign_url",value:"https://x.com/HeadsTailsFun/status/123457"};
+    assert.equal((await call("/api/admin/settings",update)).response.status,403);
+    assert.equal((await call("/api/admin/settings",{...update,value:"https://x.com.evil.invalid/HeadsTailsFun/status/123457"},false,true)).response.status,400);
+    assert.equal((await call("/api/admin/settings",update,false,true)).response.status,200);
+    const points=await call("/api/airdrop/points");assert.equal(points.response.status,200);
+    assert.equal((points.data.campaignUrls as {reply:string}).reply,update.value);
+    assert.equal(sql("select campaign_url from public.airdrop_social_claims where wallet='offline-owner' and task_type='reply'"),"https://x.com/headstailsfun/status/123456");
+    const stale=await call("/api/airdrop/social-edit",{task:"reply",handle:"offlineplayer",evidenceUrl:"https://x.com/offlineplayer/status/333",campaignUrl:"https://x.com/HeadsTailsFun/status/123456"});assert.equal(stale.response.status,409);
+    assert.equal((await call("/api/admin/settings",{...update,value:""},false,true)).response.status,200);
+    const paused=await call("/api/airdrop/points");assert.equal((paused.data.campaignUrls as {reply:null}).reply,null);
+    const disabled=await call("/api/airdrop/social-claim",{task:"reply",handle:"offlineplayer",evidenceUrl:"https://x.com/offlineplayer/status/333"});assert.equal(disabled.response.status,409);
+    assert.equal(sql("select count(*) from public.admin_audit_log where action='settings.update'"),"2");
+  });
+  await check("new RPCs are service-only and retain caller security",async()=>{
+    assert.equal(sql("select has_function_privilege('anon','public.earn_submit_x_follow(text,text)','EXECUTE') or has_function_privilege('authenticated','public.earn_submit_x_campaign(text,text,text,text,text,boolean)','EXECUTE')"),"f");
+    assert.equal(sql("select bool_or(prosecdef) from pg_proc where proname in ('earn_submit_x_follow','earn_submit_x_campaign')"),"f");
   });
   fs.writeFileSync(path.join(root, "artifacts/earn-points/http-e2e-summary.json"), JSON.stringify({ passed, failed: 0, transport: "HTTP + PostgREST v16.2", engine: "PostgreSQL 17", database: db, externalNetworking: false, productionModified: false }));
   console.log(JSON.stringify({ passed, failed: 0, externalNetworking: false, productionModified: false }));

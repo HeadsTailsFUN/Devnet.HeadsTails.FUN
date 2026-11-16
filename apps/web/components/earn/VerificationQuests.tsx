@@ -163,27 +163,3 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
     {note && <p role="status" className="mt-3 rounded-xl bg-white/5 p-3 text-xs text-white/70">{note}</p>}
   </div>;
 }
-
-export function XOwnershipForm({ onChanged }: { onChanged: () => void }) {
-  const { wallet, account } = useWalletState();
-  const resource = useRewardResource<VerificationState>("/api/earn/status", wallet, account);
-  const [url, setUrl] = useState(""), [busy, setBusy] = useState(false), [note, setNote] = useState<string | null>(null);
-  const challenge = resource.data?.xChallenge;
-  const expired = challenge && Date.parse(challenge.expires_at) <= Date.now();
-  const run = async (body: Record<string, unknown>) => {
-    if (busy) return; setBusy(true); setNote(null);
-    try { const r = await action(body); setNote(String(r.status ?? "Request saved").replaceAll("_", " ")); await resource.reload(); onChanged(); }
-    catch (e) { setNote(e instanceof Error ? e.message : "Could not save"); } finally { setBusy(false); }
-  };
-  return <div className="earn-x-ownership"><h4 className="font-semibold">Verify X ownership · +100 Points</h4>
-    <p className="mt-2 text-xs leading-relaxed text-white/60">Submit your profile URL, temporarily place your unique code in your bio, then request manual review. A URL alone is not proof of ownership.</p>
-    {resource.data?.connections.x && <p className="mt-2 text-xs text-[var(--heads)]">Manually verified · @{resource.data.connections.xHandle}</p>}
-    <label className="mt-3 block text-xs text-white/60">X profile URL<input aria-label="X profile URL" type="url" value={url} onChange={e => setUrl(e.target.value)} placeholder="https://x.com/your_handle" maxLength={250} className="mt-2 w-full rounded-xl border border-white/10 bg-black/20 p-3 text-sm" /></label>
-    <button type="button" disabled={busy || !resource.data?.capabilities.xManual || !url} className="earn-secondary mt-3" onClick={() => void run({ action: "x_challenge", profileUrl: url })}>Generate ownership challenge</button>
-    {challenge && <div className="mt-3 rounded-xl border border-white/10 p-3 text-xs"><p>Place this code temporarily in the bio of {challenge.profile_url}</p><code className="mt-2 block break-all text-sm text-[var(--heads)]">{challenge.code}</code><p className="mt-2 text-white/50">{expired ? "Expired — generate a new challenge" : `Expires ${new Date(challenge.expires_at).toLocaleString()}`}</p>
-      <p className="mt-2">{challenge.status.replaceAll("_", " ")}</p>{challenge.review_reason && <p className="mt-2 text-white/60">Review: {challenge.review_reason}</p>}
-      <button type="button" disabled={busy || !!expired || ["submitted", "verified"].includes(challenge.status)} className="earn-secondary mt-3" onClick={() => void run({ action: "x_submit", challengeId: challenge.id })}>Submit X Profile for review</button></div>}
-    {resource.error && <p role="alert" className="mt-2 text-xs text-amber-200">{resource.error}</p>}
-    {note && <p role="status" className="mt-2 text-xs text-white/70">{note}</p>}
-  </div>;
-}

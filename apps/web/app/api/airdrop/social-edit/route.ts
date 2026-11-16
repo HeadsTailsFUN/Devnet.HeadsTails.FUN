@@ -46,7 +46,7 @@ export async function POST(req: Request): Promise<NextResponse> {
   const handle = sanitizeHandle(b.handle ?? b.x_handle);
   if (!handle) return NextResponse.json({ error: "invalid X handle" }, { status: 400 });
   const evidence = task === "connect_x" ? null : sanitizeUrl(b.evidenceUrl ?? b.evidence_url ?? b.replyUrl);
-  if (task !== "connect_x" && !evidence) {
+  if (task === "reply" && !evidence) {
     return NextResponse.json({ error: "invalid reply URL" }, { status: 400 });
   }
   const db = getSupabaseAdmin();
@@ -56,12 +56,12 @@ export async function POST(req: Request): Promise<NextResponse> {
   if (!seasonId) return NextResponse.json({ error: "no active season" }, { status: 503 });
 
   let verifiedEvidence;
-  try { verifiedEvidence = await guardXSubmission(db, seasonId, wallet, task, evidence); }
+  try { verifiedEvidence = await guardXSubmission(db, seasonId, wallet, task, evidence, b.campaignUrl); }
   catch (error) { return failure(error); }
   let data: unknown;
   let error: unknown;
   try {
-    const res = verifiedEvidence ? await db.rpc("earn_dispatch", { p_action: "x_evidence", p_wallet: wallet, p_data: { task, handle, evidence: verifiedEvidence.evidenceUrl, campaign: verifiedEvidence.campaignUrl, edit: true } }) : await db.rpc("update_airdrop_social_claim_atomic", {
+    const res = verifiedEvidence ? await db.rpc("earn_submit_x_campaign", { p_wallet: wallet, p_task: task, p_handle: handle, p_evidence: verifiedEvidence.evidenceUrl, p_campaign: verifiedEvidence.campaignUrl, p_edit: true }) : await db.rpc("update_airdrop_social_claim_atomic", {
       p_season_id: seasonId,
       p_wallet: wallet,
       p_task_type: task,
@@ -78,10 +78,12 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (status === "edited") {
       return NextResponse.json({ status: "pending-verification" });
     }
+    if (status === "already-claimed") return NextResponse.json({ status: "already-claimed" });
     if (status === "unchanged") return NextResponse.json({ status: "unchanged" });
     return NextResponse.json({ error: "could not save edit" }, { status: 503 });
   }
   const msg = String((error as { message?: unknown } | null)?.message ?? error ?? "");
+  if (/campaign-changed/.test(msg)) return NextResponse.json({error:"The campaign post changed. Refresh the quest and use the current post."},{status:409});
   if (/x-taken/i.test(msg)) {
     return NextResponse.json({ error: "X account already linked to another wallet" }, { status: 409 });
   }

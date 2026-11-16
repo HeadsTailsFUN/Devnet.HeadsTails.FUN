@@ -20,7 +20,11 @@ export function json(data: unknown, status = 200, retryAfter?: number) {
 }
 export function failure(error: unknown) {
   const e = error instanceof EarnError ? error : new EarnError("temporarily_unavailable", 503);
-  return json({ ok: false, error: e.code, message: e.code.replaceAll("_", " "), ...(e.retryAfter ? { retry_after: e.retryAfter } : {}) }, e.status, e.retryAfter);
+  const messages: Record<string,string> = { approved_x_profile_required: "Your X profile must be approved before submitting campaign tasks.",
+    campaign_changed_reload: "The campaign post changed. Refresh this quest and open the current post before submitting.",
+    use_follow_submission: "Submit your profile URL using Follow on X.", x_account_conflict: "This X profile is already associated with another wallet.",
+    campaign_evidence_required: "Open the active campaign post and enter a valid reply URL.", reply_author_mismatch: "The reply URL must belong to your approved X profile." };
+  return json({ ok: false, error: e.code, message: messages[e.code] ?? e.code.replaceAll("_", " "), ...(e.retryAfter ? { retry_after: e.retryAfter } : {}) }, e.status, e.retryAfter);
 }
 export function dbClient() { const db = getSupabaseAdmin(); if (!db) throw new EarnError("temporarily_unavailable", 503); return db; }
 export async function dispatch(db: SupabaseClient, action: string, wallet: string | null, data: Record<string, unknown> = {}) {

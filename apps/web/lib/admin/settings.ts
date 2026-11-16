@@ -1,6 +1,8 @@
+import { CAMPAIGN_SETTING_KEYS, normalizeCampaignUrl } from "@/lib/airdrop/campaign";
 export const TEXT_KEYS = [
   "announcement_text",
   "hero_subtitle",
+  ...CAMPAIGN_SETTING_KEYS,
 ] as const;
 
 export const IMAGE_KEYS = ["coin_heads_url", "coin_tails_url", "coin_default_url"] as const;
@@ -41,6 +43,11 @@ export function validateSetting(key: unknown, value: unknown): SettingCheck {
     return { ok: false, reason: "unknown setting" };
   }
   if ((TEXT_KEYS as readonly string[]).includes(key)) {
+    if ((CAMPAIGN_SETTING_KEYS as readonly string[]).includes(key)) {
+      if (value === "") return { ok: true, kind: "text", value: "" };
+      const url = normalizeCampaignUrl(value);
+      return url ? { ok: true, kind: "text", value: url } : { ok: false, reason: "Use an official https://x.com/HeadsTailsFun/status/... post URL, or leave empty to pause this task." };
+    }
     if (typeof value !== "string") return { ok: false, reason: "text value required" };
     const t = value.trim();
     if (t.length === 0 || t.length > 200) return { ok: false, reason: "text must be 1–200 chars" };

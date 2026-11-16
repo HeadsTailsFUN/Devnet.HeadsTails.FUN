@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { render, screen, fireEvent, cleanup, waitFor, within } from "@testing-library/react";
 import type { Wallet } from "@wallet-standard/base";
 import { WalletStandardProvider, useWalletState } from "../wallet/WalletProvider";
-import { VerificationQuests, XOwnershipForm, type VerificationState } from "./VerificationQuests";
+import { VerificationQuests, type VerificationState } from "./VerificationQuests";
+import { XQuests } from "./XQuests";
 import { EarnVerificationQueue } from "../admin/EarnVerificationQueue";
 
 const address = "11111111111111111111111111111111";
@@ -29,6 +30,7 @@ function fetchFixture(current: () => VerificationState = () => fixture, mutate?:
     if (url.startsWith("/api/profile")) return Response.json({ profile: null });
     if (url === "/api/earn/catalog") return Response.json({ rewardsEnabled: true, groupUrl: "https://t.me/fixturegroup", channelUrl: "https://t.me/fixturechannel", discordJoinUrl: "https://discord.gg/fixture" });
     if (url === "/api/earn/status") return Response.json(current());
+    if (url === "/api/airdrop/points") return Response.json({wallet:address,socialAvailable:true,social:{handle:null,handleStatus:null,connectStatus:null},campaignUrls:{reply:null,repost:null}});
     if (url === "/api/earn/action" && mutate) return mutate(JSON.parse(String(init?.body)));
     throw new Error(`Unexpected request ${url}`);
   };
@@ -37,7 +39,7 @@ function fetchFixture(current: () => VerificationState = () => fixture, mutate?:
 function mount(x = false, changed = () => undefined) {
   function Harness() {
     const state = useWalletState();
-    return <><button onClick={() => void state.connect(wallet)}>Connect fixture</button>{x ? <XOwnershipForm onChanged={changed} /> : <VerificationQuests onConnect={() => undefined} onChanged={changed} />}</>;
+    return <><button onClick={() => void state.connect(wallet)}>Connect fixture</button>{x ? <XQuests wallet={state.wallet} account={state.account} onChanged={changed} /> : <VerificationQuests onConnect={() => undefined} onChanged={changed} />}</>;
   }
   render(<WalletStandardProvider><Harness /></WalletStandardProvider>);
 }
@@ -154,17 +156,19 @@ test("Discord return notice explains pending membership and removes the consumed
   assert.equal(new URL(window.location.href).searchParams.get("earn_notice"), null);
   assert.equal(new URL(window.location.href).searchParams.get("ref"), "KEEPME");
 });
-test("X bio ownership challenge must be submitted and stays under review without a completed reward", async () => {
-  let submitted = false;
-  const challenge = { id: "12345678-1234-4234-8234-123456789abc", code: "HTS-SYNTHETIC-PUBLIC-BIO", profile_url: "https://x.com/fixture", expires_at: new Date(Date.now() + 600000).toISOString(), status: "available", review_reason: null };
-  fetchFixture(() => ({ ...fixture, xChallenge: { ...challenge, status: submitted ? "submitted" : "available" } }), async body => {
-    assert.deepEqual(body, { action: "x_submit", challengeId: challenge.id }); submitted = true; return Response.json({ wallet: address, status: "pending" });
-  });
-  mount(true); fireEvent.click(screen.getByRole("button", { name: "Connect fixture" })); await screen.findByText(challenge.code);
-  fireEvent.click(screen.getByRole("button", { name: "Submit X Profile for review" }));
-  await waitFor(() => assert((screen.getByRole("button", { name: "Submit X Profile for review" }) as HTMLButtonElement).disabled));
-  assert.equal(screen.queryByText(/Manually verified/), null);
+test("Follow on X submits only the profile URL for manual review without a bio code", async () => {
+  let submitted=false;
+  fetchFixture(()=>fixture,async body=>{assert.deepEqual(body,{action:"x_follow",profileUrl:"https://x.com/fixture"});submitted=true;return Response.json({wallet:address,status:"pending"});});
+  mount(true);fireEvent.click(screen.getByRole("button",{name:"Connect fixture"}));
+  await screen.findByRole("textbox",{name:"X profile URL"});
+  fireEvent.change(screen.getByRole("textbox",{name:"X profile URL"}),{target:{value:"https://x.com/fixture"}});
+  const card=within(screen.getByRole("region",{name:"Follow on X"}));
+  await waitFor(()=>assert(!(card.getByRole("button",{name:"Submit for Review"}) as HTMLButtonElement).disabled));
+  fireEvent.click(card.getByRole("button",{name:"Submit for Review"}));
+  await screen.findByText(/Submitted for manual review/);assert(submitted);
+  assert.equal(screen.queryByText(/Place this code/),null);assert(screen.getByText(/If you unfollow or delete/));
 });
+
 test("review interface requires a reason and evidence confirmation before approval and uses existing admin API", async () => {
   let body: Record<string, unknown> | null = null;
   globalThis.fetch = async (_input, init) => {
@@ -174,7 +178,7 @@ test("review interface requires a reason and evidence confirmation before approv
       challenge: { code: "HTS-PUBLIC-BIO", expires_at: "2026-11-16", status: "submitted" }, rewards: [], history: [], reviews: [] }] });
   };
   render(<EarnVerificationQueue canReview />);
-  fireEvent.click(await screen.findByRole("button", { name: /Review X account ownership/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /Review Follow on X/ }));
   const approve = await screen.findByRole("button", { name: "Approve" });
   assert((approve as HTMLButtonElement).disabled);
   fireEvent.change(screen.getByRole("textbox", { name: "Verification review reason" }), { target: { value: "Bio code matched during manual review" } });
@@ -182,4 +186,20 @@ test("review interface requires a reason and evidence confirmation before approv
   fireEvent.click(screen.getByRole("checkbox"));
   fireEvent.click(approve); await waitFor(() => assert(body));
   assert.deepEqual(body, { claimId: "claim-1", decision: "verified", reason: "Bio code matched during manual review", ownershipConfirmed: true, evidenceConfirmed: false });
+});
+
+test("Follow approval requires the explicit staff follow attestation instead of a legacy bio assertion",async()=>{
+  let body:Record<string,unknown>|null=null;
+  globalThis.fetch=async(_input,init)=>{
+    if(init?.method==="POST"){body=JSON.parse(String(init.body));return Response.json({status:"verified"});}
+    return Response.json({active:true,newSubmissionsActive:true,rows:[{id:"follow-1",wallet:"fixture-owner",task_type:"connect_x",x_handle:"fixture",x_profile_url:"https://x.com/fixture",evidence_url:null,campaign_url:null,reviewState:"pending",created_at:"2026-11-17",review_note:null,challenge:null,rewards:[],history:[],reviews:[]}]});
+  };
+  render(<EarnVerificationQueue canReview/>);
+  fireEvent.click(await screen.findByRole("button",{name:/Review Follow on X/}));
+  fireEvent.change(screen.getByRole("textbox",{name:"Verification review reason"}),{target:{value:"Follow checked manually on the submitted profile"}});
+  assert((screen.getByRole("button",{name:"Approve"}) as HTMLButtonElement).disabled);
+  fireEvent.click(screen.getByLabelText("I checked that this profile follows @HeadsTailsFun"));
+  fireEvent.click(screen.getByRole("button",{name:"Approve"}));await waitFor(()=>assert(body));
+  assert.equal((body as unknown as Record<string,unknown>).ownershipConfirmed,false);
+  assert.equal((body as unknown as Record<string,unknown>).evidenceConfirmed,true);
 });

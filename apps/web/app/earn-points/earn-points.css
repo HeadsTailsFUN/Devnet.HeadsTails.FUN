@@ -164,12 +164,40 @@
 .earn-quest-body { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 16px; font-size: 12px; line-height: 1.7; color: var(--text-secondary); }
 .earn-quest-body > small { font-size: 10px; }
 .earn-quest-body > .earn-quests { width: 100%; }
+.earn-x-disclosure .earn-quest-body { padding: 0; }
+.earn-x-disclosure .earn-quest-body > .earn-caption { padding: 0 20px 16px; margin: 0; }
+.x-quest-stack { width: 100%; min-width: 0; }
+.x-task-card { display: grid; gap: 14px; padding: 24px; min-width: 0; border-bottom: 1px solid #ffffff12; }
+.x-task-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.x-task-kicker { color: #92a4b0; font-size: 10px; font-weight: 700; letter-spacing: .12em; }
+.x-task-card h4 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 12px; color: #f4f8fa; font-size: 18px; line-height: 1.45; font-weight: 700; }
+.x-task-card h4 > span { color: var(--heads); font-size: 14px; white-space: nowrap; }
+.x-task-card > p { color: #acbac5; font-size: 13px; line-height: 1.7; }
+.x-task-card > label { color: #d7e1e8; font-size: 12px; font-weight: 600; margin-top: 3px; }
+.x-task-card > input { width: 100%; min-width: 0; min-height: 52px; border: 1px solid #ffffff17; border-radius: 14px; padding: 14px 16px; background: #060b12; color: white; font-size: 16px; line-height: 1.4; }
+.x-task-card > input::placeholder { color: #637582; }
+.x-task-card > input:focus { outline: 2px solid var(--heads); outline-offset: 2px; }
+.x-campaign-link { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; width: 100%; padding: 12px 16px; border: 1px solid #3dffc830; border-radius: 14px; background: #3dffc807; color: var(--heads); font-size: 13px; font-weight: 650; }
+.x-campaign-link:hover { background: #3dffc812; }
+.x-submit { display: flex; align-items: center; justify-content: center; min-height: 48px; width: 100%; border-radius: 99px; padding: 12px 18px; background: #edf5f8; color: #07121a; font-size: 14px; font-weight: 750; }
+.x-submit:disabled { background: #ffffff0a; color: #82939f; cursor: not-allowed; }
+.x-task-card > small { color: #8f9faa; font-size: 11px; line-height: 1.7; }
+.x-task-notice { padding: 16px 20px; color: #cfdae2; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.x-retention-rule { padding: 20px 24px; background: #3dffc805; color: #a2b4bf; font-size: 12px; line-height: 1.8; }
+.x-retention-rule strong { color: #e3ecef; display: block; margin-bottom: 6px; }
+.x-submitted-link { font-size: 11px; color: #b4c6d1; text-decoration: underline; overflow-wrap: anywhere; }
 .earn-x-reward-list { display: grid; gap: 8px; width: 100%; }
 .earn-x-reward-list > span { display: flex; justify-content: space-between; gap: 12px; }
 .earn-x-reward-list strong { color: var(--heads); }
 .earn-history-body { padding: 0 14px 14px; }
 .earn-disclosure summary { cursor: pointer; min-height: 36px; padding-block: 8px; font-weight: 650; color: #d5dee7; }
 @media (max-width: 639px) {
+  .earn-content, .earn-panel, .earn-quest-body, .earn-quests { min-width: 0; }
+  .x-task-card { padding: 20px 14px; gap: 12px; }
+  .x-task-card h4 { display: block; font-size: 17px; }
+  .x-task-card h4 > span { display: block; margin-top: 3px; font-size: 13px; }
+  .x-task-card > input { padding-inline: 12px; }
+  .x-retention-rule { padding: 18px 14px; }
   .earn-quest-disclosure > summary { padding: 12px 10px; gap: 8px; }
   .earn-quest-name strong { font-size: 12px; }
   .earn-quest-numbers { font-size: 11px; }
