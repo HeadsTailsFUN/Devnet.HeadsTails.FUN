@@ -274,6 +274,14 @@ export function PrivacyPageContent() {
         Visibility and services
       </h2>
       <p className="text-[15px] leading-relaxed text-[var(--text-secondary)]">
+        The welcome page uses a first-party preference cookie lasting up to one
+        year and a keyed IP fingerprint to avoid repeating the introduction.
+        The welcome preference stores no raw IP or wallet identity. People
+        sharing a public IP may share the first-visit preference; changing
+        networks can cause the introduction to appear again. You can always
+        open /welcome directly.
+      </p>
+      <p className="text-[15px] leading-relaxed text-[var(--text-secondary)]">
         Blockchain addresses, transfers and game results are public on Solana.
         Profiles, avatars and Global Chat are visible to other visitors. The
         normal chat view shows the last 100 messages and recent history the last

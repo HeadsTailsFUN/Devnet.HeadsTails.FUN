@@ -1,8 +1,10 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { welcomeEntry } from "@/lib/site/welcome-entry";
 
 const privateCache = { "Cache-Control": "private, no-store" };
 
-export function middleware(req: NextRequest): NextResponse {
+export async function middleware(req: NextRequest): Promise<NextResponse> {
+  if (req.nextUrl.pathname === "/" || req.nextUrl.pathname === "/welcome") return welcomeEntry(req);
   const origin = req.headers.get("origin");
   const fetchSite = req.headers.get("sec-fetch-site");
 
@@ -22,5 +24,5 @@ export function middleware(req: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: ["/api/admin/:path*", "/api/auth/:path*", "/api/airdrop/:path*", "/api/profile/:path*"],
+  matcher: ["/", "/welcome", "/api/admin/:path*", "/api/auth/:path*", "/api/airdrop/:path*", "/api/profile/:path*"],
 };

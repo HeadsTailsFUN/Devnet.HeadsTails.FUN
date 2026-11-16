@@ -6,8 +6,11 @@ import { EarnPointsProvider } from "@/components/earn/EarnPointsProvider";
 
 export default function HomePage() {
   return (
-    <WalletStandardProvider>
-      <EarnPointsProvider><LiveGameClient /></EarnPointsProvider>
-    </WalletStandardProvider>
+    <>
+      <link rel="preload" href="/assets/background-panorama.webp" as="image" type="image/webp" fetchPriority="high" />
+      <WalletStandardProvider>
+        <EarnPointsProvider><LiveGameClient /></EarnPointsProvider>
+      </WalletStandardProvider>
+    </>
   );
 }

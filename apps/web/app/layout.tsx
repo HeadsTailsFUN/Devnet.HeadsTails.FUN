@@ -48,15 +48,6 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
-      <head>
-        <link
-          rel="preload"
-          href="/assets/background-panorama.webp"
-          as="image"
-          type="image/webp"
-          fetchPriority="high"
-        />
-      </head>
       <body className="bg-arena min-h-[100svh] antialiased">{children}</body>
     </html>
   );
