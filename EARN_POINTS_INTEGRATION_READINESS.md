@@ -1,6 +1,6 @@
 # Earn Points integration readiness
 
-Latest owner-authorized state: [Telegram, three-day and X quest activation](docs/earn-quests-activation-2026-11-16.md) supersedes Health-only mode. Discord awaits the owner's secure Client Secret setup; it is not advertised as functional without that credential.
+Latest owner-authorized state: [all quest activation gates, including Discord](docs/earn-quests-activation-2026-11-16.md), supersedes Health-only mode. Discord's credential is securely provisioned and its redirect is saved. Actual provider/user round trips remain controlled user tests.
 
 Admin update, 2026-11-16: [complete activity reporting and audited manual review](docs/earn-points-admin-release-2026-11-16.md) are deployed. The requested wallet has the existing Devnet FULL_ADMIN role. This does not activate new quests or provider linking.
 
@@ -8,21 +8,21 @@ Admin update, 2026-11-16: [complete activity reporting and audited manual review
 
 Final handoff review: 2026-11-16. Integration code is recorded in cae5cfe; the subsequent UI-only review in 1d936a5 simplified the popup and added the complete rules table. Its 54 targeted tests and final production build passed; [the UI review](docs/earn-points-ui-review-2026-11-16.md) records those results. The original 2026-11-15 integration test counts below are historical evidence, not additional tests to add to that 54. Those review phases did not deploy or activate integrations. The later owner-authorized production release is recorded in the [2026-11-16 release report](docs/earn-points-production-release-2026-11-16.md).
 
-**Website code and additive production migration are deployed. Telegram linking/jobs, new rewards and X manual verification are now enabled by explicit owner request. Discord remains pending the owner-provisioned Client Secret.** The [Health-only record](docs/telegram-health-only-2026-11-16.md) and earlier [test activation record](docs/earn-points-test-activation-2026-11-16.md) describe previous phases. The active Telegram bot and Bot Manager were not modified.
+**Website code and additive production migration are deployed. Telegram linking/jobs, Discord, new rewards and X manual verification are enabled by explicit owner request.** The [Health-only record](docs/telegram-health-only-2026-11-16.md) and earlier [test activation record](docs/earn-points-test-activation-2026-11-16.md) describe previous phases. The active Telegram bot and Bot Manager were not modified.
 
 | Area | Status | Evidence / limit |
 |---|---|---|
 | Existing popup and PLAY / INVITE / QUESTS | IMPLEMENTED | Existing game remains mounted; wallet handoff, focus and scroll behavior retained |
 | Four new quests (+20/+5/+15/+20) | IMPLEMENTED | Existing Points ledger; one wallet/identity claim per eligible season; independent activation gates |
 | Telegram linking / jobs / results | TESTED OFFLINE | Real PostgreSQL races, replay, expiry, scope, durable ACK and exact-once credits |
-| Telegram V5.10 live configuration | NEEDS BOT CONFIGURATION | Owner supplied official identifiers; shared service credential, matching bot settings, permissions and canonical origin still need verification |
+| Telegram V5.10 live configuration | WEBSITE ENABLED / BOT CONFIRMATION NEEDED | Website settings and shared service credential configured; authenticated Health 200; separately operated bot settings and permissions still need verification |
 | Telegram live round-trip | NEEDS LIVE END-TO-END TEST | No actual getChatMember request or live link was performed |
-| Discord official OAuth and membership | IMPLEMENTED / TESTED OFFLINE | State/denial/scopes/identity/screening/failure tests; no actual Discord account authorized |
+| Discord official OAuth and membership | CONFIGURED / CONTRACT TESTED | Saved canonical redirect, production Secret and expected negative-code probe; state/denial/scopes/identity/screening/failure tests; no actual Discord account authorized |
 | Discord live round-trip | NEEDS LIVE END-TO-END TEST | Owner-configured developer app, guild, callback and designated test account |
 | X bio ownership / campaign evidence | IMPLEMENTED / TESTED OFFLINE | Expiring challenge, explicit manual attestations, role checks, reason/history and existing +100/+75/+50 rules |
 | Three-day quest | IMPLEMENTED / TESTED OFFLINE | Existing verified gameplay markers plus matching settled Devnet match history; retroactive, distinct nonconsecutive UTC dates |
 | Website release | DEPLOYED | Owner approved; production deployment verified 2026-11-16; Airdrop menu removed |
-| New integration activation | NOT READY | Staging migration/configuration and real provider testing remain required |
+| New integration activation | ENABLED ON PRODUCTION | Every environment/active-season gate enabled; actual user/provider round trips remain controlled tests |
 
 ## What changed
 
@@ -64,9 +64,9 @@ The finalized Telegram endpoints, payloads, error handling, limits and all compa
 
 All environment names are listed with empty values or false switches in .env.example. No credential was requested in chat or committed.
 
-The owner supplied these official identifiers during review: bot HeadsTailsFunBot, Telegram group -1004441691477, announcement channel -1004350361539 and Discord guild 1566470653861822514. They are configured in production. Provider gates remain false until their missing credentials and bot-side configuration are supplied. No provider permission or membership was inferred from the identifiers.
+The owner supplied these official identifiers during review: bot HeadsTailsFunBot, Telegram group -1004441691477, announcement channel -1004350361539 and Discord guild 1566470653861822514. They are configured in production and provider gates are now enabled by explicit owner request. No actual provider permission or membership was inferred from the identifiers; the friend's bot still needs its matching configuration and permissions confirmed.
 
-Discord still requires EARN_DISCORD_CLIENT_ID, EARN_DISCORD_CLIENT_SECRET, EARN_DISCORD_JOIN_URL and EARN_DISCORD_REDIRECT_URI. Register the exact canonical HTTPS callback /api/earn/discord/callback in the official developer app. Enable EARN_DISCORD_ENABLED and the season's discord_enabled flag only in approved staging first. Membership scope is guilds.members.read plus identify. Missing/unfinished screening is unavailable/pending, not an award.
+Discord's EARN_DISCORD_CLIENT_ID, EARN_DISCORD_CLIENT_SECRET, EARN_DISCORD_JOIN_URL and EARN_DISCORD_REDIRECT_URI are configured. The exact canonical HTTPS callback /api/earn/discord/callback is saved in the official developer app. EARN_DISCORD_ENABLED and the active season's discord_enabled flag are true; the production build was staged and verified before promotion. Membership scope is guilds.members.read plus identify. Missing/unfinished screening is unavailable/pending, not an award.
 
 EARN_X_MANUAL_VERIFICATION_ENABLED and the season's x_manual_enabled gate the new X workflow. AIRDROP_X_CAMPAIGN_URL is the existing official campaign setting. Review current [X authenticity rules](https://help.x.com/en/rules-and-policies/authenticity) for the actual proposed campaign before enabling it. No paid API, scraping or automated engagement was introduced.
 

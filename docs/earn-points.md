@@ -1,8 +1,8 @@
 # Earn Points
 
-Latest state: [owner-authorized quest activation](earn-quests-activation-2026-11-16.md) enables Telegram, three-day gameplay and X manual verification. Discord is pending its actual Client Secret. The Health-only description below is historical.
+Latest state: [owner-authorized quest activation](earn-quests-activation-2026-11-16.md) enables Telegram, Discord, three-day gameplay and X manual verification. Discord's credential and persisted redirect are configured; actual user/provider round trips remain controlled user tests. The Health-only description below is historical.
 
-Production update, 2026-11-16: the owner-authorized website release is live at [HeadsTails.FUN](https://headstails.fun). The Airdrop menu is removed; the header entry is connected-wallet-only (mobile Play). The additive migration is installed. Telegram linking/jobs, new rewards and X manual verification are enabled. The [Telegram Health-only record](telegram-health-only-2026-11-16.md), earlier [test activation](earn-points-test-activation-2026-11-16.md), [initial release report](earn-points-production-release-2026-11-16.md) and implementation notes below describe earlier phases.
+Production update, 2026-11-16: the owner-authorized website release is live at [HeadsTails.FUN](https://headstails.fun). The Airdrop menu is removed; the header entry is connected-wallet-only (mobile Play). The additive migration is installed. Telegram linking/jobs, Discord, new rewards and X manual verification are enabled. The [Telegram Health-only record](telegram-health-only-2026-11-16.md), earlier [test activation](earn-points-test-activation-2026-11-16.md), [initial release report](earn-points-production-release-2026-11-16.md) and implementation notes below describe earlier phases.
 
 The initial popup implementation is documented below. The 2026-11-15 social-verification extension, its additive migration and current activation gates are documented in [the integration readiness report](../EARN_POINTS_INTEGRATION_READINESS.md) and [the finalized Telegram contract](../TELEGRAM_WEBSITE_API_CONTRACT_FINAL.md).
 
