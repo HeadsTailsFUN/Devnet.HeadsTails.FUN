@@ -12,7 +12,7 @@ import { OverviewTab, UsersTab, MatchesTab, RewardsTab } from "@/components/admi
 import { AuditTab, ChatTab, GameTab, SettingsTab } from "@/components/admin/AdminTabsB";
 import { AirdropTab, BugReportsTab, ReferralsTab } from "@/components/admin/AdminTabsC";
 
-const TABS = ["Overview", "Users", "Matches", "Referrals", "Airdrop", "Bug Reports", "Rewards", "Chat", "Game", "Settings", "Audit"] as const;
+const TABS = ["Overview", "Users", "Matches", "Referrals", "Earn Points", "Bug Reports", "Rewards", "Chat", "Game", "Settings", "Audit"] as const;
 type Tab = (typeof TABS)[number];
 
 function AdminClient() {
@@ -220,7 +220,7 @@ function AdminClient() {
           {tab === "Users" && <UsersTab canWebAdmin={(status.isOwner || status.isFullAdmin) ?? false} />}
           {tab === "Matches" && <MatchesTab onRetryAutoSettlement={(id) => void retryAutoSettlement(id)} />}
           {tab === "Referrals" && <ReferralsTab />}
-          {tab === "Airdrop" && <AirdropTab canWebAdmin={(status.isOwner || status.isFullAdmin) ?? false} />}
+          {tab === "Earn Points" && <AirdropTab canWebAdmin={(status.isOwner || status.isFullAdmin) ?? false} />}
           {tab === "Bug Reports" && <BugReportsTab canWebAdmin={(status.isOwner || status.isFullAdmin) ?? false} />}
           {tab === "Rewards" && <RewardsTab />}
           {tab === "Chat" && <ChatTab />}

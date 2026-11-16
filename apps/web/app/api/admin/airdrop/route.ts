@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { adminDb, audit, checkStaff, checkWebAdmin, sanitizeMetadata } from "@/lib/admin/auth";
-import { reviewSocialClaim } from "@/lib/airdrop/social";
+import { POST as reviewEarnClaim } from "@/app/api/admin/earn-verifications/route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -193,17 +193,9 @@ export async function POST(req: Request): Promise<NextResponse> {
     if (!id || (decision !== "verified" && decision !== "rejected")) {
       return NextResponse.json({ error: "invalid review" }, { status: 400 });
     }
-    const out = await reviewSocialClaim(db, {
-      claimId: id,
-      decision,
-      reviewer: staff.wallet!,
-      note: typeof b.note === "string" ? b.note : null,
-    });
-    if (!out.ok) {
-      return NextResponse.json({ error: out.error }, { status: out.status });
-    }
-    await audit(db, staff.wallet!, "airdrop.review-claim", id, sanitizeMetadata({ decision }));
-    return NextResponse.json({ status: "ok" });
+    return reviewEarnClaim(new Request(req.url, { method: "POST", headers: req.headers,
+      body: JSON.stringify({ claimId: id, decision, reason: b.note,
+        ownershipConfirmed: b.ownershipConfirmed, evidenceConfirmed: b.evidenceConfirmed }) }));
   }
 
   if (action === "exclude" || action === "restore") {

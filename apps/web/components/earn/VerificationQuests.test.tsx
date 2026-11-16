@@ -139,6 +139,7 @@ test("review interface requires a reason and evidence confirmation before approv
       challenge: { code: "HTS-PUBLIC-BIO", expires_at: "2026-11-16", status: "submitted" }, rewards: [], history: [], reviews: [] }] });
   };
   render(<EarnVerificationQueue canReview />);
+  fireEvent.click(await screen.findByRole("button", { name: /Review X account ownership/ }));
   const approve = await screen.findByRole("button", { name: "Approve" });
   assert((approve as HTMLButtonElement).disabled);
   fireEvent.change(screen.getByRole("textbox", { name: "Verification review reason" }), { target: { value: "Bio code matched during manual review" } });

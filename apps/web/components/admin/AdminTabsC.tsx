@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { EarnVerificationQueue } from "./EarnVerificationQueue";
+import { EarnActivityReport } from "./EarnActivityReport";
 import { shortWallet } from "@/lib/leaderboard";
 import { BUG_SEVERITIES } from "@/lib/bugs/validate";
 
@@ -112,7 +113,8 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
   const [adjPoints, setAdjPoints] = useState("");
   const [adjReason, setAdjReason] = useState("");
   const [exReason, setExReason] = useState("");
-  const [reviewNote, setReviewNote] = useState("");
+  const [reviewWallet, setReviewWallet] = useState("");
+  const [activityRevision, setActivityRevision] = useState(0);
   const search = useCallback(async () => {
     const params = new URLSearchParams({ query: q });
     if (filter === "pending") params.set("pending", "1");
@@ -134,16 +136,12 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
     });
     const err = (body as { error?: string } | null)?.error;
     setNote(ok ? okMsg : `Failed: ${err ?? "request failed"}`);
+    if (ok) setActivityRevision(v => v + 1);
     void search();
   };
-  const review = (id: string, decision: "verified" | "rejected") =>
-    void mutate({ action: "review-claim", id, decision, note: reviewNote || undefined }, `Claim ${decision}.`);
-  const revoke = (id: string) => {
-    if (!reviewNote.trim()) {
-      setNote("A review note is required to revoke a verified claim.");
-      return;
-    }
-    void mutate({ action: "review-claim", id, decision: "rejected", note: reviewNote.trim() }, "Claim revoked.");
+  const openReview = (wallet: string) => {
+    setReviewWallet(wallet);
+    document.getElementById("social-verification-review")?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const exclude = (wallet: string) => {
     if (!exReason.trim()) {
@@ -170,7 +168,8 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
   };
   return (
     <div className="flex flex-col gap-4">
-      <EarnVerificationQueue canReview={canWebAdmin} />
+      <EarnActivityReport revision={activityRevision} onReviewWallet={openReview} />
+      <EarnVerificationQueue canReview={canWebAdmin} walletFilter={reviewWallet} onChanged={() => { setActivityRevision(v => v + 1); void search(); }} />
       <Section title="Users">
         <div className="flex flex-wrap gap-2">
           <input
@@ -195,12 +194,6 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
           </button>
         </div>
         {note && <p role="status" className="mt-2 text-[12px] text-white/70">{note}</p>}
-        <input
-          value={reviewNote}
-          onChange={(e) => setReviewNote(e.target.value)}
-          placeholder="Review note (required to revoke)"
-          className="mt-2 w-full rounded-2xl border border-white/10 bg-black/30 px-3 py-2 text-[12px] text-white"
-        />
         <div className="mt-2 max-h-[480px] overflow-auto">
           <table className="w-full min-w-[1080px] text-left text-[12px]">
             <thead>
@@ -270,17 +263,7 @@ export function AirdropTab({ canWebAdmin }: { canWebAdmin: boolean }) {
                     {(u.claims ?? []).map((c) => (
                       <span key={String(c.id)} className="mr-1 inline-flex items-center gap-1 rounded-full border border-white/15 px-2 py-0.5">
                         {String(c.task_type)}:{String(c.status)}
-                        {String(c.status) === "pending" && (
-                          <>
-                            <button type="button" onClick={() => review(String(c.id), "verified")} className="font-bold text-emerald-300">✓</button>
-                            <button type="button" onClick={() => review(String(c.id), "rejected")} className="font-bold text-red-300">✕</button>
-                          </>
-                        )}
-                        {String(c.status) === "verified" && (
-                          <button type="button" onClick={() => revoke(String(c.id))} className="font-bold text-amber-300" title="Revoke verification (points removed, history kept)">
-                            Revoke
-                          </button>
-                        )}
+                        {canWebAdmin && <button type="button" onClick={() => openReview(String(u.wallet))} className="font-bold underline">Review history</button>}
                       </span>
                     ))}
                   </td>

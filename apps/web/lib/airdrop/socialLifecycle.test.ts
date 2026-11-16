@@ -164,6 +164,8 @@ describe("social lifecycle (claim -> ledger -> review)", () => {
     assert.ok(!claim.includes('.from("airdrop_points_ledger")'), "no direct ledger writes");
     assert.ok(claim.includes("already-claimed"), "duplicate handled, not 500");
     const admin = readFileSync(join(root, "app", "api", "admin", "airdrop", "route.ts"), "utf8");
-    assert.ok(admin.includes("reviewSocialClaim"), "review through shared atomic flow");
+    assert.ok(admin.includes("reviewEarnClaim"), "legacy review delegates to the staff verification flow");
+    const review = readFileSync(join(root, "app", "api", "admin", "earn-verifications", "route.ts"), "utf8");
+    assert.ok(review.includes("admin_review_earn_claim"), "staff review uses an atomic database operation");
   });
 });

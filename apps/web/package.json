@@ -19,7 +19,8 @@
     "test:fairness": "node --import tsx --test lib/fairness/verifier.test.ts lib/solana/settlementReservation.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/fairness/FairnessPanel.test.tsx components/history/RecentFlips.test.tsx",
     "test:walletconnect": "node --import tsx --test lib/solana/walletConnectBridge.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/wallet/WalletConnectProvider.test.tsx",
     "test:earn": "node --import tsx --test lib/airdrop/earn.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/earn/EarnPoints.test.tsx components/earn/EarnPointsModal.test.tsx",
-    "test:verification": "node --import tsx --test lib/earn/verification.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/earn/VerificationQuests.test.tsx"
+    "test:verification": "node --import tsx --test lib/earn/verification.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/earn/VerificationQuests.test.tsx",
+    "test:earn-admin": "node --import tsx --test lib/earn/admin-report.test.ts && node --import tsx --import ./lib/test/jsdom-setup.ts --test --test-force-exit components/admin/EarnActivityReport.test.tsx"
   },
   "dependencies": {
     "@coral-xyz/anchor": "0.32.1",

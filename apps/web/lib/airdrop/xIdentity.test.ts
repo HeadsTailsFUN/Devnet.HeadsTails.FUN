@@ -157,7 +157,7 @@ describe("X identity invariant (one wallet, three tasks, one X)", () => {
   it("routes bind the wallet identity and surface revoke", () => {
     const claimRoute = readFileSync(join(root, "app", "api", "airdrop", "social-claim", "route.ts"), "utf8");
     assert.ok(claimRoute.includes("create_airdrop_social_claim_atomic"), "atomic creation");
-    const adminUi = readFileSync(join(root, "components", "admin", "AdminTabsC.tsx"), "utf8");
-    assert.ok(adminUi.includes("Revoke"), "admin revoke control for verified claims");
+    const adminUi = readFileSync(join(root, "components", "admin", "EarnVerificationQueue.tsx"), "utf8");
+    assert.ok(adminUi.includes("Reject / revoke"), "staff queue retains revocation for verified claims");
   });
 });
