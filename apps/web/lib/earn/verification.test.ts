@@ -8,12 +8,28 @@ import { earnAction, earnStatus } from "./actions";
 import { discordCallback, discordMembership } from "./discord";
 import { GET as adminRead, POST as adminWrite } from "../../app/api/admin/earn-verifications/route";
 import { SESSION_COOKIE } from "../auth/message";
+import { telegramFeedback } from "./telegram-feedback";
 
 const initialEnv = { ...process.env }, initialFetch = globalThis.fetch;
 const base = "https://earn-fixture.invalid", secret = "synthetic-service-credential-not-a-real-secret";
 const tg = 123456789, group = -1001234567890, channel = -1001234567891;
 const state = "S".repeat(43), token = "T".repeat(43), discordId = "123456789012345678";
 const cookie = `${SESSION_COOKIE}=${"a".repeat(64)}`;
+
+test("every terminal membership outcome is explicit, while completed claims remain authoritative", () => {
+  const options={blocked:null,rewardsEnabled:true,active:true} as const;
+  const job={result_status:"VERIFIED",completed_at:"2026-11-16T00:00:00Z",expires_at:"2099-01-01"};
+  for(const status of ["NOT_MEMBER","PENDING","UNAVAILABLE","ERROR"]){
+    const feedback=telegramFeedback({...job,result_status:status},false,options)!;
+    assert(feedback.message.length>20);assert.equal(feedback.pending,false);assert.equal(feedback.retry,true);
+    assert.notEqual(feedback.label,"Available");
+  }
+  assert.match(telegramFeedback(job,false,{...options,blocked:"admin_account"})!.message,/Administrator wallets/);
+  assert.match(telegramFeedback(job,false,{...options,rewardsEnabled:false})!.message,/rewards are disabled/);
+  assert.match(telegramFeedback(job,false,{...options,active:false})!.message,/quest is inactive/);
+  assert.equal(telegramFeedback(job,true,options),null);
+  assert.equal(telegramFeedback({...job,completed_at:null},false,options)!.pending,true);
+});
 type Call = { url: URL; body: Record<string, unknown> | null; init?: RequestInit };
 afterEach(() => {
   globalThis.fetch = initialFetch;
@@ -51,7 +67,7 @@ function backend(override?: (c: Call) => Response | undefined) {
     }
     if (table === "earn_three_day_progress") return Response.json(0);
     if (["earn_social_links", "earn_quest_claims", "earn_verification_jobs", "earn_x_challenges"].includes(table ?? "")) return Response.json([]);
-    if (["airdrop_x_identities", "earn_social_disconnects", "admin_members"].includes(table ?? "")) return Response.json(null);
+    if (["airdrop_x_identities", "earn_social_disconnects", "admin_members", "reward_exclusions"].includes(table ?? "")) return Response.json(null);
     throw new Error(`Unexpected fixture request: ${url.pathname}`);
   };
   return calls;
@@ -172,7 +188,27 @@ test("private quest status is scoped to the authenticated wallet, not query para
   configure(); const calls = backend();
   const r = await earnStatus(request("/api/earn/status?wallet=attacker", undefined, { cookie })); assert.equal(r.status, 200);
   const b = await r.json(); assert.equal(b.wallet, "session-owner"); assert.equal(b.gameplayDays, 0);
-  for (const c of calls.filter(c => ["earn_social_links", "earn_quest_claims", "earn_verification_jobs", "earn_x_challenges"].some(t => c.url.pathname.endsWith(t)))) assert.equal(c.url.searchParams.get("wallet"), "eq.session-owner");
+  for (const c of calls.filter(c => ["earn_social_links", "earn_quest_claims", "earn_verification_jobs", "earn_x_challenges", "admin_members", "reward_exclusions"].some(t => c.url.pathname.endsWith(t)))) assert.equal(c.url.searchParams.get("wallet"), "eq.session-owner");
+  assert.equal(b.rewardBlockReason, null);
+});
+
+test("verified Telegram jobs for administrators retain evidence and expose the actual no-reward reason", async () => {
+  configure(); const calls = backend(c => c.url.pathname.endsWith("admin_members") ? Response.json({ wallet: "session-owner" })
+    : c.url.pathname.endsWith("earn_verification_jobs") ? Response.json([{ job_id: "job-fixture", chat: "group", result_status: "VERIFIED", completed_at: new Date().toISOString(), expires_at: new Date(Date.now()+600000).toISOString() }]) : undefined);
+  const r = await earnStatus(request("/api/earn/status", undefined, { cookie })); assert.equal(r.status, 200);
+  const b = await r.json(); assert.equal(b.rewardBlockReason, "admin_account"); assert.equal(b.newRewardsEnabled, true);
+  const quest = b.quests.find((q: { id: string }) => q.id === "telegram_group");
+  assert.equal(quest.job.result_status, "VERIFIED"); assert.equal(quest.claim, null);
+  assert.equal(calls.filter(c => c.body?.p_action === "three_days").length, 0);
+});
+
+test("exclusion and season timing are explicit and eligibility lookup errors never imply eligibility", async () => {
+  configure(); backend(c => c.url.pathname.endsWith("reward_exclusions") ? Response.json({ wallet: "session-owner" }) : undefined);
+  assert.equal((await (await earnStatus(request("/api/earn/status", undefined, { cookie }))).json()).rewardBlockReason, "reward_excluded");
+  backend(c => c.url.pathname.endsWith("airdrop_seasons") ? Response.json({id:"active-season", key:"DEVNET_BETA", starts_at:"2099-01-01"}) : undefined);
+  assert.equal((await (await earnStatus(request("/api/earn/status", undefined, { cookie }))).json()).rewardBlockReason, "season_inactive");
+  backend(c => c.url.pathname.endsWith("reward_exclusions") ? Response.json({ message: "fixture storage error" }, { status: 500 }) : undefined);
+  assert.equal((await earnStatus(request("/api/earn/status", undefined, { cookie }))).status, 503);
 });
 test("retroactive three-day progress automatically evaluates a reward only with both activation gates", async () => {
   configure(); const calls = backend(c => c.url.pathname.endsWith("earn_three_day_progress") ? Response.json(3) : undefined);

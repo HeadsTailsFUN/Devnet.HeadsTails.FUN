@@ -35,6 +35,10 @@ grant select on public.auth_sessions to service_role;
 insert into public.auth_sessions values(${literal(digest(ownerSession))},'offline-owner',now()+interval '1 hour'),(${literal(digest(reviewerSession))},'offline-reviewer',now()+interval '1 hour');
 insert into public.admin_members values('offline-reviewer','FULL_ADMIN');
 update public.airdrop_seasons set starts_at=now()-interval '1 day' where active;`);
+sql(`create table public.profiles(wallet text primary key,username text);
+create table public.admin_audit_log(id uuid primary key default gen_random_uuid(),admin_wallet text,action text,target text,metadata jsonb,created_at timestamptz default now());
+grant all on public.profiles,public.admin_audit_log to service_role;`);
+sql(fs.readFileSync(path.join(root,"supabase/migrations/20261116005911_admin_earn_activity_report.sql"),"utf8"));
 let origin = "", rest = "", passed = 0, networkCreated = false, attached = false, restStarted = false, noneDetached = false;
 console.log("SETUP synthetic sessions inserted");
 const originalFetch = globalThis.fetch;
@@ -138,6 +142,34 @@ try {
     assert.equal(altered.response.status, 409);
     assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "20");
   });
+  await check("channel result records exactly +5 and both verified claims survive retries with total +25", async () => {
+    const queued=await call("/api/earn/action",{action:"telegram_channel"});assert.equal(queued.data.status,"pending");
+    sql("update public.earn_rate_windows set opened_at=now()-interval '31 seconds'");
+    const polled=await call("/api/telegram/verification-jobs?limit=10",undefined,true);
+    const jobs=polled.data.jobs as Array<Record<string,unknown>>;assert.equal(jobs.length,1);
+    assert.equal(jobs[0].chat,"channel");assert.equal(jobs[0].chat_id,-1001234567891);
+    const body={...jobs[0],status:"VERIFIED",checked_at:Date.now()/1000,source:"telegram-getChatMember"};
+    const idem=`verification:${jobs[0].job_id}`;
+    for(let i=0;i<3;i++)assert.deepEqual((await call("/api/telegram/verification-results",body,true,false,idem)).data,{ok:true});
+    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"),"25");
+    assert.equal(sql("select count(*) from public.airdrop_points_ledger where wallet='offline-owner' and event_type in ('quest_telegram_group','quest_telegram_channel')"),"2");
+    const status=await call("/api/earn/status");assert.equal(status.data.rewardBlockReason,null);
+    const quests=status.data.quests as Array<{id:string;claim:{status:string}|null}>;
+    for(const id of ["telegram_group","telegram_channel"])assert.equal(quests.find(q=>q.id===id)?.claim?.status,"verified");
+  });
+  await check("real administrator proof is accepted without credit and status exposes admin ineligibility", async()=>{
+    sql("insert into public.earn_social_links(provider,wallet,external_id) values('telegram','offline-reviewer','444555666')");
+    const queued=await call("/api/earn/action",{action:"telegram_group"},false,true);assert.equal(queued.data.status,"pending");
+    sql("update public.earn_rate_windows set opened_at=now()-interval '31 seconds'");
+    const polled=await call("/api/telegram/verification-jobs?limit=10",undefined,true);
+    const jobs=polled.data.jobs as Array<Record<string,unknown>>;assert.equal(jobs.length,1);
+    const body={...jobs[0],status:"VERIFIED",checked_at:Date.now()/1000,source:"telegram-getChatMember"};
+    assert.deepEqual((await call("/api/telegram/verification-results",body,true,false,`verification:${jobs[0].job_id}`)).data,{ok:true});
+    const status=await call("/api/earn/status",undefined,false,true);assert.equal(status.data.rewardBlockReason,"admin_account");
+    assert.equal(sql("select count(*) from public.airdrop_points_ledger where wallet='offline-reviewer'"),"0");
+    const quests=status.data.quests as Array<{id:string;job:{result_status:string}|null;claim:unknown}>;
+    const group=quests.find(q=>q.id==="telegram_group")!;assert.equal(group.job?.result_status,"VERIFIED");assert.equal(group.claim,null);
+  });
   await check("X challenge -> submitted claim -> authorized audited admin approval uses existing +100 ledger", async () => {
     const challenge = await call("/api/earn/action", { action: "x_challenge", profileUrl: "https://x.com/offlineplayer" });
     assert.equal(challenge.data.status, "created");
@@ -146,7 +178,7 @@ try {
     const review = { claimId, decision: "verified", reason: "OFFLINE fixture bio challenge manually attested", ownershipConfirmed: true };
     assert.equal((await call("/api/admin/earn-verifications", review)).response.status, 403);
     const accepted = await call("/api/admin/earn-verifications", review, false, true); assert.equal(accepted.response.status, 200); assert.equal(accepted.data.status, "verified");
-    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "120");
+    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "125");
     const queue = await call("/api/admin/earn-verifications", undefined, false, true); assert.equal(queue.response.status, 200);
     const rows = queue.data.rows as Array<{ reviews: unknown[] }>; assert.equal(rows[0].reviews.length, 1);
     assert.equal(sql("select x_user_id is null from public.airdrop_x_identities where wallet='offline-owner'"), "t");
@@ -157,7 +189,7 @@ try {
     assert.equal((await call("/api/earn/action", { action: "unlink", provider: "telegram" })).data.status, "unlinked");
     const fresh = randomUUID(); const synced = await call("/api/telegram/unlink", { telegram_user_id: 111222333, request_id: fresh }, true, false, fresh);
     assert.equal(synced.data.status, "not_linked");
-    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "120");
+    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "125");
   });
   await check("existing reply/repost APIs bind campaign proof atomically and retain +50/+75 manual review rules", async () => {
     const wrong = await call("/api/airdrop/social-claim", { task: "reply", handle: "offlineplayer", evidenceUrl: "https://x.com/another/status/111" });
@@ -168,7 +200,7 @@ try {
     assert.equal(edited.data.status, "pending-verification");
     const repost = await call("/api/airdrop/social-claim", { task: "repost", handle: "offlineplayer", evidenceUrl: "https://x.com/HeadsTailsFun/status/123456" });
     assert.equal(repost.data.status, "pending-verification");
-    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "120");
+    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "125");
     for (const task of ["reply", "repost"]) {
       const claimId = sql("select id from public.airdrop_social_claims where wallet='offline-owner' and task_type=" + literal(task));
       const review = { claimId, decision: "verified", reason: "OFFLINE author and configured post evidence checked" };
@@ -176,7 +208,7 @@ try {
       assert.equal((await call("/api/admin/earn-verifications", { ...review, evidenceConfirmed: true }, false, true)).response.status, 200);
       await call("/api/admin/earn-verifications", { ...review, evidenceConfirmed: true }, false, true);
     }
-    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "245");
+    assert.equal(sql("select sum(points) from public.airdrop_points_ledger where wallet='offline-owner' and status='verified'"), "250");
     assert.equal(sql("select count(*) from public.airdrop_social_claims where campaign_url='https://x.com/headstailsfun/status/123456'"), "2");
   });
   fs.writeFileSync(path.join(root, "artifacts/earn-points/http-e2e-summary.json"), JSON.stringify({ passed, failed: 0, transport: "HTTP + PostgREST v16.2", engine: "PostgreSQL 17", database: db, externalNetworking: false, productionModified: false }));

@@ -73,9 +73,9 @@ export function telegramId(value: unknown) {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) throw new EarnError("invalid_telegram_user_id"); return String(value);
 }
 export async function activeSeason(db: SupabaseClient) {
-  const r = await db.from("airdrop_seasons").select("id,key").eq("active", true).limit(1).maybeSingle();
+  const r = await db.from("airdrop_seasons").select("id,key,starts_at,ends_at").eq("active", true).limit(1).maybeSingle();
   if (r.error || !r.data) throw new EarnError("no_active_season", 503);
-  return r.data as { id: string; key: string };
+  return r.data as { id: string; key: string; starts_at?: string; ends_at?: string | null };
 }
 export async function seasonSettings(db: SupabaseClient, season: string) {
   const r = await db.from("earn_season_settings").select("*").eq("season_id", season).maybeSingle();

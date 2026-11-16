@@ -2,6 +2,7 @@ import { randomBytes } from "node:crypto";
 import { earnConfig, NEW_QUESTS, publicEarnConfig } from "./config";
 import { activeSeason, dbClient, digest, dispatch, EarnError, failure, json, nonce, rate, readBody, seasonSettings, walletIdentity, xProfile } from "./server";
 import { beginDiscord } from "./discord";
+import type { RewardBlockReason } from "./telegram-feedback";
 
 export async function earnAction(req: Request) {
   try {
@@ -43,7 +44,7 @@ export async function earnStatus(req: Request) {
   try {
     const wallet = await walletIdentity(req), db = dbClient(), c = earnConfig();
     const season = await activeSeason(db), settings = await seasonSettings(db, season.id);
-    const [links, claims, jobs, identity, disconnect, challenges, days] = await Promise.all([
+    const [links, claims, jobs, identity, disconnect, challenges, days, administrator, exclusion] = await Promise.all([
       db.from("earn_social_links").select("provider,active,membership_status").eq("wallet", wallet),
       db.from("earn_quest_claims").select("quest,status,verified_at").eq("wallet", wallet).eq("season_id", season.id),
       db.from("earn_verification_jobs").select("job_id,chat,result_status,requested_at,expires_at,completed_at").eq("wallet", wallet).eq("season_id", season.id).order("requested_at", { ascending: false }).limit(10),
@@ -51,11 +52,15 @@ export async function earnStatus(req: Request) {
       db.from("earn_social_disconnects").select("disconnected").eq("wallet", wallet).eq("provider", "x").maybeSingle(),
       db.from("earn_x_challenges").select("id,code,profile_url,expires_at,status,review_reason").eq("wallet", wallet).eq("season_id", season.id).order("created_at", { ascending: false }).limit(1),
       db.rpc("earn_three_day_progress", { p_wallet: wallet, p_season: season.id, p_program: c.program, p_mint: c.mint }),
+      db.from("admin_members").select("wallet").eq("wallet", wallet).limit(1).maybeSingle(),
+      db.from("reward_exclusions").select("wallet").eq("wallet", wallet).eq("active", true).limit(1).maybeSingle(),
     ]);
-    if ([links, claims, jobs, identity, disconnect, challenges, days].some(r => r.error)) throw new EarnError("verification_temporarily_unavailable", 503);
+    if ([links, claims, jobs, identity, disconnect, challenges, days, administrator, exclusion].some(r => r.error)) throw new EarnError("verification_temporarily_unavailable", 503);
+    const rewardBlockReason: RewardBlockReason = administrator.data ? "admin_account" : exclusion.data ? "reward_excluded"
+      : (season.starts_at && Date.parse(season.starts_at) > Date.now()) || (season.ends_at && Date.parse(season.ends_at) <= Date.now()) ? "season_inactive" : null;
     // Evaluate retroactive gameplay eligibility when the authenticated owner opens Earn Points.
     // The existing ledger is credited atomically; no settlement or match writer is involved.
-    if (Number(days.data) >= 3 && c.rewards && settings.new_rewards_enabled === true &&
+    if (!rewardBlockReason && Number(days.data) >= 3 && c.rewards && settings.new_rewards_enabled === true &&
       (settings.quest_flags as Record<string, boolean> | undefined)?.three_days === true &&
       !(claims.data ?? []).some(claim => claim.quest === "three_days" && claim.status === "verified")) {
       await dispatch(db, "three_days", wallet, { program: c.program, mint: c.mint, award: true });
@@ -72,6 +77,7 @@ export async function earnStatus(req: Request) {
         discord: c.discord && settings.discord_enabled === true, xManual: c.xManual && settings.x_manual_enabled === true },
       // Verification can be exercised in staging while issuance remains off.
       newRewardsEnabled: c.rewards && settings.new_rewards_enabled === true,
+      rewardBlockReason,
       quests: NEW_QUESTS.map(q => ({ ...q, active: flags[q.id] === true,
         claim: (claims.data ?? []).find(claim => claim.quest === q.id) ?? null,
         job: q.provider === "telegram" ? (jobs.data ?? []).find(job => job.chat === (q.id === "telegram_group" ? "group" : "channel")) ?? null : null })),

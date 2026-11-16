@@ -73,6 +73,41 @@ test("pending job remains pending, disables repeated submissions and never appea
   assert(card.getByText("Pending Verification")); assert((card.getByRole("button", { name: "Verify Membership" }) as HTMLButtonElement).disabled);
   assert.equal(card.queryByText("Completed"), null);
 });
+
+test("administrator membership is visibly verified with an explicit no-reward reason and no repeat Verify button", async () => {
+  fetchFixture(() => ({ ...fixture, newRewardsEnabled: true, rewardBlockReason: "admin_account", quests: fixture.quests.map(q => q.id === "telegram_group" ? { ...q, job: {result_status:"VERIFIED",completed_at:new Date().toISOString(),expires_at:new Date(Date.now()+600000).toISOString()} } : q) }));
+  mount(); await connect(); await screen.findByText(/^Administrator wallets are not eligible/);
+  openQuest("Join Telegram Group");
+  const card = within(screen.getByRole("region", { name: "Join Telegram Group" }));
+  assert(card.getByText("Membership verified")); assert(card.getByText(/Membership confirmed by the official bot/));
+  assert.equal(card.queryByText("Completed"),null); assert.equal(card.queryByRole("button",{name:"Verify Membership"}),null);
+});
+
+test("membership failures and expiration explain the actual outcome and offer a retry", async () => {
+  let result = "UNAVAILABLE", completed: string | null = new Date().toISOString();
+  fetchFixture(() => ({ ...fixture, newRewardsEnabled:true, quests:fixture.quests.map(q => q.id === "telegram_group" ? {...q,job:{result_status:result,completed_at:completed,expires_at:new Date(Date.now()-60000).toISOString()}} :q) }));
+  mount(); await connect(); await screen.findByText("Verification unavailable"); openQuest("Join Telegram Group");
+  const card=within(screen.getByRole("region",{name:"Join Telegram Group"}));
+  assert(card.getByText(/bot could not check membership/)); assert(!(card.getByRole("button",{name:"Verify Membership"}) as HTMLButtonElement).disabled);
+  result="NOT_MEMBER";fireEvent.click(screen.getByRole("button",{name:"Refresh status ↻"}));await screen.findByText("Membership not found");
+  assert(card.getByText(/linked Telegram account/));
+  completed=null;fireEvent.click(screen.getByRole("button",{name:"Refresh status ↻"}));await screen.findByText("Verification expired");
+  assert(card.getByText(/did not return a result before this request expired/));
+});
+
+test("an eligible verified job without a ledger claim reports missing reward instead of returning silently to Available", async () => {
+  fetchFixture(() => ({ ...fixture,newRewardsEnabled:true,quests:fixture.quests.map(q=>q.id==="telegram_group"?{...q,job:{result_status:"VERIFIED",completed_at:new Date().toISOString(),expires_at:new Date(Date.now()+600000).toISOString()}}:q)}));
+  mount();await connect();await screen.findByText("Reward not recorded");openQuest("Join Telegram Group");
+  assert(screen.getByText(/Points record is missing/));
+});
+
+test("a membership result arriving after pending refresh updates Completed and refreshes Points", async () => {
+  let claimed=false,changes=0;
+  fetchFixture(()=>({...fixture,quests:fixture.quests.map(q=>q.id==="telegram_group"?{...q,claim:claimed?{status:"verified"}:null,job:{result_status:claimed?"VERIFIED":null,completed_at:claimed?new Date().toISOString():null,expires_at:new Date(Date.now()+600000).toISOString()}}:q)}));
+  mount(false,()=>{changes++;});await connect();await screen.findByText("Pending Verification");
+  claimed=true;fireEvent.click(screen.getByRole("button",{name:"Refresh status ↻"}));await screen.findByText("Completed");
+  await waitFor(()=>assert.equal(changes,1));
+});
 test("Telegram verification creates one pending request and refreshes owner data without changing earned status", async () => {
   let submissions = 0, pending = false;
   fetchFixture(() => ({ ...fixture, quests: fixture.quests.map(q => q.id === "telegram_group" && pending ? { ...q, job: { result_status: null, completed_at: null, expires_at: new Date(Date.now() + 600000).toISOString() } } : q) }), async body => {

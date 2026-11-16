@@ -6,6 +6,7 @@ import { TelegramIcon, DiscordIcon, XIcon } from "@/components/ui/icons";
 import { useRewardResource } from "@/lib/airdrop/useRewardResource";
 import { NEW_QUESTS, type Quest } from "@/lib/earn/config";
 import { EarnIcon } from "./EarnPointsLink";
+import { rewardBlockMessage, telegramFeedback, type RewardBlockReason } from "@/lib/earn/telegram-feedback";
 
 interface QuestState { id: Quest; active: boolean; claim: { status: string } | null;
   job: { result_status: string | null; expires_at: string; completed_at: string | null } | null }
@@ -14,6 +15,7 @@ export interface VerificationState {
   capabilities: { telegramLink: boolean; telegramJobs: boolean; discord: boolean; xManual: boolean };
   quests: QuestState[]; gameplayDays: number;
   newRewardsEnabled?: boolean;
+  rewardBlockReason?: RewardBlockReason;
   discordMembership: string | null;
   xChallenge: { id: string; code: string; profile_url: string; expires_at: string; status: string; review_reason: string | null } | null;
 }
@@ -34,6 +36,7 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [catalogError, setCatalogError] = useState(false);
   const [busy, setBusy] = useState<string | null>(null), [note, setNote] = useState<string | null>(null);
+  const [pollingPaused, setPollingPaused] = useState(false);
   const [deepLink, setDeepLink] = useState<{ wallet: string; url: string; expires: number } | null>(null);
   const currentLink = deepLink?.wallet === account?.address ? deepLink : null;
   const refreshedAward = useRef<string | null>(null);
@@ -59,9 +62,11 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
     return () => clearTimeout(timer);
   }, [currentLink]);
   useEffect(() => {
-    const completed = state.data?.quests.find(q => q.id === "three_days")?.claim?.status === "verified";
-    if (!completed || !account || refreshedAward.current === account.address) return;
-    refreshedAward.current = account.address; onChanged();
+    const completed = state.data?.quests.filter(q => q.claim?.status === "verified").map(q => q.id).sort().join(",");
+    if (!completed || !account) return;
+    const key = `${account.address}:${completed}`;
+    if (refreshedAward.current === key) return;
+    refreshedAward.current = key; onChanged();
   }, [account, state.data, onChanged]);
   const loadCatalog = () => {
     setCatalogError(false);
@@ -70,12 +75,13 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
   };
   useEffect(() => { void loadCatalog(); }, []);
   // Bounded status refresh only while a wallet is actively waiting for a link/job.
-  const waiting = !!currentLink || state.data?.quests.some(q => q.job && !q.job.completed_at && Date.parse(q.job.expires_at) > Date.now());
+  const waiting = (!!currentLink && !state.data?.connections.telegram) || state.data?.quests.some(q => q.job && !q.job.completed_at && Date.parse(q.job.expires_at) > Date.now());
   useEffect(() => {
+    setPollingPaused(false);
     if (!account || !waiting) return;
     const stopAt = Date.now() + 120000;
     const timer = setInterval(() => {
-      if (Date.now() >= stopAt) { clearInterval(timer); return; }
+      if (Date.now() >= stopAt) { clearInterval(timer); setPollingPaused(true); return; }
       void reloadStatus();
     }, 10000);
     return () => clearInterval(timer);
@@ -125,12 +131,16 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
     {catalogError && <p role="alert" className="mt-3 text-xs text-amber-200">Quest settings could not load. <button type="button" className="underline" onClick={() => void loadCatalog()}>Retry settings</button></p>}
     <h3 className="sr-only">Community & gameplay quests</h3>
     <p className="earn-caption my-3">{data?.newRewardsEnabled ? "Verified quests earn Points when all eligibility checks pass." : "New quest rewards are inactive until testing and activation are approved."}</p>
+    {data?.rewardBlockReason && <p role="status" className="earn-callout my-3 text-xs text-amber-200">{rewardBlockMessage(data.rewardBlockReason)}</p>}
+    {pollingPaused && waiting && <p role="status" className="earn-callout my-3 text-xs">Verification is taking longer than expected. Automatic refresh has paused; use Refresh status to check the result. Do not disconnect your account.</p>}
     <div className="earn-quest-list">{NEW_QUESTS.map(quest => {
       const row = data?.quests.find(q => q.id === quest.id);
       const completed = row?.claim?.status === "verified";
-      const pending = row?.job && !row.job.completed_at && Date.parse(row.job.expires_at) > Date.now();
+      const feedback = quest.provider === "telegram" ? telegramFeedback(row?.job, completed, {
+        blocked: data?.rewardBlockReason ?? null, rewardsEnabled: data?.newRewardsEnabled ?? catalog?.rewardsEnabled ?? false, active: !!row?.active }) : null;
+      const pending = feedback?.pending ?? false;
       const available = !!row?.active && (quest.provider === "telegram" ? data?.capabilities.telegramJobs : quest.provider === "discord" ? data?.capabilities.discord : true);
-      const label = completed ? "Completed" : row?.claim?.status === "rejected" ? "Rejected" : !available ? "Unavailable" : pending ? "Pending Verification" : row?.job?.result_status === "NOT_MEMBER" || (quest.provider === "discord" && data?.discordMembership === "NOT_MEMBER") ? "In Progress" : quest.provider === "discord" && data?.discordMembership === "PENDING" ? "Pending Verification" : "Available";
+      const label = completed ? "Completed" : feedback?.label ?? (row?.claim?.status === "rejected" ? "Rejected" : !available ? "Unavailable" : quest.provider === "discord" && data?.discordMembership === "NOT_MEMBER" ? "In Progress" : quest.provider === "discord" && data?.discordMembership === "PENDING" ? "Pending Verification" : "Available");
       const destination = quest.id === "telegram_group" ? catalog?.groupUrl : quest.id === "telegram_channel" ? catalog?.channelUrl : quest.id === "discord_member" ? catalog?.discordJoinUrl : null;
       const Icon = quest.provider === "telegram" ? TelegramIcon : quest.provider === "discord" ? DiscordIcon : EarnIcon;
       return <section key={quest.id} aria-label={quest.title}>
@@ -141,9 +151,9 @@ export function VerificationQuests({ onConnect, onChanged }: { onConnect: () => 
         <p>{quest.provider === "telegram" ? "Verified by the official bot. No gameplay is required." : quest.provider === "discord" ? "Official Discord verification, including membership screening. No automatic join." : "At least one eligible settled match on 3 distinct UTC dates. Days need not be consecutive; past eligible matches count."}</p>
         {quest.id === "three_days" && <div className="earn-day-progress" role="progressbar" aria-label="Three-day gameplay quest" aria-valuemin={0} aria-valuemax={3} aria-valuenow={data?.gameplayDays}><span style={{ width: `${(data?.gameplayDays ?? 0) / 3 * 100}%` }} /><strong>{data ? `${data.gameplayDays}/3 UTC days` : account ? "Progress unavailable" : "Connect to view progress"}</strong></div>}
         {destination && <a href={destination} target="_blank" rel="noopener noreferrer" className="earn-text-button">{quest.id === "telegram_group" ? "Join Telegram Group" : quest.id === "telegram_channel" ? "Join Announcement Channel" : "Join Discord Server"} ↗</a>}
-        {row?.job?.completed_at && ["ERROR", "UNAVAILABLE", "PENDING"].includes(row.job.result_status ?? "") && !completed && <small>Membership was not confirmed. Retry verification when the service is available.</small>}
+        {feedback && <p role="status" className="text-xs text-white/70">{feedback.message}</p>}
         {quest.provider === "telegram" && !completed && !data?.connections.telegram ? <button type="button" className="earn-secondary" disabled={!!busy || (!!account && !data?.capabilities.telegramLink)} onClick={() => void run("telegram", { action: "telegram_token" })}>{!account ? "Connect Wallet" : busy === "telegram" ? "Please wait…" : "Connect Telegram"}</button>
-        : !completed && <button type="button" className="earn-secondary" disabled={!!busy || pending || (!!account && !available)}
+        : !completed && (!feedback || feedback.pending || feedback.retry) && <button type="button" className="earn-secondary" disabled={!!busy || pending || (!!account && !available)}
           onClick={() => void run(quest.id, { action: quest.id === "discord_member" ? "discord_connect" : quest.id })}>
           {!account ? "Connect Wallet" : busy === quest.id ? "Please wait…" : quest.id === "three_days" ? "Check progress & claim" : quest.id === "discord_member" ? "Verify Discord Membership" : "Verify Membership"}</button>}
         {quest.provider === "discord" && <small>Retry verification reopens official Discord authorization.</small>}
