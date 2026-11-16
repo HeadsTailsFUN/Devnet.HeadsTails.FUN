@@ -1,5 +1,7 @@
 # Earn Points test activation — 2026-11-16
 
+Historical activation record. The owner's subsequent instructions selected [Telegram Health only](telegram-health-only-2026-11-16.md), disabling the new reward/manual X gates described below. The connected-wallet header changes remain deployed.
+
 The owner requested that the entry appear only after wallet connection, beside the wallet control in mobile Play, and that quests be enabled for testing. They authorized configuring the connections directly. Application commit: `7ea6de66be55e26300c27892b6d456b013873749`.
 
 ## Website changes and verification
