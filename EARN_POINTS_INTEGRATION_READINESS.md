@@ -4,7 +4,7 @@
 
 Final handoff review: 2026-11-16. Integration code is recorded in cae5cfe; the subsequent UI-only review in 1d936a5 simplified the popup and added the complete rules table. Its 54 targeted tests and final production build passed; [the UI review](docs/earn-points-ui-review-2026-11-16.md) records those results. The original 2026-11-15 integration test counts below are historical evidence, not additional tests to add to that 54. Those review phases did not deploy or activate integrations. The later owner-authorized production release is recorded in the [2026-11-16 release report](docs/earn-points-production-release-2026-11-16.md).
 
-**Website code is deployed at https://headstails.fun. New integrations and rewards remain inactive; production migration and live provider linking have not been performed.** The active Telegram bot and Bot Manager were not modified.
+**Website code is deployed at https://headstails.fun. Follow-up test activation, 2026-11-16: the additive production migration is installed; three-day gameplay rewards and manual X verification are enabled for testing. Telegram/Discord provider gates remain off pending actual credentials and bot configuration.** See the [test activation record](docs/earn-points-test-activation-2026-11-16.md). The active Telegram bot and Bot Manager were not modified.
 
 | Area | Status | Evidence / limit |
 |---|---|---|
@@ -60,7 +60,7 @@ The finalized Telegram endpoints, payloads, error handling, limits and all compa
 
 All environment names are listed with empty values or false switches in .env.example. No credential was requested in chat or committed.
 
-The owner supplied these official identifiers during review: bot HeadsTailsFunBot, Telegram group -1004441691477, announcement channel -1004350361539 and Discord guild 1566470653861822514. They are stored in the ignored local preview environment with all activation flags false. No provider permission or membership was inferred from the identifiers.
+The owner supplied these official identifiers during review: bot HeadsTailsFunBot, Telegram group -1004441691477, announcement channel -1004350361539 and Discord guild 1566470653861822514. They are configured in production. Provider gates remain false until their missing credentials and bot-side configuration are supplied. No provider permission or membership was inferred from the identifiers.
 
 Discord still requires EARN_DISCORD_CLIENT_ID, EARN_DISCORD_CLIENT_SECRET, EARN_DISCORD_JOIN_URL and EARN_DISCORD_REDIRECT_URI. Register the exact canonical HTTPS callback /api/earn/discord/callback in the official developer app. Enable EARN_DISCORD_ENABLED and the season's discord_enabled flag only in approved staging first. Membership scope is guilds.members.read plus identify. Missing/unfinished screening is unavailable/pending, not an award.
 

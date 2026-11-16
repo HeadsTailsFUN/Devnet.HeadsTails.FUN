@@ -1,6 +1,6 @@
 # Earn Points
 
-Production update, 2026-11-16: the owner-authorized website release is live at [HeadsTails.FUN](https://headstails.fun). The Airdrop profile menu entry was removed; shared reward components and ledger history remain. New integrations/rewards remain disabled and no production migration was run. See the [release report](earn-points-production-release-2026-11-16.md). Implementation and initial verification notes below describe the earlier local review phase.
+Production update, 2026-11-16: the owner-authorized website release is live at [HeadsTails.FUN](https://headstails.fun). The Airdrop profile menu entry was removed; shared reward components and ledger history remain. The later [test activation](earn-points-test-activation-2026-11-16.md) installs the additive migration, enables three-day rewards/manual X verification and makes the header entry connected-wallet-only (mobile Play). Telegram/Discord remain pending credentials. The [initial release report](earn-points-production-release-2026-11-16.md) and implementation notes below are historical evidence from the earlier release phase.
 
 The initial popup implementation is documented below. The 2026-11-15 social-verification extension, its additive migration and current activation gates are documented in [the integration readiness report](../EARN_POINTS_INTEGRATION_READINESS.md) and [the finalized Telegram contract](../TELEGRAM_WEBSITE_API_CONTRACT_FINAL.md).
 
