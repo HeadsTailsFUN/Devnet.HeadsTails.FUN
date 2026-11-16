@@ -25,3 +25,9 @@ Telegram needs a dedicated `HEADSTAILS_WEBSITE_API_KEY` securely configured with
 Discord needs the official application's `EARN_DISCORD_CLIENT_ID` and server-only `EARN_DISCORD_CLIENT_SECRET`, plus the exact callback registered in that application's OAuth2 settings. Guild ID alone is insufficient. No bot token or automatic guild join is needed for the implemented identify + guilds.members.read authorization. Enable environment/season gates only with valid credentials.
 
 Authenticated browser/provider round trips require the real owner/test account. Offline tests and rolled-back server smoke checks do not constitute live OAuth or membership confirmation. Private endpoints must continue returning 401 without an authenticated wallet session.
+
+## Published release evidence
+
+Production deployment `dpl_2vfxyRN8HjfFi6Cu3QrbKQBVZSry` is READY and promoted to `headstails.fun`; its releaseCommit metadata is the application commit above. Build completed successfully with Next.js, SDK TypeScript and lint/type checks. All nine HTTP checks passed on the staged production build and again on the canonical domain. Public catalog confirms rewards/manual X true, Telegram/Discord false and the verified Discord invitation. The five-minute deployment error-log inspection returned zero error entries.
+
+The live disconnected browser header was reloaded and checked: Wallet and rewards contains Connect Wallet and no Earn Points entry. Connected adjacency/disconnection and mobile Play visibility are covered by the component test and scoped responsive CSS. No signed-in wallet/provider browser round trip is claimed. The documentation commit following the application commit does not change the deployed application-code identity. Previous production deployment `dpl_CmCdVKVkvxaJvKvTqZRExFp77U6o` is retained; a rollback must also account for the new season/environment gates without deleting additive verification history.
