@@ -1,5 +1,7 @@
 # HeadsTails welcome landing — preview handoff
 
+> Superseded by the [production release report](welcome-production-release-2026-11-16.md). Welcome is now live at https://headstails.fun/welcome with Tokenomics, Roadmap, sticky navigation and IP-bound preferences. The preview-only, unconfigured-production and old cookie/session-bypass descriptions below are historical. The applied migration version is `20261116150507`; use the production report for current behavior and verification.
+
 ## Latest fog and mobile alignment correction
 
 The coin now has a soft green/pink fog field beneath its platform and an upward screen-blended highlight along its lower edge. Both effects use decorative CSS pseudo-elements with no extra images, scripts or interaction targets.
