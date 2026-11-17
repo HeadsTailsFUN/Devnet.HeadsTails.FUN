@@ -43,8 +43,9 @@
   .heads-app[data-mobile-tab="play"]:not([data-mobile-info]) .header-social-links { display:flex;margin-right:auto;gap:0;padding:0 2px;border:0;border-radius:0;background:none; }
   .heads-app .header-social-links > a { display:inline-flex;min-width:30px;width:30px;min-height:44px;color:#c2d5d8; }
   .heads-app .header-social-links > a:hover { color:#3dffc8;background:#3dffc80d; }
-  .heads-app .header-earn-entry { position:relative;width:40px;min-width:40px;padding-inline:0;gap:0; }
-  .heads-app .header-earn-entry > span { position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap; }
+  .heads-app .header-earn-entry { width:74px;min-width:74px;padding-inline:7px;gap:5px;font-size:12px; }
+  .heads-app .header-earn-entry svg { flex-shrink:0; }
+  .heads-app .header-earn-entry > span { position:static;width:auto;height:auto;padding:0;margin:0;overflow:visible;clip-path:none;white-space:normal;text-align:left;line-height:1.15; }
   .heads-app .header-account { flex:0 1 auto;max-width:170px;gap:5px; }
   .heads-app .header-account-label { flex-direction:column;align-items:flex-start;gap:1px;min-width:0; }
   .heads-app .header-account-name { max-width:100%;font-size:11px; }

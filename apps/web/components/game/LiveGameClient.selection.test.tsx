@@ -570,6 +570,9 @@ describe("video scenario: selection survives background refresh", () => {
     fireEvent.click(game().getByRole("button",{name:"HEADS"}));
     fireEvent.click(nav().getByRole("button",{name:"social"}));const draft=screen.getByRole("textbox",{name:"Chat message"});fireEvent.change(draft,{target:{value:"Local unsent draft"}});
     for(const tab of ["flips","profile"]){fireEvent.click(nav().getByRole("button",{name:tab}));assert(header().getByRole("button",{name:/Open profile/}));}
+    fireEvent.click(within(screen.getByRole("region",{name:"Profile"})).getByRole("button",{name:"Back to previous page"}));
+    assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-mobile-tab'),'flips');
+    fireEvent.click(nav().getByRole("button",{name:"profile"}));
     fireEvent.click(within(screen.getByRole("region",{name:"Profile"})).getByRole("link",{name:"Terms"}));
     await screen.findByRole("heading",{name:"Terms (Devnet Beta)"});fireEvent.click(screen.getByRole("button",{name:"← Back to Profile"}));
     fireEvent.click(nav().getByRole("button",{name:"play"}));assert(screen.getByRole("heading",{name:"You Selected HEADS"}));

@@ -7,15 +7,20 @@ export function useMobileNavigation() {
   const [mobile, setMobile] = useState(false);
   const [location, setLocation] = useState<{tab:MobileTab;info:InformationPage|null}>({tab:"play",info:null});
   const rootRef = useRef<HTMLDivElement>(null);
+  const locationRef=useRef(location),profileReturnRef=useRef<MobileTab>("play");
+  const applyLocation=useCallback((next:{tab:MobileTab;info:InformationPage|null})=>{
+    if(next.tab==="profile"&&locationRef.current.tab!=="profile")profileReturnRef.current=locationRef.current.tab;
+    locationRef.current=next;setLocation(next);
+  },[]);
   useEffect(() => {
     const media = window.matchMedia(MOBILE_APP_QUERY);
     const syncMedia = () => setMobile(media.matches);
-    const syncLocation = () => setLocation(readMobileLocation(window.location.search));
+    const syncLocation = () => applyLocation(readMobileLocation(window.location.search));
     syncMedia(); syncLocation();
     media.addEventListener("change",syncMedia);
     window.addEventListener("popstate",syncLocation);
     return () => {media.removeEventListener("change",syncMedia);window.removeEventListener("popstate",syncLocation);};
-  },[]);
+  },[applyLocation]);
   useEffect(() => {
     if(!mobile) return;
     const viewport=window.visualViewport;
@@ -37,7 +42,8 @@ export function useMobileNavigation() {
   const navigate=useCallback((tab:MobileTab,info:InformationPage|null=null)=>{
     const next=mobileLocation(window.location.search,tab,info);
     if(next!==window.location.search) window.history.pushState(window.history.state,"",`${window.location.pathname}${next}${window.location.hash}`);
-    setLocation({tab,info});
-  },[]);
-  return {mobile,...location,navigate,rootRef};
+    applyLocation({tab,info});
+  },[applyLocation]);
+  const backFromProfile=useCallback(()=>navigate(profileReturnRef.current),[navigate]);
+  return {mobile,...location,navigate,backFromProfile,rootRef};
 }

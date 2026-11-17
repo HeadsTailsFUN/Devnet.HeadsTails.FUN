@@ -78,7 +78,7 @@ function SectionTitle({ id, children, note }: { id: string; children: React.Reac
 }
 function Launch({ href, children = "Launch App", secondary = false }: { href: string; children?: React.ReactNode; secondary?: boolean }) {
   // Plain links deliberately avoid prefetching the wallet/game bundle on the landing page.
-  return <a href={href} className={`w-button${secondary ? " w-button-outline" : ""}`}><WelcomeIcon name={secondary ? "flask" : "rocket"} />{children}</a>;
+  return <a href={href} className={`w-button${secondary ? " w-button-outline" : ""}`}><WelcomeIcon name={secondary ? "flask" : "arrow"} />{children}</a>;
 }
 
 export default async function WelcomePage({ searchParams }: { searchParams: Promise<WelcomeSearch> }) {
@@ -108,7 +108,7 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
           <div className="w-hero-coin"><Image src="/welcome/coin.png" alt="" width={950} height={950} sizes="(max-width: 600px) 43vw, (max-width: 1000px) 30vw, 350px" quality={90} priority /><div className="w-coin-platform" /></div>
           <HeroCharacter side="tails" />
         </div>
-        <div className="w-hero-bottom"><div className="w-hero-ctas"><Launch href={app} /><a className="w-button w-button-ghost" href="#how-it-works"><WelcomeIcon name="play" />How It Works</a></div><p>1v1 PvP <span>·</span> On-chain flips <span>·</span> Test tokens only</p></div>
+        <div className="w-hero-bottom"><div className="w-hero-ctas"><Launch href={app} /><a className="w-button w-button-ghost" href="#how-it-works"><WelcomeIcon name="book" />How It Works</a></div><p>1v1 PvP <span>·</span> On-chain flips <span>·</span> Test tokens only</p></div>
       </section>
 
       <div className="w-container w-content">

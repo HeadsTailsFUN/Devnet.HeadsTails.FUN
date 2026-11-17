@@ -1,6 +1,7 @@
 import type { CSSProperties } from "react";
 
 const paths = {
+  book: <><path d="M12 6c-3-2-6-2-10-1v15c4-1 7-1 10 1 3-2 6-2 10-1V5c-4-1-7-1-10 1ZM12 6v15"/><path d="M5 9c1.5-.2 3 0 4 .6M15 9.6c1-.6 2.5-.8 4-.6"/></>,
   rocket: <><path d="M14 5c3-3 7-2 7-2s1 4-2 7l-6 6-5-5 6-6Z"/><path d="m8 11-4 1-2 4 6-1m5 1-1 4-4 2 1-6M5 19l-2 2"/><circle cx="16" cy="8" r="1.5"/></>,
   play: <><circle cx="12" cy="12" r="9"/><path d="m10 8 6 4-6 4V8Z"/></>,
   wallet: <><path d="M20 8V5a2 2 0 0 0-2-2H6a3 3 0 0 0-3 3v12a2 2 0 0 0 2 2h15V8H6a2 2 0 0 1 0-4"/><path d="M21 11h-6v5h6"/><path d="M17 13.5h.01"/></>,

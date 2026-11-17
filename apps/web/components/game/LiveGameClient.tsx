@@ -42,7 +42,7 @@ import { RecentFlips } from "@/components/history/RecentFlips";
 import { QueueStatusBar } from "@/components/status/QueueStatusBar";
 import { DevStateSwitcher } from "@/components/ui/DevStateSwitcher";
 import { WalletModal } from "@/components/wallet/WalletModal";
-import { ProfileModal } from "@/components/profile/ProfileModal";
+import { ProfileModal, ProfileBackButton } from "@/components/profile/ProfileModal";
 import { PublicProfileModal } from "@/components/profile/PublicProfileModal";
 import { LeaderboardPanel } from "@/components/leaderboard/LeaderboardPanel";
 import { shortAddr, useWalletState } from "@/components/wallet/WalletProvider";
@@ -2161,6 +2161,7 @@ export function LiveGameClient() {
           onRetryPayout={() => void handleRetryPayout()}
           retryPayoutBusy={retryPayoutBusy}
           onClose={() => mobileNav.mobile ? mobileNav.navigate("play") : setProfileOpen(false)}
+          onBack={() => mobileNav.mobile ? mobileNav.backFromProfile() : setProfileOpen(false)}
           onChanged={() => {
             reloadProfile();
             reloadSession();
@@ -2432,6 +2433,7 @@ export function LiveGameClient() {
       </main>
       {!address && <section hidden={!mobileNav.mobile || mobileNav.tab!=="profile" || mobileNav.info!==null} id="mobile-profile" className="mobile-profile-guest" aria-label="Profile">
         <div className="glass mx-auto w-full max-w-[560px] rounded-3xl p-5 text-center">
+          <ProfileBackButton onBack={mobileNav.backFromProfile} />
           <h2 className="font-display text-[19px] font-bold text-white">Profile</h2>
           <p className="my-3 text-sm text-[var(--text-secondary)]">Connect a Solana wallet to view your profile.</p>
           <WalletButton state="disconnected" onConnect={()=>setWalletOpen(true)} onDisconnect={()=>undefined}/>

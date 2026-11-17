@@ -14,6 +14,12 @@ import { EarnPointsLink } from "@/components/earn/EarnPointsLink";
 
 type Tab = "profile" | "referrals" | "bug";
 
+export function ProfileBackButton({onBack}:{onBack:()=>void}) {
+  return <button type="button" onClick={onBack} aria-label="Back to previous page" className="mb-3 inline-flex min-h-[44px] shrink-0 items-center gap-2 self-start rounded-xl border border-white/15 px-3 text-sm font-semibold text-white transition hover:bg-white/10">
+    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg>Back
+  </button>;
+}
+
 export function ProfileModal({
   wallet,
   account,
@@ -23,6 +29,7 @@ export function ProfileModal({
   onRetryPayout,
   retryPayoutBusy,
   onClose,
+  onBack = onClose,
   onChanged,
   onLogout,
   presentation = "modal",
@@ -39,6 +46,7 @@ export function ProfileModal({
   onRetryPayout?: () => void;
   retryPayoutBusy?: boolean;
   onClose: () => void;
+  onBack?: () => void;
   onChanged: () => void;
   onLogout: () => void;
   presentation?: "modal" | "page";
@@ -174,6 +182,7 @@ export function ProfileModal({
         className="absolute inset-0 bg-black/70 backdrop-blur-sm"
       />}
       <div className={`glass relative flex max-h-[85svh] w-full max-w-sm flex-col overflow-hidden rounded-3xl p-5 ${presentation === "page" ? "mobile-profile-card" : ""}`}>
+        <ProfileBackButton onBack={onBack} />
         <div className="flex items-center gap-3">
           <div className="flex shrink-0 flex-col items-center gap-1">
             {profile?.avatarUrl ? (

@@ -60,6 +60,22 @@ test("navigation has exactly four ordered touch targets and preserves a mounted 
   assert.equal(mounts,1);assert.equal(unmounts,0);assert.equal(new URLSearchParams(window.location.search).get("ref"),"KEPT");
 });
 
+test("profile Back restores the originating tab through profile information and safely defaults to Play for direct entry",()=>{
+  Object.defineProperty(window,"matchMedia",{configurable:true,writable:true,value:(media:string)=>({matches:true,media,addEventListener(){},removeEventListener(){}})});
+  function Shell(){const nav=useMobileNavigation();return <div><p role="status">{nav.tab}:{nav.info??"none"}</p><MobileNavigation tab={nav.tab} onSelect={nav.navigate}/><button onClick={()=>nav.navigate("profile","terms")}>Profile terms</button><button onClick={nav.backFromProfile}>Profile Back</button></div>;}
+  window.history.replaceState(null,"","/?ref=KEEP&tab=social");
+  const view=render(createElement(Shell));
+  const nav=within(screen.getByRole("navigation",{name:"Mobile navigation"}));
+  for(const origin of ["social","flips"]){
+    fireEvent.click(nav.getByRole("button",{name:origin}));fireEvent.click(nav.getByRole("button",{name:"profile"}));
+    fireEvent.click(screen.getByRole("button",{name:"Profile terms"}));fireEvent.click(nav.getByRole("button",{name:"profile"}));
+    fireEvent.click(screen.getByRole("button",{name:"Profile Back"}));assert.equal(screen.getByRole("status").textContent,origin+":none");
+    assert.equal(new URLSearchParams(window.location.search).get("ref"),"KEEP");
+  }
+  view.unmount();window.history.replaceState(null,"","/?tab=profile");render(createElement(Shell));
+  fireEvent.click(screen.getByRole("button",{name:"Profile Back"}));assert.equal(screen.getByRole("status").textContent,"play:none");
+});
+
 test("the compact pill selects actual allowed tiers, locks future rooms and closes on selection/Escape",async()=>{
   const selected:number[]=[];
   const view=render(createElement(MobileRoomSelector,{tier:1,locked:false,liveTiers:[1,10],onSelect:t=>selected.push(t)}));
@@ -76,10 +92,13 @@ test("the compact pill selects actual allowed tiers, locks future rooms and clos
 
 test("Profile page reuses every profile section and keeps the footer after its controls",async()=>{
   globalThis.fetch=async()=>Response.json({team:"HEADS",completed:true});
-  const props={wallet:null,account:null,address:"SYNTHETIC_PROFILE",profile:null,presentation:"page" as const,balanceLabel:"200 HTS",footer:createElement(AppFooter),onClose(){},onChanged(){},onLogout(){}};
+  let back=0,closed=0;
+  const props={wallet:null,account:null,address:"SYNTHETIC_PROFILE",profile:null,presentation:"page" as const,balanceLabel:"200 HTS",footer:createElement(AppFooter),onClose(){closed++;},onBack(){back++;},onChanged(){},onLogout(){}};
   const view=render(createElement(ProfileModal,props));
   const profile=screen.getByRole("region",{name:"Profile"});assert.equal(profile.hasAttribute("aria-modal"),false);
   assert.equal(screen.queryByRole("dialog",{name:"Profile"}),null);
+  fireEvent.click(within(profile).getByRole("button",{name:"Back to previous page"}));assert.equal(back,1);assert.equal(closed,0);
+  fireEvent.click(within(profile).getByRole("button",{name:"Back to Play"}));assert.equal(closed,1);
   assert.deepEqual(within(profile).getAllByRole("tab").map(e=>e.textContent),["Profile","Referrals","Report Bug"]);
   assert.equal(!!within(profile).queryByRole("tab",{name:"Airdrop"}),false);
   for(const name of ["Change avatar","Copy address","TEAM HEADS","TEAM TAILS","Save","Disconnect wallet","Back to Play"])assert(within(profile).getByRole("button",{name}));
