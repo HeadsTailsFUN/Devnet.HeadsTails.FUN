@@ -15,8 +15,8 @@ import { EarnPointsLink } from "@/components/earn/EarnPointsLink";
 type Tab = "profile" | "referrals" | "bug";
 
 export function ProfileBackButton({onBack}:{onBack:()=>void}) {
-  return <button type="button" onClick={onBack} aria-label="Back to previous page" className="mb-3 inline-flex min-h-[44px] shrink-0 items-center gap-2 self-start rounded-xl border border-white/15 px-3 text-sm font-semibold text-white transition hover:bg-white/10">
-    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg>Back
+  return <button type="button" onClick={onBack} aria-label="Back to previous page" className="mb-3 inline-flex h-11 w-11 shrink-0 items-center justify-center self-start rounded-xl border border-white/15 text-white transition hover:bg-white/10">
+    <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
   </button>;
 }
 
