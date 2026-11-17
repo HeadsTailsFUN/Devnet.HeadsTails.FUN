@@ -9,9 +9,23 @@ import MobileInformation from "./MobileInformation";
 import { ProfileModal } from "../profile/ProfileModal";
 import { AppFooter } from "../brand/AppFooter";
 import { AppHeader } from "../brand/AppHeader";
+import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
 import { useMobileNavigation } from "@/lib/mobile/useMobileNavigation";
 const realFetch=globalThis.fetch;
 afterEach(()=>{cleanup();globalThis.fetch=realFetch;window.history.replaceState(null,"","/");});
+
+test("header exposes the four official destinations and a permanent Welcome entry without replacing the game",()=>{
+  let connected=0;
+  render(createElement(AppHeader,{state:"disconnected",onConnect(){connected++;},onDisconnect(){}}));
+  const nav=screen.getByRole("navigation",{name:"Social links"});
+  for(const [name,href] of [["X",SOCIAL_LINKS.x],["Telegram",SOCIAL_LINKS.telegram],["Discord",SOCIAL_LINKS.discord],["GitHub",SOCIAL_LINKS.github]]){
+    const link=within(nav).getByRole("link",{name,exact:true});assert.equal(link.getAttribute("href"),href);
+    assert.equal(link.getAttribute("target"),"_blank");assert.match(link.getAttribute("rel")!,/noopener/);
+  }
+  const welcome=screen.getByRole("link",{name:"Welcome",exact:true});
+  assert.equal(welcome.getAttribute("href"),"/welcome");assert.equal(welcome.getAttribute("target"),"_blank");
+  fireEvent.click(screen.getByRole("button",{name:"Connect Wallet"}));assert.equal(connected,1);
+});
 
 test("Earn Points appears beside the wallet control only while a wallet is connected",()=>{
   const props={state:"disconnected" as const,onConnect(){},onDisconnect(){}};

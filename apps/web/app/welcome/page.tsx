@@ -9,16 +9,16 @@ import { welcomeAppHref, type WelcomeSearch } from "@/lib/site/welcome-links";
 import "./welcome.css";
 
 export const metadata: Metadata = {
-  title: "HeadsTails.fun — Pick a Side. Own the Flip.",
-  description: "Real players. One unpredictable flip. Pick HEADS or TAILS in a 1v1 Solana Devnet game, and verify the randomness on-chain.",
+  title: "HeadsTails.fun — Heads or Tails. One Flip. One Winner.",
+  description: "Play heads or tails against another player. One flip decides the winner. Try the Solana Devnet Beta with test tokens and verify the result on-chain.",
   alternates: { canonical: "https://headstails.fun/welcome" },
   openGraph: {
-    title: "HeadsTails.fun — Pick a Side. Own the Flip.",
-    description: "Real players. One unpredictable flip. Try the Solana Devnet Beta with test HTS.",
+    title: "HeadsTails.fun — Heads or Tails. One Flip. One Winner.",
+    description: "A head-to-head coin-flip game on Solana. Pick heads or tails, match with another player and verify the winner. Devnet test tokens only.",
     url: "https://headstails.fun/welcome", type: "website", siteName: "HeadsTails.fun",
     images: [{ url: "https://headstails.fun/welcome/coin-fire.png", width: 512, height: 512, alt: "The official HeadsTails coin, lit in HEADS green and TAILS pink" }],
   },
-  twitter: { card: "summary", title: "HeadsTails.fun — Pick a Side. Own the Flip.", description: "Real players. One unpredictable flip.", images: ["https://headstails.fun/welcome/coin-fire.png"] },
+  twitter: { card: "summary", title: "HeadsTails.fun — Heads or Tails. One Flip. One Winner.", description: "A head-to-head coin-flip game on Solana. Devnet test tokens only.", images: ["https://headstails.fun/welcome/coin-fire.png"] },
 };
 
 const socials = [
@@ -98,10 +98,10 @@ export default async function WelcomePage({ searchParams }: { searchParams: Prom
     <main id="welcome-content">
       <section className="w-hero" aria-labelledby="hero-heading">
         <div className="w-hero-grid" aria-hidden="true" /><div className="w-hero-haze w-haze-heads" aria-hidden="true" /><div className="w-hero-haze w-haze-tails" aria-hidden="true" />
-        <div className="w-hero-copy"><span className="w-beta-pill"><span /> SOLANA DEVNET BETA</span><Brand hero />
-          <h1 id="hero-heading">PICK A SIDE.{" "}<br /><span>OWN THE FLIP.</span></h1>
-          <p className="w-hero-subtitle">Real players. One unpredictable flip.</p>
-          <p className="w-hero-description">Pick a side. Find your rival.<br className="w-mobile-break" /> Let the chain decide.</p>
+        <div className="w-hero-copy"><nav className="w-hero-socials" aria-label="Top social links">{socials.map(({name,href,Icon}) => <a key={name} href={href} target="_blank" rel="noopener noreferrer" aria-label={name} title={name}><Icon /></a>)}</nav><span className="w-beta-pill"><span /> SOLANA DEVNET BETA</span><Brand hero />
+          <h1 id="hero-heading">HEADS OR TAILS.{" "}<br /><span>ONE FLIP. ONE WINNER.</span></h1>
+          <p className="w-hero-subtitle">A coin-flip game. You vs. another player.</p>
+          <p className="w-hero-description">Choose HEADS or TAILS. Match with an opponent.<br className="w-mobile-break" /> One flip decides the winner — check it on Solana.</p>
         </div>
         <div className="w-hero-art" aria-hidden="true">
           <HeroCharacter side="heads" />

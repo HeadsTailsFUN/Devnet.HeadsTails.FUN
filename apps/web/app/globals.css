@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+.header-welcome-link { display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 10px;border:1px solid #3dffc82b;border-radius:12px;background:#3dffc808;color:#b6dfd3;font-size:11px;font-weight:650;white-space:nowrap; }
+.header-welcome-link:hover { color:#3dffc8;background:#3dffc816; }
+.header-welcome-link:focus-visible { outline:2px solid #3dffc8;outline-offset:3px; }
+.header-brand-group { flex-shrink:0; }
+.header-brand-group > a:first-child { flex-shrink:0; }
+.header-brand-group > a:first-child .font-display { white-space:nowrap; }
+
 /* Shared entry point: static gradient border, one slow opacity animation. */
 .earn-entry {
   position: relative; isolation: isolate; display: inline-flex; flex-shrink: 0;

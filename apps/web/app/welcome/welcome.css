@@ -271,3 +271,13 @@ body:has(.welcome-page) { background:#05070b; }
   .w-roadmap-card ul { margin-top:18px; }
 }
 @media(prefers-reduced-motion:reduce) { .welcome-page * { scroll-behavior:auto!important;animation:none!important;transition:none!important; }.welcome-page a:hover { transform:none; } }
+
+/* Direct community access above the hero, with independent touch targets. */
+.w-hero-socials { pointer-events:auto;display:flex;align-items:center;justify-content:center;gap:6px;width:max-content;max-width:100%;margin:0 auto 20px;padding:3px 8px;border:1px solid #3dffc838;border-right-color:#ff7ebd40;border-radius:99px;background:linear-gradient(110deg,#102923bb,#211424a6);box-shadow:0 7px 30px #0005,inset 0 1px #ffffff0d; }
+.w-hero-socials a { display:flex;align-items:center;justify-content:center;width:44px;height:44px;border-radius:50%;color:#d7e8e4;transition:background .2s,color .2s,box-shadow .2s; }
+.w-hero-socials a:hover { background:#3dffc817;color:var(--w-green);box-shadow:0 0 15px #3dffc81a; }
+.w-hero-socials svg { width:18px;height:18px; }
+.w-hero-description { max-width:400px;margin-inline:auto!important; }
+@media(min-width:601px) { .w-hero { min-height:760px; }.w-hero h1 { font-size:clamp(30px,3.2vw,45px);letter-spacing:-1.5px; } }
+@media(min-width:601px) and (max-width:1000px) { .w-hero { min-height:705px; }.w-hero h1 { font-size:clamp(28px,3.5vw,35px); } }
+@media(max-width:600px) { .w-hero-socials { margin-bottom:20px; }.w-hero h1 { font-size:clamp(32px,8.4vw,46px);letter-spacing:-1.2px; }.w-hero h1 > span { font-size:.87em;line-height:1.35; }.w-hero-subtitle { font-size:13px; } }

@@ -20,7 +20,7 @@ await check('direct welcome renders official artwork, metadata and same-origin r
  for(const word of ['HOW IT WORKS','WHY HEADSTAILS','Devnet Beta','Good questions.','HeadsTails.fun'])assert.ok(html.includes(word),word);
  for(const word of ['TOKENOMICS','ROADMAP','Founder','Player Rewards','Initial Community','COMMUNITY &amp; GROWTH','EXPANSION','planning allocations','mint and metadata update authority'])assert.ok(html.includes(word),word);
  assert.ok(!html.includes('id="game-rooms"')); assert.ok(!html.includes('id="app-preview"')); assert.ok(!html.includes('id="earn-points"'));
- assert.match(html,/PICK A SIDE/); assert.ok(!html.includes('Two Idiots'));
+ assert.match(html,/HEADS OR TAILS/); assert.match(html,/ONE FLIP. ONE WINNER/); assert.ok(!html.includes('Two Idiots'));
  assert.ok(!html.includes('/devnet')); // The owner's correction keeps the game at /.
 });
 await check('Launch App and later visits render the original root game with no welcome loop',async()=>{

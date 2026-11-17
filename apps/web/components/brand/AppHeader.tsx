@@ -8,7 +8,7 @@ import {
   TelegramIcon,
   XIcon,
 } from "@/components/ui/icons";
-import { HeartIcon } from "@/components/ui/icons";
+import { HeartIcon, InfoIcon } from "@/components/ui/icons";
 import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
 import type { GameStateId } from "@/lib/mockGameData";
 
@@ -38,10 +38,11 @@ export function AppHeader({
 }) {
   return (
     <header className="safe-top relative z-20 mx-auto flex w-full min-w-0 max-w-[1440px] flex-wrap items-center justify-between gap-3 overflow-x-clip px-4 pt-5 sm:flex-nowrap sm:gap-4 sm:px-6">
-      <span className="flex items-center gap-2">
+      <span className="header-brand-group flex min-w-0 items-center gap-3">
         <LogoLockup />
+        <a className="header-welcome-link" href="/welcome" target="_blank" rel="noopener noreferrer" title="About HeadsTails — opens without leaving your game"><InfoIcon className="h-4 w-4" /><span>Welcome</span></a>
       </span>
-      <p className="hidden items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] xl:flex">
+      <p className="hidden items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] 2xl:flex">
         <span>Fair</span>
         <span aria-hidden="true" className="text-[10px]">
           •
@@ -57,7 +58,7 @@ export function AppHeader({
         <span>For the Degens</span>
         <HeartIcon className="h-3.5 w-3.5 text-[var(--heads)]" />
       </p>
-      <span role="group" aria-label="Wallet and rewards" className="order-2 flex w-full min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-2">
+      <span role="group" aria-label="Wallet and rewards" className="header-controls order-2 flex w-full min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-2">
         <span className="hidden sm:inline-flex sm:items-center sm:gap-2">
           {faucet}
         </span>
@@ -127,7 +128,7 @@ export function AppHeader({
                 {(profileName ?? addressLabel).slice(0, 1).toUpperCase()}
               </span>
             )}
-            <span className="min-w-0 max-w-[110px] truncate">
+            <span className="header-account-label min-w-0 flex items-center gap-2"><span className="header-account-name min-w-0 max-w-[110px] truncate">
               {profileName ?? addressLabel}
             </span>
             {balanceLabel ? (
@@ -135,6 +136,7 @@ export function AppHeader({
                 {balanceLabel}
               </span>
             ) : null}
+            </span>
             {(notificationCount ?? 0) > 0 && (
               <span
                 aria-label={`${notificationCount} pending notifications`}
