@@ -224,17 +224,25 @@ export function ProfileModal({
               {busy === "avatar" ? "Uploading…" : "Change"}
             </button>
           </div>
-          <div className="min-w-0">
-            <p
-              className={`truncate text-[16px] font-bold ${profile?.rankColorClass ?? "text-white"}`}
-            >
-              {profile?.username ?? shortAddr(address)}
-            </p>
+          <div className={presentation === "page" ? "min-w-0 flex-1" : "min-w-0"}>
+            <div className="flex min-w-0 items-center gap-2">
+              <p
+                className={`min-w-0 truncate text-[16px] font-bold ${profile?.rankColorClass ?? "text-white"}`}
+              >
+                {profile?.username ?? shortAddr(address)}
+              </p>
+              {presentation === "page" && balanceLabel && (
+                <p aria-label="Token balance" className="ml-auto max-w-[60%] shrink-0 text-right text-xs font-bold leading-tight text-[var(--heads)] [overflow-wrap:anywhere]">{balanceLabel}</p>
+              )}
+            </div>
             <p className="truncate text-[12px] text-[var(--text-secondary)]">
               {shortAddr(address)}
             </p>
+            {presentation === "page" && profile && (
+              <span className="mt-1 inline-block rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold tracking-widest text-white/70">{profile.displayRank}</span>
+            )}
           </div>
-          {profile && (
+          {presentation === "modal" && profile && (
             <span className="ml-auto rounded-full border border-white/15 px-2 py-0.5 text-[10px] font-bold tracking-widest text-white/70">
               {profile.displayRank}
             </span>
@@ -267,10 +275,11 @@ export function ProfileModal({
         <div className={`mt-3 min-h-0 flex-1 overflow-y-auto ${presentation === "page" ? "mobile-profile-fields" : ""}`}>
           {tab === "profile" && (
             <div>
-              {presentation === "page" && <div className="mb-3 space-y-2 text-sm text-[var(--text-secondary)]">
-                <p className="break-all">{address}</p>
-                <button type="button" className="min-h-[44px] rounded-2xl bg-white/10 px-4 text-xs font-bold text-white hover:bg-white/15" onClick={async()=>{try{await navigator.clipboard.writeText(address);setNote("Address copied.");}catch{setNote("Could not copy address.");}}}>Copy address</button>
-                {balanceLabel && <p className="font-bold text-[var(--heads)]">{balanceLabel}</p>}
+              {presentation === "page" && <div className="mb-3 flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                <p className="min-w-0 flex-1 break-all">{address}</p>
+                <button type="button" aria-label="Copy address" title="Copy address" className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10 text-white transition hover:bg-white/15" onClick={async()=>{try{await navigator.clipboard.writeText(address);setNote("Address copied.");}catch{setNote("Could not copy address.");}}}>
+                  <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/></svg>
+                </button>
               </div>}
               <dl className="mt-1 grid grid-cols-4 gap-2 text-center">
                 {[

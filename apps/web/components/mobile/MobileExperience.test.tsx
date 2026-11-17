@@ -90,8 +90,12 @@ test("the compact pill selects actual allowed tiers, locks future rooms and clos
   assert.equal((screen.getByRole("button",{name:"Choose room, $10 selected"}) as HTMLButtonElement).disabled,true);
 });
 
-test("Profile page reuses every profile section and keeps the footer after its controls",async()=>{
+test("Profile page reuses every profile section and keeps the footer after its controls",async(t)=>{
   globalThis.fetch=async()=>Response.json({team:"HEADS",completed:true});
+  const clipboard=Object.getOwnPropertyDescriptor(navigator,"clipboard");
+  let copied="";
+  Object.defineProperty(navigator,"clipboard",{configurable:true,value:{writeText:async(value:string)=>{copied=value;}}});
+  t.after(()=>{if(clipboard)Object.defineProperty(navigator,"clipboard",clipboard);else Reflect.deleteProperty(navigator,"clipboard");});
   let back=0,closed=0;
   const props={wallet:null,account:null,address:"SYNTHETIC_PROFILE",profile:null,presentation:"page" as const,balanceLabel:"200 HTS",footer:createElement(AppFooter),onClose(){closed++;},onBack(){back++;},onChanged(){},onLogout(){}};
   const view=render(createElement(ProfileModal,props));
@@ -103,6 +107,11 @@ test("Profile page reuses every profile section and keeps the footer after its c
   assert.equal(!!within(profile).queryByRole("tab",{name:"Airdrop"}),false);
   for(const name of ["Change avatar","Copy address","TEAM HEADS","TEAM TAILS","Save","Disconnect wallet","Back to Play"])assert(within(profile).getByRole("button",{name}));
   assert.equal(within(profile).queryByRole("button",{name:"Choose Later"}),null);
+  assert.equal(within(profile).getByLabelText("Token balance").textContent,"200 HTS");
+  assert.equal(within(profile).getAllByText("200 HTS").length,1);
+  fireEvent.click(within(profile).getByRole("button",{name:"Copy address"}));
+  await waitFor(()=>assert.equal(copied,props.address));
+  assert(await within(profile).findByText("Address copied."));
   assert.equal(profile.lastElementChild?.tagName,"FOOTER");
   for(const name of ["Tokenomics","Roadmap","Terms","Privacy","GitHub","Discord"])assert(within(profile).getByRole("link",{name}));
   profile.scrollTop=340;fireEvent.scroll(profile);view.rerender(createElement(ProfileModal,{...props,hidden:true}));profile.scrollTop=0;fireEvent.scroll(profile);
