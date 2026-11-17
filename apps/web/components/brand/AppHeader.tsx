@@ -8,7 +8,7 @@ import {
   TelegramIcon,
   XIcon,
 } from "@/components/ui/icons";
-import { HeartIcon, InfoIcon } from "@/components/ui/icons";
+import { HeartIcon } from "@/components/ui/icons";
 import { SOCIAL_LINKS } from "@/lib/site/socialLinks";
 import type { GameStateId } from "@/lib/mockGameData";
 
@@ -40,7 +40,7 @@ export function AppHeader({
     <header className="safe-top relative z-20 mx-auto flex w-full min-w-0 max-w-[1440px] flex-wrap items-center justify-between gap-3 overflow-x-clip px-4 pt-5 sm:flex-nowrap sm:gap-4 sm:px-6">
       <span className="header-brand-group flex min-w-0 items-center gap-3">
         <LogoLockup />
-        <a className="header-welcome-link" href="/welcome" target="_blank" rel="noopener noreferrer" title="About HeadsTails — opens without leaving your game"><InfoIcon className="h-4 w-4" /><span>Welcome</span></a>
+        <a className="header-home-link" href="/welcome" aria-label="Home — Welcome" title="Welcome"><svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/></svg></a>
       </span>
       <p className="hidden items-center gap-2 text-[13px] font-medium text-[var(--text-secondary)] 2xl:flex">
         <span>Fair</span>

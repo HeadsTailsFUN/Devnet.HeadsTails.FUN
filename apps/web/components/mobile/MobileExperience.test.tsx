@@ -14,7 +14,7 @@ import { useMobileNavigation } from "@/lib/mobile/useMobileNavigation";
 const realFetch=globalThis.fetch;
 afterEach(()=>{cleanup();globalThis.fetch=realFetch;window.history.replaceState(null,"","/");});
 
-test("header exposes the four official destinations and a permanent Welcome entry without replacing the game",()=>{
+test("header exposes the four official destinations and an icon-only Home link to Welcome",()=>{
   let connected=0;
   render(createElement(AppHeader,{state:"disconnected",onConnect(){connected++;},onDisconnect(){}}));
   const nav=screen.getByRole("navigation",{name:"Social links"});
@@ -22,8 +22,9 @@ test("header exposes the four official destinations and a permanent Welcome entr
     const link=within(nav).getByRole("link",{name,exact:true});assert.equal(link.getAttribute("href"),href);
     assert.equal(link.getAttribute("target"),"_blank");assert.match(link.getAttribute("rel")!,/noopener/);
   }
-  const welcome=screen.getByRole("link",{name:"Welcome",exact:true});
-  assert.equal(welcome.getAttribute("href"),"/welcome");assert.equal(welcome.getAttribute("target"),"_blank");
+  const welcome=screen.getByRole("link",{name:"Home — Welcome",exact:true});
+  assert.equal(welcome.getAttribute("href"),"/welcome");assert.equal(welcome.getAttribute("target"),null);
+  assert.equal(welcome.textContent,"");assert(welcome.querySelector("svg"));
   fireEvent.click(screen.getByRole("button",{name:"Connect Wallet"}));assert.equal(connected,1);
 });
 

@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
-.header-welcome-link { display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:8px 10px;border:1px solid #3dffc82b;border-radius:12px;background:#3dffc808;color:#b6dfd3;font-size:11px;font-weight:650;white-space:nowrap; }
-.header-welcome-link:hover { color:#3dffc8;background:#3dffc816; }
-.header-welcome-link:focus-visible { outline:2px solid #3dffc8;outline-offset:3px; }
+.header-home-link { display:inline-flex;align-items:center;justify-content:center;width:44px;height:44px;flex-shrink:0;border-radius:12px;color:#b6dfd3; }
+.header-home-link:hover { color:#3dffc8;background:#3dffc816; }
+.header-home-link:focus-visible { outline:2px solid #3dffc8;outline-offset:3px; }
 .header-brand-group { flex-shrink:0; }
 .header-brand-group > a:first-child { flex-shrink:0; }
 .header-brand-group > a:first-child .font-display { white-space:nowrap; }

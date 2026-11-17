@@ -12,7 +12,8 @@
 .mobile-profile-page,
 .mobile-profile-guest,
 .mobile-information-screen,
-.mobile-game-notification { display: none; }
+.mobile-game-notification,
+.mobile-welcome-back { display: none; }
 .heads-app [data-mobile-panel][hidden],
 .heads-app > .app-main[hidden],
 .heads-app .mobile-profile-page[hidden],
@@ -34,9 +35,10 @@
   .heads-app .header-brand-group { width:100%;justify-content:space-between;gap:8px; }
   .heads-app .header-brand-group > a:first-child { gap:8px; }
   .heads-app .header-brand-group > a:first-child .font-display { font-size:20px;letter-spacing:0; }
-  .heads-app .header-welcome-link { padding-inline:8px;font-size:10px; }
+  .heads-app .header-home-link { display:none; }
+  .heads-app .mobile-welcome-back { display:inline-flex; }
   .heads-app .header-controls { gap:6px; }
-  .heads-app[data-mobile-tab="play"]:not([data-mobile-info]) .header-social-links { display:flex;margin-right:auto;gap:0;padding:0 2px;border:1px solid #3dffc824;border-radius:13px;background:linear-gradient(115deg,#3dffc80a,#ff7ebd07); }
+  .heads-app[data-mobile-tab="play"]:not([data-mobile-info]) .header-social-links { display:flex;margin-right:auto;gap:0;padding:0 2px;border:0;border-radius:0;background:none; }
   .heads-app .header-social-links > a { display:inline-flex;min-width:30px;width:30px;min-height:44px;color:#c2d5d8; }
   .heads-app .header-social-links > a:hover { color:#3dffc8;background:#3dffc80d; }
   .heads-app .header-earn-entry { position:relative;width:40px;min-width:40px;padding-inline:0;gap:0; }

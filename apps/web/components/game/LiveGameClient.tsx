@@ -2344,6 +2344,10 @@ export function LiveGameClient() {
               </button>
             )}
           </div>
+          {mobileNav.mobile && !mobileProgress && <a href="/welcome" aria-label="Back to Welcome" title="Welcome"
+            className="mobile-welcome-back h-11 w-11 items-center justify-center self-start rounded-xl border border-white/15 text-white transition hover:bg-white/10">
+            <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
+          </a>}
           <div className="mobile-game-progress">
           {mobileNav.mobile && canGoBack && <button type="button" onClick={handleBackToSides} aria-label="Back to sides" title="Back"
             className="inline-flex h-11 w-11 items-center justify-center self-start rounded-xl border border-white/15 text-white transition hover:bg-white/10">

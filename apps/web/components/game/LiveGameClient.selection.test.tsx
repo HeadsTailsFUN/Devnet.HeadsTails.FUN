@@ -551,13 +551,16 @@ describe("video scenario: selection survives background refresh", () => {
     fireEvent.click(screen.getByRole("button",{name:"Choose room, $10 selected"}));fireEvent.click(within(screen.getByRole("group",{name:"Choose a room"})).getByRole("button",{name:"$1"}));
     const game=()=>within(screen.getByRole("region",{name:"Flip game"}));
     const heads=await game().findByRole("button",{name:"HEADS"});await waitFor(()=>assert.equal((heads as HTMLButtonElement).disabled,false));
+    const welcome=screen.getByRole("link",{name:"Back to Welcome"});assert.equal(welcome.getAttribute("href"),"/welcome");
     fireEvent.click(heads);
+    assert.equal(screen.queryByRole("link",{name:"Back to Welcome"}),null);
     const progress=within(screen.getByRole("region",{name:"Game status"}));
     assert.equal(progress.queryByRole("button",{name:"Confirm"}),null,"Picking a side cannot stake before connection");
     fireEvent.click(progress.getByRole("button",{name:"Connect Wallet"}));fireEvent.click(await screen.findByText("TestWallet",{},{timeout:10000}));
     await screen.findByRole("heading",{name:"You Selected HEADS"});
     fireEvent.click(screen.getByRole("button",{name:"Back to sides"}));
     assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-mobile-progress'),'false');
+    assert(screen.getByRole("link",{name:"Back to Welcome"}));
     fireEvent.click(game().getByRole("button",{name:"TAILS"}));
     await screen.findByRole("heading",{name:"You Selected TAILS"});
     fireEvent.click(screen.getByRole("button",{name:"Back to sides"}));
@@ -571,6 +574,7 @@ describe("video scenario: selection survives background refresh", () => {
     await waitFor(()=>assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-game-state'),'queued-heads'),{timeout:16000});
     const chooser=screen.getByRole("button",{name:"Choose room, $1 selected"}) as HTMLButtonElement;assert.equal(chooser.disabled,true);
     assert.equal(screen.queryByRole("button",{name:"Back to sides"}),null);
+    assert.equal(screen.queryByRole("link",{name:"Back to Welcome"}),null);
     for(const tab of ["social","flips","profile"]){fireEvent.click(nav().getByRole("button",{name:tab}));assert(screen.getByRole("button",{name:"Queued · View game"}));}
     fireEvent.click(nav().getByRole("button",{name:"social"}));assert.equal((screen.getByRole("textbox",{name:"Chat message"}) as HTMLTextAreaElement).value,"Local unsent draft");
     fireEvent.click(nav().getByRole("button",{name:"play"}));assert(screen.getByRole("heading",{name:"You Selected HEADS"}));
