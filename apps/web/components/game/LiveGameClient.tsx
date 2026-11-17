@@ -2296,6 +2296,19 @@ export function LiveGameClient() {
             gameplay UX. Sponsorship (APIs, caps, ledger, gates,
             reimbursement) continues internally; transient action detail
             uses neutral copy ("Preparing network fee…"). */}
+          <div className="mobile-play-navigation">
+            <MobileRoomSelector tier={selectedTier} locked={roomLocked} liveTiers={liveTiers} onSelect={tier=>{
+              if(!revealedRoundRef.current && canChangeMobileRoom(stateRef.current,busyRef.current,hasPositionRef.current,settlePendingRef.current))handleSelectTier(tier);
+            }}/>
+          {mobileNav.mobile && !mobileProgress && <a href="/welcome" aria-label="Back to Welcome" title="Welcome"
+            className="mobile-welcome-back h-11 w-11 items-center justify-center self-start rounded-xl border border-white/15 text-white transition hover:bg-white/10">
+            <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
+          </a>}
+          {mobileNav.mobile && canGoBack && <button type="button" onClick={handleBackToSides} aria-label="Back to sides" title="Back"
+            className="inline-flex h-11 w-11 items-center justify-center self-start rounded-xl border border-white/15 text-white transition hover:bg-white/10">
+            <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
+          </button>}
+          </div>
           <GameHero
             state={visualState}
             selectedSide={selectedSide}
@@ -2312,9 +2325,6 @@ export function LiveGameClient() {
             flipRoundId={activeMatchId}
             flipRevealAtMs={flipRevealAtMs}
             allowDisconnectedPick={mobileNav.mobile}
-            roomSelector={<MobileRoomSelector tier={selectedTier} locked={roomLocked} liveTiers={liveTiers} onSelect={tier=>{
-              if(!revealedRoundRef.current && canChangeMobileRoom(stateRef.current,busyRef.current,hasPositionRef.current,settlePendingRef.current))handleSelectTier(tier);
-            }}/>}
           />
           {site.announcementText && (
             <p
@@ -2344,15 +2354,7 @@ export function LiveGameClient() {
               </button>
             )}
           </div>
-          {mobileNav.mobile && !mobileProgress && <a href="/welcome" aria-label="Back to Welcome" title="Welcome"
-            className="mobile-welcome-back h-11 w-11 items-center justify-center self-start rounded-xl border border-white/15 text-white transition hover:bg-white/10">
-            <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
-          </a>}
           <div className="mobile-game-progress">
-          {mobileNav.mobile && canGoBack && <button type="button" onClick={handleBackToSides} aria-label="Back to sides" title="Back"
-            className="inline-flex h-11 w-11 items-center justify-center self-start rounded-xl border border-white/15 text-white transition hover:bg-white/10">
-            <svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m12 5-7 7 7 7M5 12h14"/></svg>
-          </button>}
           <TransactionStatus
             state={visualState}
             needsVerification={Boolean(address && sessionWallet !== address)}

@@ -552,12 +552,15 @@ describe("video scenario: selection survives background refresh", () => {
     const game=()=>within(screen.getByRole("region",{name:"Flip game"}));
     const heads=await game().findByRole("button",{name:"HEADS"});await waitFor(()=>assert.equal((heads as HTMLButtonElement).disabled,false));
     const welcome=screen.getByRole("link",{name:"Back to Welcome"});assert.equal(welcome.getAttribute("href"),"/welcome");
+    const topNavigation=welcome.parentElement;assert(topNavigation?.classList.contains("mobile-play-navigation"));
+    assert(topNavigation.compareDocumentPosition(screen.getByRole("region",{name:"Flip game"})) & Node.DOCUMENT_POSITION_FOLLOWING);
     fireEvent.click(heads);
     assert.equal(screen.queryByRole("link",{name:"Back to Welcome"}),null);
     const progress=within(screen.getByRole("region",{name:"Game status"}));
     assert.equal(progress.queryByRole("button",{name:"Confirm"}),null,"Picking a side cannot stake before connection");
     fireEvent.click(progress.getByRole("button",{name:"Connect Wallet"}));fireEvent.click(await screen.findByText("TestWallet",{},{timeout:10000}));
     await screen.findByRole("heading",{name:"You Selected HEADS"});
+    assert.equal(screen.getByRole("button",{name:"Back to sides"}).parentElement,topNavigation);
     fireEvent.click(screen.getByRole("button",{name:"Back to sides"}));
     assert.equal(view.container.querySelector('.heads-app')?.getAttribute('data-mobile-progress'),'false');
     assert(screen.getByRole("link",{name:"Back to Welcome"}));

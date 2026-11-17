@@ -37,7 +37,7 @@ export function AppHeader({
   onProfileClick?: () => void;
 }) {
   return (
-    <header className="safe-top relative z-20 mx-auto flex w-full min-w-0 max-w-[1440px] flex-wrap items-center justify-between gap-3 overflow-x-clip px-4 pt-5 sm:flex-nowrap sm:gap-4 sm:px-6">
+    <header className="safe-top relative z-20 mx-auto flex w-full min-w-0 max-w-[1440px] flex-wrap items-center justify-between gap-3 overflow-x-clip px-4 pt-5 lg:flex-nowrap sm:gap-4 sm:px-6">
       <span className="header-brand-group flex min-w-0 items-center gap-3">
         <LogoLockup />
         <a className="header-home-link" href="/welcome" aria-label="Home — Welcome" title="Welcome"><svg aria-hidden="true" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="m3 10 9-7 9 7M5 9v12h14V9M9 21v-8h6v8"/></svg></a>
@@ -58,13 +58,13 @@ export function AppHeader({
         <span>For the Degens</span>
         <HeartIcon className="h-3.5 w-3.5 text-[var(--heads)]" />
       </p>
-      <span role="group" aria-label="Wallet and rewards" className="header-controls order-2 flex w-full min-w-0 items-center justify-end gap-1.5 sm:ml-auto sm:w-auto sm:gap-2">
+      <span role="group" aria-label="Wallet and rewards" className="header-controls order-2 flex w-full min-w-0 items-center justify-end gap-1.5 lg:ml-auto lg:w-auto sm:gap-2">
         <span className="hidden sm:inline-flex sm:items-center sm:gap-2">
           {faucet}
         </span>
         <nav
           aria-label="Social links"
-          className="header-social-links mr-auto hidden shrink-0 items-center gap-0.5 sm:mr-0 lg:flex lg:gap-1"
+          className="header-social-links mr-auto flex shrink-0 items-center gap-0.5 sm:mr-0 lg:gap-1"
         >
           <a
             href={SOCIAL_LINKS.x}
@@ -98,7 +98,7 @@ export function AppHeader({
             target="_blank"
             rel="noopener noreferrer"
             aria-label="GitHub"
-            className="hidden min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white sm:inline-flex"
+            className="inline-flex min-h-[44px] min-w-[36px] items-center justify-center rounded-xl text-white/60 transition hover:text-white"
           >
             <GitHubIcon className="h-4 w-4" />
           </a>
