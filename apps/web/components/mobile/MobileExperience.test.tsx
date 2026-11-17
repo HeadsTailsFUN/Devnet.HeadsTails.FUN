@@ -99,7 +99,7 @@ test("Profile page reuses every profile section and keeps the footer after its c
   assert.equal(screen.queryByRole("dialog",{name:"Profile"}),null);
   fireEvent.click(within(profile).getByRole("button",{name:"Back to previous page"}));assert.equal(back,1);assert.equal(closed,0);
   fireEvent.click(within(profile).getByRole("button",{name:"Back to Play"}));assert.equal(closed,1);
-  assert.deepEqual(within(profile).getAllByRole("tab").map(e=>e.textContent),["Profile","Referrals","Report Bug"]);
+  assert.deepEqual(within(profile).getAllByRole("tab").map(e=>e.textContent),["Profile","Report Bug"]);
   assert.equal(!!within(profile).queryByRole("tab",{name:"Airdrop"}),false);
   for(const name of ["Change avatar","Copy address","TEAM HEADS","TEAM TAILS","Save","Disconnect wallet","Back to Play"])assert(within(profile).getByRole("button",{name}));
   assert.equal(within(profile).queryByRole("button",{name:"Choose Later"}),null);

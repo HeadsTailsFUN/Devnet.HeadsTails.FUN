@@ -12,7 +12,7 @@ import { useRewardResource as useAuthedFetch } from "@/lib/airdrop/useRewardReso
 import { XQuests } from "@/components/earn/XQuests";
 import { EarnPointsLink } from "@/components/earn/EarnPointsLink";
 
-type Tab = "profile" | "referrals" | "bug";
+type Tab = "profile" | "bug";
 
 export function ProfileBackButton({onBack}:{onBack:()=>void}) {
   return <button type="button" onClick={onBack} aria-label="Back to previous page" className="mb-3 inline-flex h-11 w-11 shrink-0 items-center justify-center self-start rounded-xl border border-white/15 text-white transition hover:bg-white/10">
@@ -246,7 +246,7 @@ export function ProfileModal({
           aria-label="Profile sections"
           className="mt-3 flex gap-1.5 overflow-x-auto"
         >
-          {(["profile", "referrals", "bug"] as Tab[]).map((t) => (
+          {(["profile", "bug"] as Tab[]).map((t) => (
             <button
               key={t}
               role="tab"
@@ -259,11 +259,7 @@ export function ProfileModal({
                   : "border border-white/15 text-white hover:bg-white/10"
               }`}
             >
-              {t === "profile"
-                ? "Profile"
-                : t === "referrals"
-                  ? "Referrals"
-                  : "Report Bug"}
+              {t === "profile" ? "Profile" : "Report Bug"}
             </button>
           ))}
         </div>
@@ -374,9 +370,6 @@ export function ProfileModal({
                 Disconnect wallet
               </button>
             </div>
-          )}
-          {tab === "referrals" && (
-            <ReferralsTab wallet={wallet} account={account} />
           )}
           {tab === "bug" && <BugTab wallet={wallet} account={account} />}
         </div>
